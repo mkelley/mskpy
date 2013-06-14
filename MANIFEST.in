@@ -1,0 +1,4 @@
+include NEWS
+include COPYING.txt
+include gpl.txt
+recursive-include mskpy/data *.txt *.dat *.tbl
