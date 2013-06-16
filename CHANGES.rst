@@ -1,4 +1,27 @@
 2.0.0 (unreleased)
 ------------------
 
-- Nothing yet.
+New Features
+^^^^^^^^^^^^
+
+- Many functions are now `astropy` `Quantity` aware.  Notably,
+  `util.Planck`.
+
+Changes From mskpy v1.7.0
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- `math` renamed `util` and sorted.
+
+  - `archav` and `Planck` return Quantities!
+
+  - `nanmedian` now considers `inf` as a real value.
+
+  - `numalpha` renamed `cmp_numalpha`.
+
+  - `dminmax` renamed `mean2minmax`.
+
+  - `numalpha` renamed `cmp_numalpha`.
+
+  - `powerlaw` renamed `randpl`.
+
+  - `pcurve` renamed `polcurve`
