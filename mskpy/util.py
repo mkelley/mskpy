@@ -1397,7 +1397,7 @@ def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
             B *= c2 / T.to(u.K)**2 / wave.si * a / (a - 1.0)
             unit /= u.K
 
-    equiv = u.equivalencies.spectral_density(u.m, wave.si)
+    equiv = u.spectral_density(wave.unit, wave.value)
     B = B.to(unit, equivalencies=equiv)
 
     # restore seterr
