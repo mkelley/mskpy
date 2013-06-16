@@ -4,8 +4,8 @@
 New Features
 ^^^^^^^^^^^^
 
-- Many functions are now `astropy` `Quantity` aware.  Notably,
-  `util.Planck`.
+- Many functions are now `astropy` `Quantity` aware.  E.g.,
+  `util.Planck`, `calib.solar_flux`, `calib.cohen_standard`.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -25,3 +25,12 @@ Changes From mskpy v1.7.0
   - `powerlaw` renamed `randpl`.
 
   - `pcurve` renamed `polcurve`
+
+- `calib`
+
+  - `cohenstandard` renamed `cohen_standard`.
+
+  - `filtertrans` renamed `filter_trans`
+
+  - `solarflux` renamed `solar_flux`
+
