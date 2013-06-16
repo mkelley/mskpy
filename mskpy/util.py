@@ -1358,7 +1358,7 @@ def deresolve(func, wave, flux, err=None):
 
     return fluxout
 
-def Planck(wave, T, unit=u.MJy / u.sr, deriv=None):
+def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
     """The Planck function.
 
     Parameters
