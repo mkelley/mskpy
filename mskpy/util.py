@@ -6,14 +6,8 @@ util --- Short and sweet functions, generic algorithms
 .. autosummary::
    :toctree: generated/
 
-   Classes
-   -------
-
-   LongLat
-
    Mathmatical
    -----------
-
    archav
    cartesian
    davint
@@ -25,7 +19,6 @@ util --- Short and sweet functions, generic algorithms
 
    Searching, sorting
    ------------------
-
    between
    cmp_numalpha
    groupby
@@ -34,7 +27,6 @@ util --- Short and sweet functions, generic algorithms
 
    Statistics
    ----------
-
    kuiper
    kuiperprob
    mean2minmax
@@ -48,7 +40,6 @@ util --- Short and sweet functions, generic algorithms
 
    "Special" functions
    -------------------
-
    bandpass
    deresolve
    Planck
@@ -56,9 +47,21 @@ util --- Short and sweet functions, generic algorithms
    pcurve
    savitzky_golay
 
+   Time
+   ----
+   dh2hms
+   doy2md
+   hms2dh
+   jd2doy
+   jd2dt
+   jd2s
+   jd2time
+   s2doy
+   s2dt
+   s2jd
+
    Variable manipulation
    ---------------------
-
    asAngle
    asQuantity
 
@@ -108,6 +111,18 @@ __all__ = [
     'redden',
     'polcurve',
     'savitzky_golay',
+
+    'dh2hms',
+    'doy2md',
+    'hms2dh',
+    'jd2doy',
+    'jd2dt',
+    'jd2s',
+    'jd2time',
+    's2doy'
+    's2dt',
+    's2jd',
+    's2time',
 
     'asAngle'
     'asQuantity'
@@ -1549,6 +1564,115 @@ def savitzky_golay(x, kernel=11, order=4):
         smooth_data.append(value)
 
     return np.array(smooth_data)
+
+def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
+    """Decimal hours as HH:MM:SS.SSS, or similar.
+
+    Will work for degrees, too.
+
+    Parameters
+    ----------
+    dh : float
+    format : string, optional
+      Use this format, e.g., for [+/-]HH:MM, use "{:+02d}:{:02d}".
+
+    Returns
+    -------
+    hms : string
+
+    """
+
+    sign = -1 if dh < 0 else 1
+    dh = abs(dh)
+    hh = int(dh)
+    mm = int((dh - hh) * 60.0)
+    ss = int(((dh - hh) * 60.0 - mm) * 60.0)
+    ms = int(round((((dh - hh) * 60.0 - mm) * 60.0 - ss) * 1000.0))
+    if ms >= 1000:
+        ms -= 1000
+        ss += 1
+    if ss >= 60:
+        ss -= 60
+        mm += 1
+    if mm >= 60:
+        mm -= 60
+        hh += 1
+    return format.format(sign * hh, mm, ss, ms)
+
+def doy2md(doy, year):
+    """Day of year in MM-DD format.
+
+    Parameters
+    ----------
+    doy : int or array
+      Day(s) of year.
+    year : int
+      The year in question.
+
+    Returns
+    -------
+    md : string or list
+      MM-DD for each `doy`.
+
+    """
+
+    jd0 = s2jd('{0}-12-31'.format(year - 1))
+    if isinstance(doy, (tuple, list, numpy.ndarray)):
+        md = []
+        for i in range(len(doy)):
+            md.append(jd2dt(jd0 + doy[i]).strftime('%m-%d'))
+    else:
+        md = jd2dt(jd0 + doy).strftime('%m-%d')
+    return md
+
+def hms2dh(hms):
+    """HH:MM:SS to decimal hours.
+
+    This function may also be used to format degrees.
+
+    Parameters
+    ----------
+    hms : string or array
+      A string of the form "HH:MM:SS" (: may be any non-digit except
+      ., +, or -).  Alternatively, `hms` may take the form [hh, mm,
+      ss].  If any element is < 0, then the result will be < 0.
+      Caution: The numeric value -0 is not < 0, but this function will
+      treat the string value "-0" as < 0.
+
+    Returns
+    -------
+    dh : float or list
+      Decimal hours.
+
+    """
+    if (isinstance(hms, [list, tuple, np.ndarray])
+        and isinstance(hms[0], [list, tuple, np.ndarray, str])):
+        return [hms2dh(x) for x in hms]
+
+    def a2space(c):
+        if c.isdigit() or c in ['.', '+', '-']:
+            return c
+        else:
+            return " "
+
+    if isinstance(hms, str):
+        s = -1 if hms.find('-') >= 0 else 1
+        hms = ''.join(map(a2space, hms)).split()
+        hms = s * np.array(hms, dtype=float)
+    else:
+        hms = np.array(hms, dtype=float)
+
+    if len(hms) > 3:
+        raise ValueError("hms has more than 3 parts.")
+
+    # If any value is < 0, the final result should be < 0
+    s = -1 if (np.sign(hms) < 0).any() else 1
+    hms = np.abs(hms)
+
+    dh = hms[0]
+    if len(hms) > 1: dh += hms[1] / 60.0
+    if len(hms) > 2: dh += hms[2] / 3600.0
+    return s * dh
 
 def asAngle(x, unit=None):
     """Make `x` an astropy `Angle`.

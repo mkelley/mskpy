@@ -37,3 +37,19 @@ Changes From mskpy v1.7.0
   - `solarflux` renamed `solar_flux`
 
 - `spice` renamed `ephem` and many functions removed.
+
+- `time` functions moved into `util`.
+
+  - `date2X` removed.
+
+  - `dms2dd` renamed `hms2dh`.  Accepts `format`.
+
+  - `doy2md` now requires year.
+
+  ` New `s2doy`.
+
+Bug fixes
+^^^^^^^^^
+
+- `hms2dh` checks for rounding errors (e.g., 1000 ms, should be 1 s
+  and 0 ms).

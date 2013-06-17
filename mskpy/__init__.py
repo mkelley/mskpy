@@ -5,8 +5,8 @@ mskpy --- MSK's personal library for astronomy and stuff
 ========================================================
 """
 
-for module in 'calib util'.split():
-    eval('import ' + module)
+import calib
+import util
 
 try:
     import ephem
