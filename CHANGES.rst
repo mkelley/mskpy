@@ -5,7 +5,9 @@ New Features
 ^^^^^^^^^^^^
 
 - Many functions are now `astropy` `Quantity` aware.  E.g.,
-  `util.Planck`, `calib.solar_flux`, `calib.cohen_standard`.
+  `util.Planck`, `calib.solar_flux`.
+
+- `ephem.MovingObject` for your ephemeris needs.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,3 +36,4 @@ Changes From mskpy v1.7.0
 
   - `solarflux` renamed `solar_flux`
 
+- `spice` renamed `ephem` and many functions removed.

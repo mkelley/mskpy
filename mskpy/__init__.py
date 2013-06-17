@@ -5,4 +5,10 @@ mskpy --- MSK's personal library for astronomy and stuff
 ========================================================
 """
 
-import util
+for module in 'calib util'.split():
+    eval('import ' + module)
+
+try:
+    import ephem
+except ImportError:
+    pass
