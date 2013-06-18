@@ -84,7 +84,7 @@ def find_kernel(obj):
 #    """
 # need a working spice.spkobj
 
-def getxyz():
+def getxyz(obj, date=None):
     """Coordinates and velocity from an ephemeris kernel.
 
     Coordinates are heliocentric rectangular ecliptic.
@@ -94,9 +94,9 @@ def getxyz():
     obj : string or int
       The object's name or NAIF ID, as found in the relevant SPICE
       kernel.
-    date : string, astropy Time, or datetime, optional
-      Strings are assumed to be UTC: YYYY-MM-DD HH:MM:SS.SSS, only
-      YYYY is required, e.g., try '2013', or '2013-06-17'.
+    date : string, float, astropy Time, datetime, or array, optional
+      Strings are parsed with `util.cal2iso`.  Floats are assumed to
+      be Julian dates.
     kernel : string, optional
       The name of a specific SPICE planetary ephemeris kernel (SPK) to
       use for this object, or None to automatically search for a
@@ -104,6 +104,30 @@ def getxyz():
 
     Returns
     -------
+
+    r, v: Quantity
+      The position and veloctiy vectors.
     
     """
-    pass
+
+    from datetime import datetime
+    from astropy.time import Time
+    from util import cal2time
+
+    if date is None:
+        date = datetime.now()
+    elif isinstance(date, float):
+        jd = date
+    elif isinstance(date, string):
+        jd = cal2time(date).jd
+    elif isinstance(date, datetime):
+        jd = Time(date).jd
+    elif isinstance(date, (list, tuple, np.ndarray)):
+        rv = [getxyz(obj, t, kernel=kernel) for t in date]
+        stop
+    else:
+        raise ValueError("Invalid date: {}".format(date))
+
+    et = jd2et(jd)
+
+    
