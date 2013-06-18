@@ -9,6 +9,12 @@ New Features
 
 - `ephem.MovingObject` for your ephemeris needs.
 
+- New time functions:
+
+  - `cal2iso` to ISO format your lazy calendar dates.
+
+  - `cal2doy` and `jd2doy` for time to day of year conversions.
+
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -40,7 +46,9 @@ Changes From mskpy v1.7.0
 
 - `time` functions moved into `util`.
 
-  - `date2X` removed.
+  - `date2X`, `jd2dt`, `s2dt`, `s2jd` removed in favor of `cal2time`.
+
+  - `jd2dt` removed in favor of `jd2time`.
 
   - `dms2dd` renamed `hms2dh`.  Accepts `format`.
 

@@ -49,16 +49,14 @@ util --- Short and sweet functions, generic algorithms
 
    Time
    ----
+   cal2doy
+   cal2iso
+   cal2time
    dh2hms
    doy2md
    hms2dh
    jd2doy
-   jd2dt
-   jd2s
    jd2time
-   s2doy
-   s2dt
-   s2jd
 
    Variable manipulation
    ---------------------
@@ -112,17 +110,14 @@ __all__ = [
     'polcurve',
     'savitzky_golay',
 
+    'cal2doy',
+    'cal2iso',
+    'cal2time',
     'dh2hms',
     'doy2md',
     'hms2dh',
     'jd2doy',
-    'jd2dt',
-    'jd2s',
     'jd2time',
-    's2doy'
-    's2dt',
-    's2jd',
-    's2time',
 
     'asAngle'
     'asQuantity'
@@ -1565,6 +1560,100 @@ def savitzky_golay(x, kernel=11, order=4):
 
     return np.array(smooth_data)
 
+def cal2doy(cal, scale='utc'):
+    """Calendar date to day of year.
+
+    Parameters
+    ----------
+    cal : string or array
+      Calendar date.  See `cal2iso` for details.
+    scale : string, optional
+      See `astropy.time.Time`.
+
+    Returns
+    -------
+    doy : astropy Time
+      Day of year.
+
+    """
+    from astropy.time import Time
+    t = cal2time(cal, scale=scale)
+    if len(t) > 1:
+        return [int(x.yday.split(':')[1]) for x in t]
+    else:
+        return int(t.yday.split(':')[1])
+
+def cal2iso(cal):
+    """Calendar date to ISO format.
+
+    Parameters
+    ----------
+    cal : string or array
+      Calendar date.  Format: YYYY-MM-DD HH:MM:SS.SSS.  May be
+      shortened, for example, to YYYY or YYYY-MM.  DD == 0 is not
+      allowed and is forced to 1.  MM may be a three character
+      abbreviation.  Fractional values are allowed for days and
+      smaller units.
+
+    Returns
+    -------
+    iso : string or list
+      `cal`, ISO formatted.
+
+    """
+
+    from datetime import datetime, timedelta
+
+    if isinstance(cal, (list, tuple, np.ndarray)):
+        return [cal2iso(x) for x in cal]
+
+    # mapping function to remove nondigits from the date string
+    def a2space(c):
+        return c if (c.isdigit() or c == ".") else " "
+
+    # if the month is an abbreviation, replace it with a number
+    cal = cal.lower()
+    cal = cal.replace('jan', '01')
+    cal = cal.replace('feb', '02')
+    cal = cal.replace('mar', '03')
+    cal = cal.replace('apr', '04')
+    cal = cal.replace('may', '05')
+    cal = cal.replace('jun', '06')
+    cal = cal.replace('jul', '07')
+    cal = cal.replace('aug', '08')
+    cal = cal.replace('sep', '09')
+    cal = cal.replace('oct', '10')
+    cal = cal.replace('nov', '11')
+    cal = cal.replace('dec', '12')
+
+    d = (''.join(map(a2space, cal))).split(" ")
+    d = d[:6] # truncate at seconds
+    d = [float(t) for t in d] + [0] * (6 - len(d))
+    if d[2] == 0.0:
+        d = d[:2] + [1.0] + d[3:]
+    dt = timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
+    d = datetime(int(d[0]), int(d[1]), 1) + dt
+    return d.isoformat()
+
+def cal2time(cal, scale='utc'):
+    """Calendar date to astropy `Time`.
+
+    Parameters
+    ----------
+    cal : string or array
+      Calendar date.  See `cal2iso` for details.
+    scale : string, optional
+      See `astropy.time.Time`.
+
+    Returns
+    -------
+    doy : int or list
+      Day of year.
+
+    """
+    from astropy.time import Time
+    return Time(cal2iso(cal), format='isot', scale=scale)
+
 def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
 
@@ -1673,6 +1762,54 @@ def hms2dh(hms):
     if len(hms) > 1: dh += hms[1] / 60.0
     if len(hms) > 2: dh += hms[2] / 3600.0
     return s * dh
+
+def jd2doy(jd, jd2=None, scale='utc'):
+    """Julian date to day of year.
+
+    Parameters
+    ----------
+    jd : float or array
+      Julian date.
+    jd2 : float or array, optional
+      Second part of `jd`, to preserve precision, if needed.  Must
+      have the same number of elements as `jd`.
+    scale : string, optional
+      See `astropy.time.Time`.
+
+    Returns
+    -------
+    doy : int or list
+      Day of year.
+
+    """
+    from astropy.time import Time
+    t = Time(jd, val2=jd2, format='jd', scale=scale)
+    if len(t) > 1:
+        return [int(x.yday.split(':')[1]) for x in t]
+    else:
+        return int(t.yday.split(':')[1])
+
+def jd2time(jd, jd2=None, scale='utc'):
+    """Julian date to astropy `Time`.
+
+    Parameters
+    ----------
+    jd : float or array
+      Julian date.
+    jd2 : float or array, optional
+      Second part of `jd`, to preserve precision, if needed.  Must
+      have the same number of elements as `jd`.
+    scale : string, optional
+      See `astropy.time.Time`.
+
+    Returns
+    -------
+    doy : astropy Time
+      Day of year.
+
+    """
+    from astropy.time import Time
+    return Time(jd, val2=jd2, format='jd', scale=scale)
 
 def asAngle(x, unit=None):
     """Make `x` an astropy `Angle`.
