@@ -1629,6 +1629,8 @@ def cal2iso(cal):
     d = (''.join(map(a2space, cal))).split(" ")
     d = d[:6] # truncate at seconds
     d = [float(t) for t in d] + [0] * (6 - len(d))
+    if d[1] == 0.0:
+        d = d[:1] + [1.0] + d[2:]
     if d[2] == 0.0:
         d = d[:2] + [1.0] + d[3:]
     dt = timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
