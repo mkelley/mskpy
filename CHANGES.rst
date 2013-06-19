@@ -7,13 +7,16 @@ New Features
 - Many functions are now `astropy` `Quantity` aware.  E.g.,
   `util.Planck`, `calib.solar_flux`.
 
-- `ephem.MovingObject` for your ephemeris needs.
+- `ephem.SpiceObject` for your SPICE ephemeris needs.
 
 - New time functions:
 
   - `cal2iso` to ISO format your lazy calendar dates.
 
   - `cal2doy` and `jd2doy` for time to day of year conversions.
+
+  - `cal2et`, `date2et`, `time2et`, and `date2time` helper functions
+    within `ephem`.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -34,6 +37,8 @@ Changes From mskpy v1.7.0
 
   - `pcurve` renamed `polcurve`
 
+  - `ec2eq` moved to `ephem`.
+
 - `calib`
 
   - `cohenstandard` renamed `cohen_standard`.
@@ -43,6 +48,8 @@ Changes From mskpy v1.7.0
   - `solarflux` renamed `solar_flux`
 
 - `spice` renamed `ephem` and many functions removed.
+
+- `Geom` and `getgeom` moved from `observing` to `ephem`.
 
 - `time` functions moved into `util`.
 
@@ -54,7 +61,7 @@ Changes From mskpy v1.7.0
 
   - `doy2md` now requires year.
 
-  ` New `s2doy`.
+  - New `s2doy`.
 
 Bug fixes
 ^^^^^^^^^
