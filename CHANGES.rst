@@ -21,7 +21,7 @@ New Features
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-- `math` renamed `util` and sorted.
+- `math` renamed `util` and sorted:
 
   - `archav` and `Planck` return Quantities!
 
@@ -39,7 +39,7 @@ Changes From mskpy v1.7.0
 
   - `ec2eq` moved to `ephem`.
 
-- `calib`
+- `calib`:
 
   - `cohenstandard` renamed `cohen_standard`.
 
@@ -47,21 +47,28 @@ Changes From mskpy v1.7.0
 
   - `solarflux` renamed `solar_flux`
 
-- `spice` renamed `ephem` and many functions removed.
+- `spice` renamed `ephem`:
 
-- `Geom` and `getgeom` moved from `observing` to `ephem`.
+  - Removed `get_observer_xyz`, `get_planet_xyz`, `get_spitzer_xyz`,
+    `get_herschel_xyz`, `get_comet_xyz`.
 
-- `time` functions moved into `util`.
+  - `getgeom` rewritten to use `MovingObject`.
 
-  - `date2X`, `jd2dt`, `s2dt`, `s2jd` removed in favor of `cal2time`.
+  - Most of the `summarizegeom` code incorporated into `Geom`.
+
+- `Geom`, `getgeom`, and `summarizegeom` moved from `observing` to
+  `ephem`.
+
+- `time` functions moved into `util`:
+
+  - `date2X`, `jd2dt`, `s2dt`, `s2jd` removed in favor of `cal2time`,
+    or `jd2time`.
 
   - `jd2dt` removed in favor of `jd2time`.
 
   - `dms2dd` renamed `hms2dh`.  Accepts `format`.
 
   - `doy2md` now requires year.
-
-  - New `s2doy`.
 
 Bug fixes
 ^^^^^^^^^

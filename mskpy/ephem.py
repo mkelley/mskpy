@@ -5,6 +5,13 @@ ephem --- Ephemeris tools
 
 Requres PySPICE.
 
+About dates
+-----------
+
+Most functions accept multiple kinds of dates: calendar strings,
+Julian dates, `Time`, or `datetime`.  If the scale is not defined (as
+it is for `Time` instances), we assume the scale is UTC.
+
 .. autosummary::
    :toctree: generated/
 
@@ -17,7 +24,7 @@ Requres PySPICE.
    Functions
    ---------
    cal2et
-   date2time
+   date2et
    jd2et
    time2et
 
@@ -26,6 +33,23 @@ Requres PySPICE.
    getgeom
    getxyz
    projected_vector_angle
+
+   Built-in MovingObjects
+   ----------------------
+   Sun
+   Mercury
+   Venus
+   Mars
+   Earth
+   Moon
+   Mars
+   Jupiter
+   Saturn
+   Uranus
+   Neptune
+   Pluto
+   Spitzer
+   DeepImpact
 
    Exceptions
    ----------
@@ -39,7 +63,7 @@ __all__ = [
     'SpiceObject',
 
     'cal2et',
-    'date2time',
+    'date2et',
     'jd2et',
     'time2et',
 
@@ -48,6 +72,7 @@ __all__ = [
     'getgeom',
     'getxyz',
     'projected_vector_angle',
+    'summarizegeom',
 
     'Sun',
     'Mercury',
@@ -63,19 +88,14 @@ __all__ = [
 ]
 
 import exceptions
+from datetime import datetime
 
 import numpy as np
-import astropy.units as u
-from astropy.units import Quantity
+from astropy.time import Time
 import spice
 
 _kernel_path = '/home/msk/data/kernels'
 _kernel_setup = False
-
-# planets + Pluto + Sun names to NAIF IDs
-_planets = dict(mercury='199', venus='299', earth='399', mars='499',
-                jupiter='5', saturn='6', uranus='7', neptune='9',
-                pluto='9', sun='10')
 
 class ObjectError(Exception):
     pass
@@ -152,7 +172,7 @@ class Geom(dict):
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = time.s2jd(self[k]) + time.s2jd(other[k])
+                r[k] = self._date2jd(self[k]) + self._date2jd(other[k])
             else:
                 r[k] = self[k] + other[k]
         return r
@@ -163,7 +183,7 @@ class Geom(dict):
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = time.s2jd(self[k]) - time.s2jd(other[k])
+                r[k] = self._date2jd(self[k]) - self._date2jd(other[k])
             else:
                 r[k] = self[k] - other[k]
         return r
@@ -174,7 +194,7 @@ class Geom(dict):
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = time.s2jd(self[k]) * other
+                r[k] = self._date2jd(self[k]) * other
             else:
                 r[k] = self[k] * other
         return r
@@ -185,7 +205,7 @@ class Geom(dict):
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = time.s2jd(self[k]) / other
+                r[k] = self._date2jd(self[k]) / other
             else:
                 r[k] = self[k] / other
         return r
@@ -212,12 +232,87 @@ class Geom(dict):
         r = Geom()
         for k, v in self.items():
             if k == 'date':
-                r[k] = np.mean(time.s2jd(v))
+                r[k] = np.mean(self._date2jd(v))
             elif 'xyz' in k:
-                r[k] = np.mean(v, 0)
+                if np.rank(v) > 1:
+                    r[k] = np.mean(v, 0)
+                else:
+                    r[k] = v
             else:
                 r[k] = np.mean(v)
         return r
+
+    def _date2jd(self, date):
+        if isinstance(date, str):
+            return cal2time(cal2iso(date), scale='utc').jd
+        elif isinstance(date, float):
+            return date
+        elif isinstance(date, Time):
+            return date.jd
+        elif isinstance(date, datetime):
+            return Time(datetime, scale='utc').jd
+        elif isinstance(date, (list, tuple, np.ndarray)):
+            return np.ndarray([self._date2jd(d) for d in date])
+        else:
+            raise ValueError("Invalid date: {}".format(date))
+
+    def summary(self):
+        """Print a pretty summary of the object.
+
+        If `Geom` is an array, then mean values will be printed.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        from astropy.coordinates import Angle
+        import astropy.units as u
+        from util import jd2time
+
+        g = self.mean()
+
+        date, time = jd2time(g['date']).iso.split()
+        time = time.split('.')[0]
+
+        opts = dict(sep=':', precision=1, pad=True)
+        ra = Angle(g['ra'], u.deg).format('hour', **opts)
+        dec = Angle(g['dec'], u.deg).format('deg', alwayssign=True, **opts)
+
+        print ("""
+{:>34s} {:s}
+{:>34s} {:s}
+{:>34s} {:f}
+
+{:>34s} {:8.3f}
+{:>34s} {:8.3f}
+{:>34s} {:+8.3f}
+
+{:>34s} {:8.3f}
+{:>34s} {:8.3f}
+
+{:>34s}  {:}
+{:>34s} {:}
+
+{:>34s} {:8.3f}
+{:>34s} {:8.3f}
+""".format("Date:", date,
+           "Time (UT):", time,
+           "Julian day:", g['date'],
+           "Heliocentric distance (AU):", g['rh'],
+           "Target-Observer distance (AU):", g['delta'],
+           "Sun-Object-Observer angle (deg):", g['phase'],
+           "Sun-Observer-Target angle (deg):", g['selong'],
+           "Moon-Observer-Target angle (deg):", g['lelong'],
+           "RA (hr):", ra,
+           "Dec (deg):", dec,
+           "Projected sun vector (deg):", g['sangle'],
+           "Projected velocity vector (deg):", g['vangle']))
 
 class MovingObject(object):
     """An abstract class for an object moving in space.
@@ -253,7 +348,7 @@ class MovingObject(object):
         date : string, float, astropy Time, datetime, or array
           Strings are parsed with `util.cal2iso`.  Floats are assumed
           to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          are assumed to be UTC.  Use `None` for now.
         ltt : bool, optional
           Account for light travel time when `True`.
 
@@ -264,9 +359,8 @@ class MovingObject(object):
 
         """
 
-        from datetime import datetime
-
-        from astropy.time import Time, TimeDelta
+        import astropy.units as u
+        from astropy.time import TimeDelta
         import astropy.constants as const
 
         from util import cal2time, jd2time
@@ -281,15 +375,17 @@ class MovingObject(object):
             return geom
 
         # reformat date as a Time object
-        if isinstance(date, float):
+        if date is None:
+            date = Time(datetime.now(), scale='utc')
+        elif isinstance(date, float):
             date = jd2time(date)
         elif isinstance(date, str):
             date = cal2time(date)
         elif isinstance(date, datetime):
-            date = Time(date, scale='utc').jd
+            date = Time(date, scale='utc')
 
         rt = target.r(date)  # target postion
-        vt = target.r(date)  # target velocity
+        vt = target.v(date)  # target velocity
         ro = self.r(date)    # observer position
         vo = self.v(date)    # observer velocity
 
@@ -429,6 +525,79 @@ class SpiceObject(MovingObject):
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
         return np.array(state[3:])
 
+class FixedObject(MovingObject):
+    """A fixed point in space.
+
+    Parameters
+    ----------
+    xyz : 3-element array
+      The heliocentric rectangular ecliptic coordinates of the
+      point. [km]
+
+    Methods
+    -------
+    observe : Distance, phase angle, etc. to another object.
+    r : Position vector
+    v : Velocity vector
+
+    Raises
+    ------
+    ValueError if xyz.shape != (3,).
+
+    """
+
+    def __init__(self, xyz):
+        self.xyz = np.array(xyz)
+        if self.xyz.shape != (3,):
+            raise ValueError("xyz must be a 3-element vector.")
+
+    def r(self, date=None):
+        """Position vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array, optional
+          Mosty ignored, since the position is fixed, but if an array,
+          then r will be an array of positions.
+
+        Returns
+        -------
+        r : ndarray
+          Position vector (3-element or Nx3 element array). [km]
+       
+        """
+
+        if (isinstance(date, (list, tuple, np.ndarray))
+            or (isinstance(date, Time) and len(date) > 1)):
+            N = len(date)
+            return np.tile(self.xyz, N).reshape(N, 3)
+        else:
+            return self.xyz
+
+    def v(self, date=None):
+        """Velocity vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array, optional
+          Mosty ignored, since the position is fixed, but if an array,
+          then r will be an array of positions.
+
+        Returns
+        -------
+        v : ndarray
+          Velocity vector (3-element or Nx3 element array). [km/s]
+       
+        """
+
+        if (isinstance(date, (list, tuple, np.ndarray))
+            or (isinstance(date, Time) and len(date) > 1)):
+            shape = (len(date), 3)
+        else:
+            shape = (3,)
+
+        return np.zeros(shape)
+
 def _load_kernel(filename):
     """Load the named kernel into memory.
 
@@ -553,9 +722,6 @@ def date2et(date):
       SPICE ephemeris time.
 
     """
-
-    from datetime import datetime
-    from astropy.time import Time
 
     if date is None:
         date = Time(datetime.now(), scale='utc')
@@ -720,173 +886,57 @@ def find_kernel(obj):
 
     return kernel
 
-#def find_names(kernel):
-#    """Return the names of objects in a planetary ephemeris kernel.
-#
-#    Parameters
-#    ----------
-#    kernel : string
-#      The name of a kernel file.
-#
-#    Returns
-#    -------
-#    names : list
-#      A list of the objects in `kernel`.
-#
-#    """
-# need a working spice.spkobj
+def getgeom(target, observer, date=None, ltt=False, kernel=None):
+    """Moving target geometry parameters for an observer and date.
 
-#def getgeom(target, observer, date=None, ltt=False, kernel=None):
-#    """Moving target geometry parameters for an observer and date.
-#
-#    Parameters
-#    ----------
-#    target : string
-#      A valid target name (see spice.getxyz()).
-#    observer : string or array
-#      A valid observer name or set of heliocentric rectangular
-#      ecliptic J2000 coordinates.
-#    date : string, float or array, optional
-#      The date(s) for which to compute the target's geometry.
-#    ltt : bool, optional
-#      Set to true to correct parameters for light travel time
-#      (currently, only one ltt iteration is implemented).
-#    kernel : string, optional
-#      Use this kernel for the target (see `getxyz`).
-#
-#    Returns
-#    -------
-#    geom : Geom
-#      The geometric parameters of the observation.
-#
-#    Notes
-#    -----
-#      
-#    v1.0.0 Written by Michael S. Kelley, UCF, Jun 2007
-#
-#    v1.0.1 coords.Position is not returning the correct RA and Dec
-#           values; instead, we now use ec2eq(), MSK, 24 Aug
-#           2007
-#
-#    v1.1.0 Added a sign to phase to indicate if the observation is
-#           before or after opposition using the convention described
-#           to me by Thomas Mueller; RA and Dec still not right, so I
-#           am masking their output, MSK, 22 Sep 2008
-#
-#    v1.1.1 Small tweaks while trying to find the RA/Dec issue... there
-#           is no issue.  RA and Dec computed with ec2eq is
-#           good, but comes out with a negative value that confuses
-#           some later step.  RA and Dec output is re-enabled.  MSK,
-#           UMD, 24 Jun 2009
-#
-#    v1.2.0 Renamed as getgeom() from get_comet_astrom(); calls to
-#           get_comet_xyz() renamed to use getxyz(), MSK, 15 Jul 2009
-#
-#    v1.3.0 Added selong and lelong, MSK, 24 Jul 2009
-#
-#    v1.4.0 Allows date to be a list of dates, MSK, 2 Jun 2010
-#
-#    v1.5.0 Now checks to see if the observer is in the supplied
-#           kernel.  MSK, 08 Nov 2011
-#
-#    v1.6.0 Now returns a Geom object.  MSK, 18 Oct 2012.
-#
-#    v1.6.1 Now, really really returns a Geom object.  Adding obsxyz
-#           and tarxyz.  MSK, 1 Feb 2013.
-#    """
-#
-#    if date is not None:
-#        if type(date) in (tuple, list, np.ndarray):
-#            geom = Geom()
-#            for i in range(len(date)):
-#                geom.append(getgeom(target, observer, date=date[i],
-#                                    ltt=ltt, kernel=kernel))
-#            return geom
-#
-#    # get the target's position and velocity
-#    RHt, VHt = spice.getxyz(target, date=date, kernel=kernel)
-#    rht = np.sqrt(sum(RHt**2))
-#    vht = np.sqrt(sum(VHt**2))
-#
-#    # get the observer's position, pass the kernel along in case the
-#    # observer contained within it
-#    RHo = np.array(spice.get_observer_xyz(observer, date, kernel=kernel),
-#                   np.float64)
-#    # return None on error
-#    if RHo is None: return None
-#    rho = np.sqrt(sum(RHo**2))
-#
-#    # target-observer distance and phase angle
-#    delta = np.sqrt(((RHt - RHo)**2).sum())
-#    phase = np.degrees(np.arccos((rht**2 + delta**2 - rho**2) / 
-#                                 2.0 / rht / delta))
-#
-#    # What is the "sign" on phase angle?
-#    # The convention is + for before opposition, and - for after opposition.
-#    # If -r_h is the target-Sun vector, r_to is the target-observer
-#    # vector, and h is the angular momentum then use + for (-r_h X
-#    # r_to) * h > 0, and - if < 0.  h = r_h X v_h
-#    phase *= np.sign((np.cross(-RHt, (RHo - RHt)) *
-#                         np.cross(RHt, VHt)).sum())
-#
-#    # correct for light travel time, if requested
-#    # 1 AU / c = 499.004783806 +/- 0.00000001 s
-#    # c = 173.14463 AU/day
-#    if ltt:
-#        jd = time.date2jd(date) - delta / AU / 173.14463
-#        return getgeom(target, observer, date=jd, kernel=kernel)
-#
-#    # RA, Dec (observer->target J2000)
-#    ROt = RHt - RHo
-#    lambdaOT = np.arctan2(ROt[1], ROt[0]) * 180.0 / pi
-#    betaOT = np.arctan2(ROt[2], np.sqrt(ROt[0]**2 + ROt[1]**2)) * 180.0 / pi
-#
-#    # ecliptic to equatorial
-#    raOT, decOT = ec2eq(lambdaOT, betaOT)
-#
-#    # # project v and r onto the observing plane
-#    # ro = ROt - RHt / rht / 1000.
-#    # vo = ROt + VHt / vht / 1000.
-#    # 
-#    # # find the projected vectors in RA, Dec
-#    # lambdaOR = np.arctan2(ro[1], ro[0]) * 180.0 / pi
-#    # lambdaOV = np.arctan2(vo[1], vo[0]) * 180.0 / pi
-#    # betaOR = np.arctan2(ro[2], np.sqrt(ro[0]*ro[0] + ro[1]*ro[1])) * 180.0 / pi
-#    # betaOV = np.arctan2(vo[2], np.sqrt(vo[0]*vo[0] + vo[1]*vo[1])) * 180.0 / pi
-#    # 
-#    # raOR, decOR = ec2eq(lambdaOR, betaOR)
-#    # raOV, decOV = ec2eq(lambdaOV, betaOV)
-#    # 
-#    # xro = (raOR - raOT) * np.cos(decOR * pi / 180.0) * 3600.0
-#    # xvo = (raOV - raOT) * np.cos(decOV * pi / 180.0) * 3600.0
-#    # yro = (decOR - decOT) * 3600.0
-#    # yvo = (decOV - decOT) * 3600.0
-#    # 
-#    # thOR = np.arctan2(yro, xro) * 180.0 / pi
-#    # thOV = np.arctan2(yvo, xvo) * 180.0 / pi
-#    # 
-#    # sangle = 90.0 - thOR
-#    # vangle = 90.0 - thOV
-#
-#    sangle = projected_vector_angle(-RHt, ROt, raOT, decOT)
-#    vangle = projected_vector_angle(VHt, ROt, raOT, decOT)
-#
-#    # compute the solar and lunar elongations
-#    ROs = -RHo
-#    selong = np.degrees(np.arccos((ROs * ROt).sum() / 
-#                                        np.sqrt((ROs**2).sum()) /
-#                                        np.sqrt((ROt**2).sum())))
-#
-#    RHm = spice.getxyz('301', date=date, kernel='planets.bsp')[0]
-#    ROm = RHm - RHo
-#    lelong = np.degrees(np.arccos((ROm * ROt).sum() / 
-#                                        np.sqrt((ROm**2).sum()) /
-#                                        np.sqrt((ROt**2).sum())))
-#
-#    return Geom({'rh': rht / AU, 'delta': delta / AU, 'phase': phase,
-#                 'ra': raOT, 'dec': decOT, 'sangle': sangle, 'vangle': vangle,
-#                 'selong': selong, 'lelong': lelong, 'date': date,
-#                 'obsxyz': RHo, 'tarxyz': RHt})
+    Parameters
+    ----------
+    target : string, MovingObject
+      The object's name or NAIF ID, as found in the relevant SPICE
+      kernel, or a `MovingObject`.
+    observer : string, array, MovingObject
+      A valid built-in observer name, set of heliocentric rectangular
+      ecliptic J2000 coordinates, or a `MovingObject`.  See the
+      `ephem` package documentation for built-in moving objects that
+      can be used as observers.
+    date : string, float or array, optional
+      The date(s) for which to compute the target's geometry.
+    ltt : bool, optional
+      Set to true to correct parameters for light travel time
+      (currently, only one ltt iteration is implemented).
+    kernel : string, optional
+      If the target is a string, use this kernel.
+
+    Returns
+    -------
+    geom : Geom
+      The geometric parameters of the observation.
+
+    Raises
+    ------
+    ValueError on invalid input.
+
+    """
+
+    global _loaded_objects
+
+    if isinstance(target, str):
+        target = SpiceObject(target, kernel=kernel)
+    elif not isinstance(target, MovingObject):
+        raise ValueError("target must be a string or MovingObject")
+
+    if isinstance(observer, str):
+        if observer.lower() in _loaded_objects:
+            observer = _loaded_objects[observer.lower()]
+        else:
+            ValueError("{} is not in the built-in list: {}".format(
+                    observer.lower(), _loaded_objects.keys()))
+    elif np.isiterable(observer):
+        observer = FixedObject(target)
+    elif not isinstance(target, MovingObject):
+        raise ValueError("target must be a string or MovingObject")
+
+    return observer.observe(target, date, ltt=ltt)
 
 def getxyz(obj, date=None, kernel=None):
     """Coordinates and velocity from an ephemeris kernel.
@@ -920,25 +970,8 @@ def getxyz(obj, date=None, kernel=None):
 
     """
 
-    et = date2et(date)
-    if isinstance(date, np.ndarray):
-        rv = np.array([getxyz(obj, t, kernel=kernel) for t in date])
-        return rv[:, 0], rv[:, 1]
-
-    if kernel is None:
-        kernel = find_kernel(obj)
-    _load_kernel(kernel)
-
-    if isinstance(obj, int):
-        obj = str(obj)
-    naifid = spice.bods2c(obj)
-    if naifid is None:
-        raise ObjectError("NAIF ID of {} cannot be found in kernel {}.".format(
-                obj, kernel))
-
-    # no light corrections, sun = 10
-    state, lt = spice.spkez(naifid, et, "ECLIPJ2000", "NONE", 10)
-    return state[:3], state[3:]
+    obj = SpiceObject(obj, kernel=kernel)
+    return obj.r(date), obj.v(date)
 
 def projected_vector_angle(r, rot, ra, dec):
     """Position angle of a vector projected onto the observing plane.
@@ -978,6 +1011,15 @@ def projected_vector_angle(r, rot, ra, dec):
     
     return pa
 
+def summarizegeom(*args, **kwargs):
+    """Pretty print a summary of the observing geometry.
+
+    See `getgeom` for a description of the parameters.
+
+    """
+
+    getgeom(*args, **kwargs).summary()
+
 # load up a few objects
 Sun = SpiceObject('sun', kernel='planets.bsp')
 Mercury = SpiceObject('mercury', kernel='planets.bsp')
@@ -990,3 +1032,9 @@ Saturn = SpiceObject('saturn', kernel='planets.bsp')
 Uranus = SpiceObject('uranus', kernel='planets.bsp')
 Neptune = SpiceObject('neptune', kernel='planets.bsp')
 Pluto = SpiceObject('pluto', kernel='planets.bsp')
+Spitzer = SpiceObject('-79', kernel='spitzer.bsp')
+DeepImpact = SpiceObject('-140', kernel='deepimpact.txt')
+_loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
+                       moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
+                       uranus=Uranus, neptune=Neptune, pluto=Pluto,
+                       spitzer=Spitzer, deepimpact=DeepImpact)
