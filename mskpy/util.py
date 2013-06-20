@@ -1957,5 +1957,7 @@ def asQuantity(x, unit, **keywords):
 
     if not isinstance(x, Quantity):
         q = x * unit
+    else: 
+        q = x
 
     return q.to(unit, **keywords)
