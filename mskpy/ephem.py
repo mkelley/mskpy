@@ -968,9 +968,9 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
             ValueError("{} is not in the built-in list: {}".format(
                     observer.lower(), _loaded_objects.keys()))
     elif np.iterable(observer):
-        observer = FixedObject(target)
-    elif not isinstance(target, MovingObject):
-        raise ValueError("target must be a string or MovingObject")
+        observer = FixedObject(observer)
+    elif not isinstance(observer, MovingObject):
+        raise ValueError("observer must be a string or MovingObject")
 
     return observer.observe(target, date, ltt=ltt)
 
