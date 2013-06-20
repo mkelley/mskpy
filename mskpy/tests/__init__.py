@@ -2,3 +2,5 @@
 """
 This package contains utilities to run the test suite.
 """
+
+from test_mskpy import *

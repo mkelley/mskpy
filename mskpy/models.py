@@ -70,8 +70,16 @@ class NEATM(SurfaceEmission):
     tol : float, optional
       The relative error tolerance in the result.
 
+    Attributes
+    ----------
+    A : float
+      Bond albedo.
+    D : Quantity
+      Diameter.
+
     Methods
     -------
+    T0 : Sub-solar point temperature.
     fluxd : Total flux density from the asteroid.
 
     """
@@ -111,7 +119,8 @@ class NEATM(SurfaceEmission):
 
         from numpy import pi
         from scipy.integrate import quad
-        from astropy.constants import sigma_sb, L_sun
+
+        from .util import asQuantity
 
         rh = asQuantity(geom['rh'], u.AU)
         delta = asQuantity(geom['delta'], u.AU).to(u.m)
@@ -119,21 +128,7 @@ class NEATM(SurfaceEmission):
         wave = asQuantity(wave, u.um)
         if not np.iterable(wave):
             wave = Quantity([wave], wave.unit)
-
-        # Bond albedo = A = geometric albedo * phase integral = p * q
-        #  p = 0.04 (default)
-        #  G = slope parameter = 0.15 (mean val.)
-        #  -> q = 0.290 + 0.684 * G = 0.3926
-        #  -> A = 0.0157
-        A = albedo * (0.290 + 0.684 * G)
-
-        # insolation is greatest at the sub-solar point, call this
-        # temperature T0
-        Fsun = const.L_sun / u.AU.to(u.m)**2 / 4 / np.pi * u.AU**2
-        T0 = (((1.0 - A) * constants.Fsun) / rh**2 / abs(eta) / epsilon /
-              sigma_sb.si)**0.25
-
-        D = 2 * self.radius.to(u.m)  # diameter
+        T0 = self.T0(rh)
 
         # Integrate theta from -pi/2 to pi/2: emission is emitted from
         # the daylit hemisphere: theta = (phase - pi/2) to (phase +
@@ -144,11 +139,11 @@ class NEATM(SurfaceEmission):
         # pi/2)
         fluxd = np.zeros(len(wave))
         for i in range(len(wave)):
-            integral = quad(_latitude_emission,
-                            -pi / 2.0 + phase, pi / 2.0,
+            integral = quad(self._latitude_emission,
+                            -pi / 2.0 + phase.value, pi / 2.0,
                             args=(wave[i], T0, phase),
                             epsrel=self.tol)
-            fluxd[i] = (self.epsilon * (D / delta)**2 *
+            fluxd[i] = (self.epsilon * (self.D / delta)**2 *
                         integral[0] / pi / 2.0).value # W/m^2/um
 
         fluxd = fluxd * u.Unit('W / (m2 um)')
@@ -158,6 +153,50 @@ class NEATM(SurfaceEmission):
             return fluxd[0]
         else:
             return fluxd
+
+    @property
+    def A(self):
+        """Bond albedo.
+
+        A = geometric albedo * phase integral = p * q
+        p = 0.04 (default)
+        G = slope parameter = 0.15 (mean val.)
+        -> q = 0.290 + 0.684 * G = 0.3926
+        -> A = 0.0157
+
+        """
+        return self.albedo * (0.290 + 0.684 * self.G)
+
+    @property
+    def D(self):
+        """Diameter."""
+        D = 2 * self.radius.to(u.m)  # diameter
+
+    def T0(self, rh):
+        """Sub-solar point temperature.
+
+        Parameters
+        ----------
+        rh : float or Quantity
+          Heliocentric distance. [float: AU]
+
+        Returns
+        -------
+        T0 : Quantity
+          Temperature.
+
+        """
+
+        from astropy.constants import sigma_sb
+        from .util import asQuantity
+
+        rh = asQuantity(rh, u.AU)
+        #Fsun = L_sun / u.AU.to(u.m)**2 / 4 / np.pi * u.AU**2
+        Fsun = 1367.567 * u.Unit('W AU2 / m2')
+        # two sqrt because Quantity can't handle **0.25
+        T0 = ((((1.0 - self.A) * Fsun) / rh**2 / abs(self.eta) / self.epsilon
+              / sigma_sb.si)**0.5)**0.5
+        return T0
 
     def _point_emission(self, phi, theta, wave, T0):
         """The emission from a single point.
@@ -169,10 +208,10 @@ class NEATM(SurfaceEmission):
         from util import Planck
 
         T = T0 * np.cos(phi)**0.25 * np.cos(theta)**0.25
-        B = Planck(wave, T, units=u.Unit('W/(m2 sr um)'))
+        B = Planck(wave, T, unit=u.Unit('W/(m2 sr um)'))
         return (B * pi * np.cos(phi)**2).value
 
-    def _latitute_emission(self, theta, wave, T0, phase):
+    def _latitude_emission(self, theta, wave, T0, phase):
         """The emission from a single latitude.
 
         The function does not consider day vs. night, so make sure the
@@ -192,10 +231,10 @@ class NEATM(SurfaceEmission):
         # be unitless
         fluxd = np.zeros_like(theta)
         for i in range(len(theta)):
-            integral = quad(_point_emission, 0.0, pi / 2.0,
+            integral = quad(self._point_emission, 0.0, pi / 2.0,
                             args=(theta[i], wave, T0),
                             epsrel=self.tol / 10.0)
-            fluxd[i] = (integral[0] * np.cos(theta[i] - phase))
+            fluxd[i] = (integral[0] * np.cos(theta[i] - phase.value))
 
         i = np.isnan(fluxd)
         if any(i):
