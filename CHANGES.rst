@@ -9,14 +9,11 @@ New Features
 
 - `ephem.SpiceObject` for your SPICE ephemeris needs.
 
-- New time functions:
+- New time functions in `util`:
 
   - `cal2iso` to ISO format your lazy calendar dates.
 
   - `cal2doy` and `jd2doy` for time to day of year conversions.
-
-  - `cal2et`, `date2et`, `time2et`, and `date2time` helper functions
-    within `ephem`.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -27,7 +24,7 @@ Changes From mskpy v1.7.0
 
   - `nanmedian` now considers `inf` as a real value.
 
-  - `numalpha` renamed `cmp_numalpha`.
+  - `numalpha` renamed `cmp_leading_num`.
 
   - `dminmax` renamed `mean2minmax`.
 
@@ -37,7 +34,7 @@ Changes From mskpy v1.7.0
 
   - `pcurve` renamed `polcurve`
 
-  - `ec2eq` moved to `ephem`.
+  - Added `projected_vector_angle` and `vector_rotate`.
 
 - `calib`:
 

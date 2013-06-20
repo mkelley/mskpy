@@ -52,12 +52,9 @@ it is for `Time` instances), we assume the scale is UTC.
    date2et
    jd2et
    time2et
-
-   ec2eq
    find_kernel
    getgeom
    getxyz
-   projected_vector_angle
 
    Built-in MovingObjects
    ----------------------
@@ -92,11 +89,9 @@ __all__ = [
     'jd2et',
     'time2et',
 
-    'ec2eq',
     'find_kernel',
     'getgeom',
     'getxyz',
-    'projected_vector_angle',
     'summarizegeom',
 
     'Sun',
@@ -388,7 +383,7 @@ class MovingObject(object):
         from astropy.time import TimeDelta
         import astropy.constants as const
 
-        from util import cal2time, jd2time
+        from util import cal2time, jd2time, ec2eq, projected_vector_angle
 
         global Moon
 
@@ -820,54 +815,6 @@ def time2et(t):
 
     return spice.utc2et(t.utc.iso)
 
-def ec2eq(lam, bet):
-    """Ecliptic coordinates to equatorial (J2000.0) coordinates.
-
-    Parameters
-    ----------
-    lam, bet : float or array
-      Ecliptic longitude and latitude. [degrees]
-
-    Returns
-    -------
-    ra, dec : float or ndarray
-      Equatorial (J2000.0) longitude and latitude. [degrees]
-
-    Notes
-    -----
-    Based on euler.pro in the IDL Astro library (W. Landsman).
-
-    """
-
-    # using the mean obliquity of the ecliptic at the J2000.0 epoch
-    # eps = 23.439291111 degrees (Astronomical Almanac 2008)
-    ceps = 0.91748206207 # cos(eps)
-    seps = 0.39777715593 # sin(eps)
-
-    # convert to radians
-    lam = np.radians(lam)
-    bet = np.radians(bet)
-    
-    cbet = np.cos(bet)
-    sbet = np.sin(bet)
-    clam = np.cos(lam)
-    slam = np.sin(lam)
-
-    ra = np.arctan2(ceps * cbet * slam - seps * sbet, cbet * clam)
-    sdec = seps * cbet * slam + ceps * sbet
-
-    if np.iterable(sdec):
-        sdec[sdec > 1.0] = 1.0
-    else:
-        if sdec > 1.0:
-            sdec = 1.0
-    dec = np.arcsin(sdec)
-
-    # make sure 0 <= ra < 2pi
-    ra = (ra + 4.0 * np.pi) % (2.0 * np.pi)
-
-    return np.degrees(ra), np.degrees(dec)
-
 def find_kernel(obj):
     """Find a planetary ephemeris kernel, based on object name.
 
@@ -1008,44 +955,6 @@ def getxyz(obj, date=None, kernel=None):
 
     obj = SpiceObject(obj, kernel=kernel)
     return obj.r(date), obj.v(date)
-
-def projected_vector_angle(r, rot, ra, dec):
-    """Position angle of a vector projected onto the observing plane.
-
-    Parameters
-    ----------
-    r : array
-      The vector to project, in heliocentric ecliptic
-      coordinates. [km]
-    rot : array
-      The observer-target vector. [km]
-    ra, dec : float
-      The right ascention and declination of the target, as seen by
-      the observer. [deg]
-
-    Returns
-    -------
-    angle : float
-      The position angle w.r.t. to equatorial north. [deg]
-
-    """
-
-    rh = np.sqrt((r**2).sum())
-    dv = rot + rh / r / 1000.  # delta vector
-
-    # find the projected vectors in RA, Dec
-    lam2 = np.degrees(np.arctan2(dv[1], dv[0]))
-    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0]*dv[0] + dv[1]*dv[1])))
-
-    ra2, dec2 = ec2eq(lam2, bet2)
-
-    x2 = (ra2 - ra) * np.cos(np.radians(dec2)) * 3600.0
-    y2 = (dec2 - dec) * 3600.0
-
-    th = np.degrees(np.arctan2(y2, x2))
-    pa = 90.0 - th
-    
-    return pa
 
 def summarizegeom(*args, **kwargs):
     """Pretty print a summary of the observing geometry.

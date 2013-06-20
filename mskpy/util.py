@@ -20,9 +20,10 @@ util --- Short and sweet functions, generic algorithms
    Searching, sorting
    ------------------
    between
-   cmp_numalpha
+   cmp_leading_num
    groupby
    nearest
+   takefrom
    whist
 
    Spherical/Celestial/vectorial geometry
@@ -44,6 +45,9 @@ util --- Short and sweet functions, generic algorithms
    nanmedian
    nanminmax
    randpl
+   sigma
+   spearman
+   uclip
    wmean
 
    "Special" functions
@@ -95,6 +99,8 @@ __all__ = [
     'takefrom',
     'whist',
 
+    'ec2eq',
+    'projected_vector_angle',
     'spherical_coord_rotate',
     'vector_rotate',
 
@@ -400,127 +406,6 @@ def rotmat(th):
     s = np.sin(th)
     return np.matrix([[c, s], [-s, c]])
 
-def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
-    """Rotate about an axis defined by two reference points.
-
-    Given two reference points (lon0, lat0), and (lon1, lat1), rotate
-    (lon, lat) in the same manner that (lon0, lat0) needs to be
-    rotated to match (lon1, lat1).
-
-    Parameters
-    -----------
-    lon0, lat0 : float
-      The reference point.  [degrees]
-
-    lon1, lat1 : float
-      A second reference point that defines the rotation axis and
-      direction.  [degrees]
-    lon, lat : float or array-like
-      The point(s) to rotate [degrees]
-
-    Returns
-    -------
-    lon_new, lat_new : float or array-like
-      lon, lat rotated in the sense as lon0, lat0 must be rotated to
-      produce lon1, lat1.  [degrees]
-
-    Notes
-    -----
-
-    Based on the IDL routine spherical_coord_rotate.pro written by
-    J.D. Smith, and distributed with CUBISM.
-
-    """
-
-    if (lon0 == lon1) and (lat0 == lat1):
-        return (lon, lat)
-
-    def rd2cartesian(lon, lat):
-        # convert to cartesian coords
-        clat = np.cos(lat)
-        return np.array([clat * np.cos(lon),
-                            clat * np.sin(lon),
-                            np.sin(lat)])
-    v0 = rd2cartesian(np.radians(lon0), np.radians(lat0))
-    v1 = rd2cartesian(np.radians(lon1), np.radians(lat1))
-    v  = rd2cartesian(np.radians(lon), np.radians(lat))
-
-    # construct coordinate frame with x -> ref point and z -> rotation
-    # axis
-    x = v0
-    z = np.cross(v1, v0)  # rotate about this axis
-    z = z / np.sqrt((z**2).sum())  # normalize
-    y = np.cross(z, x)
-    y = y / np.sqrt((y**2).sum())
-
-    # construct a new coordinate frame (x along new direction)
-    x2 = v1
-    y2 = np.cross(z, x2)
-    y2 = y2 / np.sqrt((y2**2).sum())
-
-    # project onto the inital frame, the re-express in the rotated one
-    if len(v.shape) == 1:
-        v = (v * x).sum() * x2 + (v * y).sum() * y2 + (v * z).sum() * z
-    else:
-        vx = np.dot(v.T, x)
-        vy = np.dot(v.T, y)
-        vz = np.dot(v.T, z)
-        v  = vx * np.repeat(x2, v.shape[1]).reshape(v.shape)
-        v += vy * np.repeat(y2, v.shape[1]).reshape(v.shape)
-        v += vz * np.repeat(z,  v.shape[1]).reshape(v.shape)
-
-    lat_new = np.degrees(np.arcsin(v[2]))
-    lon_new = np.degrees(np.arctan2(v[1], v[0]))
-
-    lon_new = lon_new % 360.0
-
-    return (lon_new, lat_new)
-
-def vector_rotate(r, n, th):
-    """Rotate vector `r` an angle `th` CCW about `n`.
-
-    Parameters
-    ----------
-    r : array
-      The vector to rotate [x, y, z].
-    n : array
-      The vector to rotate about.
-    th : float, array, Angle, or Quantity
-      The CCW angle to rotate by. [float/array in degrees]
-
-    Returns
-    -------
-    rp : array
-      The rotated vector [x, y, z].
-
-    Notes
-    -----
-    Described in Goldstein p165, 2nd ed. Note that Goldstein presents
-    the formula for clockwise rotation.
-
-    """
-
-    from astropy.coordinates import Angle
-
-    if isinstance(th, Angle):
-        theta = Angle.radians
-    elif isinstance(th, Quantity):
-        theta = th.to(u.rad).value
-    else:
-        theta = np.radians(th)
-
-    nhat = n / np.sqrt((n**2).sum())
-
-    def rot(r, nhat, theta):
-        return (r * np.cos(-theta) +
-                nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
-                np.cross(r, nhat) * np.sin(-theta))
-
-    if theta.size == 1:
-        return rot(r, nhat, theta)
-    else:
-        return np.array([rot(r, nhat, t) for t in theta])
-
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
 
@@ -743,6 +628,213 @@ def whist(x, y, w, errors=True, **keywords):
         err = None
 
     return m, err, n, edges
+
+def ec2eq(lam, bet):
+    """Ecliptic coordinates to equatorial (J2000.0) coordinates.
+
+    Parameters
+    ----------
+    lam, bet : float or array
+      Ecliptic longitude and latitude. [degrees]
+
+    Returns
+    -------
+    ra, dec : float or ndarray
+      Equatorial (J2000.0) longitude and latitude. [degrees]
+
+    Notes
+    -----
+    Based on euler.pro in the IDL Astro library (W. Landsman).
+
+    """
+
+    # using the mean obliquity of the ecliptic at the J2000.0 epoch
+    # eps = 23.439291111 degrees (Astronomical Almanac 2008)
+    ceps = 0.91748206207 # cos(eps)
+    seps = 0.39777715593 # sin(eps)
+
+    # convert to radians
+    lam = np.radians(lam)
+    bet = np.radians(bet)
+    
+    cbet = np.cos(bet)
+    sbet = np.sin(bet)
+    clam = np.cos(lam)
+    slam = np.sin(lam)
+
+    ra = np.arctan2(ceps * cbet * slam - seps * sbet, cbet * clam)
+    sdec = seps * cbet * slam + ceps * sbet
+
+    if np.iterable(sdec):
+        sdec[sdec > 1.0] = 1.0
+    else:
+        if sdec > 1.0:
+            sdec = 1.0
+    dec = np.arcsin(sdec)
+
+    # make sure 0 <= ra < 2pi
+    ra = (ra + 4.0 * np.pi) % (2.0 * np.pi)
+
+    return np.degrees(ra), np.degrees(dec)
+
+def projected_vector_angle(r, rot, ra, dec):
+    """Position angle of a vector projected onto the observing plane.
+
+    Parameters
+    ----------
+    r : array
+      The vector to project, in heliocentric ecliptic
+      coordinates. [km]
+    rot : array
+      The observer-target vector. [km]
+    ra, dec : float
+      The right ascention and declination of the target, as seen by
+      the observer. [deg]
+
+    Returns
+    -------
+    angle : float
+      The position angle w.r.t. to equatorial north. [deg]
+
+    """
+
+    rh = np.sqrt((r**2).sum())
+    dv = rot + rh / r / 1000.  # delta vector
+
+    # find the projected vectors in RA, Dec
+    lam2 = np.degrees(np.arctan2(dv[1], dv[0]))
+    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0]*dv[0] + dv[1]*dv[1])))
+
+    ra2, dec2 = ec2eq(lam2, bet2)
+
+    x2 = (ra2 - ra) * np.cos(np.radians(dec2)) * 3600.0
+    y2 = (dec2 - dec) * 3600.0
+
+    th = np.degrees(np.arctan2(y2, x2))
+    pa = 90.0 - th
+    
+    return pa
+
+def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
+    """Rotate about an axis defined by two reference points.
+
+    Given two reference points (lon0, lat0), and (lon1, lat1), rotate
+    (lon, lat) in the same manner that (lon0, lat0) needs to be
+    rotated to match (lon1, lat1).
+
+    Parameters
+    -----------
+    lon0, lat0 : float
+      The reference point.  [degrees]
+
+    lon1, lat1 : float
+      A second reference point that defines the rotation axis and
+      direction.  [degrees]
+    lon, lat : float or array-like
+      The point(s) to rotate [degrees]
+
+    Returns
+    -------
+    lon_new, lat_new : float or array-like
+      lon, lat rotated in the sense as lon0, lat0 must be rotated to
+      produce lon1, lat1.  [degrees]
+
+    Notes
+    -----
+
+    Based on the IDL routine spherical_coord_rotate.pro written by
+    J.D. Smith, and distributed with CUBISM.
+
+    """
+
+    if (lon0 == lon1) and (lat0 == lat1):
+        return (lon, lat)
+
+    def rd2cartesian(lon, lat):
+        # convert to cartesian coords
+        clat = np.cos(lat)
+        return np.array([clat * np.cos(lon),
+                            clat * np.sin(lon),
+                            np.sin(lat)])
+    v0 = rd2cartesian(np.radians(lon0), np.radians(lat0))
+    v1 = rd2cartesian(np.radians(lon1), np.radians(lat1))
+    v  = rd2cartesian(np.radians(lon), np.radians(lat))
+
+    # construct coordinate frame with x -> ref point and z -> rotation
+    # axis
+    x = v0
+    z = np.cross(v1, v0)  # rotate about this axis
+    z = z / np.sqrt((z**2).sum())  # normalize
+    y = np.cross(z, x)
+    y = y / np.sqrt((y**2).sum())
+
+    # construct a new coordinate frame (x along new direction)
+    x2 = v1
+    y2 = np.cross(z, x2)
+    y2 = y2 / np.sqrt((y2**2).sum())
+
+    # project onto the inital frame, the re-express in the rotated one
+    if len(v.shape) == 1:
+        v = (v * x).sum() * x2 + (v * y).sum() * y2 + (v * z).sum() * z
+    else:
+        vx = np.dot(v.T, x)
+        vy = np.dot(v.T, y)
+        vz = np.dot(v.T, z)
+        v  = vx * np.repeat(x2, v.shape[1]).reshape(v.shape)
+        v += vy * np.repeat(y2, v.shape[1]).reshape(v.shape)
+        v += vz * np.repeat(z,  v.shape[1]).reshape(v.shape)
+
+    lat_new = np.degrees(np.arcsin(v[2]))
+    lon_new = np.degrees(np.arctan2(v[1], v[0]))
+
+    lon_new = lon_new % 360.0
+
+    return (lon_new, lat_new)
+
+def vector_rotate(r, n, th):
+    """Rotate vector `r` an angle `th` CCW about `n`.
+
+    Parameters
+    ----------
+    r : array
+      The vector to rotate [x, y, z].
+    n : array
+      The vector to rotate about.
+    th : float, array, Angle, or Quantity
+      The CCW angle to rotate by. [float/array in degrees]
+
+    Returns
+    -------
+    rp : array
+      The rotated vector [x, y, z].
+
+    Notes
+    -----
+    Described in Goldstein p165, 2nd ed. Note that Goldstein presents
+    the formula for clockwise rotation.
+
+    """
+
+    from astropy.coordinates import Angle
+
+    if isinstance(th, Angle):
+        theta = Angle.radians
+    elif isinstance(th, Quantity):
+        theta = th.to(u.rad).value
+    else:
+        theta = np.radians(th)
+
+    nhat = n / np.sqrt((n**2).sum())
+
+    def rot(r, nhat, theta):
+        return (r * np.cos(-theta) +
+                nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
+                np.cross(r, nhat) * np.sin(-theta))
+
+    if theta.size == 1:
+        return rot(r, nhat, theta)
+    else:
+        return np.array([rot(r, nhat, t) for t in theta])
 
 def kuiper(x, y):
     """Compute Kuiper's statistic and probablity.
