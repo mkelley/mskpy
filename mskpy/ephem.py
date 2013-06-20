@@ -55,6 +55,7 @@ it is for `Time` instances), we assume the scale is UTC.
    find_kernel
    getgeom
    getxyz
+   summarizegeom
 
    Built-in MovingObjects
    ----------------------
@@ -70,8 +71,8 @@ it is for `Time` instances), we assume the scale is UTC.
    Uranus
    Neptune
    Pluto
-   Spitzer
-   DeepImpact
+   Spitzer (optional)
+   DeepImpact (optional)
 
    Exceptions
    ----------
@@ -83,11 +84,6 @@ __all__ = [
     'Geom',
     'MovingObject',
     'SpiceObject',
-
-    'cal2et',
-    'date2et',
-    'jd2et',
-    'time2et',
 
     'find_kernel',
     'getgeom',
@@ -985,12 +981,14 @@ _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
 try:
     Spitzer = SpiceObject('-79', kernel='spitzer.bsp')
     _loaded_objects['spitzer'] = Spitzer
+    __all__.append('Spitzer')
 except OSError:
     pass
 
 try:
     DeepImpact = SpiceObject('-140', kernel='deepimpact.txt')
     _loaded_objects['deepimpact'] = DeepImpact
+    __all__.append('DeepImpact')
 except OSError:
     pass
     

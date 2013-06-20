@@ -49,9 +49,9 @@ Changes From mskpy v1.7.0
   - Removed `get_observer_xyz`, `get_planet_xyz`, `get_spitzer_xyz`,
     `get_herschel_xyz`, `get_comet_xyz`.
 
-  - `getgeom` rewritten to use `MovingObject`.
+  - `getgeom` code incorporated into `MovingObject`.
 
-  - Most of the `summarizegeom` code incorporated into `Geom`.
+  - `summarizegeom` code incorporated into `Geom`.
 
 - `Geom`, `getgeom`, and `summarizegeom` moved from `observing` to
   `ephem`.
