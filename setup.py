@@ -27,7 +27,7 @@ if __name__ == "__main__":
           author="Michael S. Kelley",
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/mskpy",
-          packages=['mskpy', 'mskpy.lib'],
+          packages=['mskpy', 'mskpy.lib', 'mskpy.tests'],
           data_files=files,
           requires=['numpy', 'scipy', 'astropy'],
           install_requires=['numpy'],
