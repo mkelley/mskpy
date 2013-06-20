@@ -5,12 +5,37 @@ ephem --- Ephemeris tools
 
 Requres PySPICE.
 
+
+About kernels
+-------------
+
+See `find_kernel` for a description of how `ephem` tries to determine
+kernel file names from object names.
+
+Three SPICE kernels are required:
+
+- naif.tls : a leap seconds kernel,
+
+- pck.tpc : a planetary constants kernel,
+
+- planets.bsp : a planetary ephemeris kernel, e.g., de421.
+
+There are three optional kernels:
+
+- spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope,
+
+- deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby,
+
+- naif-names.txt : your own body to ID code mappings.
+
+
 About dates
 -----------
 
 Most functions accept multiple kinds of dates: calendar strings,
 Julian dates, `Time`, or `datetime`.  If the scale is not defined (as
 it is for `Time` instances), we assume the scale is UTC.
+
 
 .. autosummary::
    :toctree: generated/
@@ -95,7 +120,7 @@ from astropy.time import Time
 import spice
 
 _kernel_path = '/home/msk/data/kernels'
-_kernel_setup = False
+_spice_setup = False
 
 class ObjectError(Exception):
     pass
@@ -461,6 +486,11 @@ class SpiceObject(MovingObject):
     """
 
     def __init__(self, obj, kernel=None):
+        global _spice_setup
+
+        if not _spice_setup:
+            _setup_spice()
+
         if kernel is None:
             kernel = find_kernel(obj)
         _load_kernel(kernel)
@@ -625,17 +655,25 @@ def _load_kernel(filename):
     if not os.path.exists(filename):
         filename = os.path.join(_kernel_path, filename)
         if not os.path.exists(filename):
-            raise OSError("naif.tls not found")
+            raise OSError("{} not found".format(filename))
 
     if spice.kinfo(filename) is None:
         spice.furnsh(filename)
 
-def _load_pck():
-    """Load the planetary constants kernel into memory.
+def _setup_spice():
+    """Load some kernels into memory.
 
-    The kernel must be named "pck.tpc" and be in the current
-    directory, or in `_kernel_path`.
+    Three SPICE kernels are required:
 
+    - naif.tls : a leap seconds kernel,
+
+    - pck.tpc : a planetary constants kernel,
+
+    - planets.bsp : a planetary ephemeris kernel, e.g., de421.
+
+    Additionally, naif-names.txt, your own body to ID code mappings,
+    is loaded if it exists.
+    
     Parameters
     ----------
     None
@@ -644,34 +682,19 @@ def _load_pck():
     -------
     None
 
-    Raises
-    ------
-    `OSError` if the file is not found.
 
     """
+
+    global _spice_setup
+
+    _load_kernel("naif.tls")
     _load_kernel("pck.tpc")
-
-def _load_tls():
-    """Load the leap seconds kernel into memory.
-
-    The kernel must be named "niaf.tls" and be in the current
-    directory, or in `_kernel_path`.
-
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    `OSError` if the file is not found.
-
-    """
-    _load_kernel('naif.tls')
-
+    _load_kernel("planets.bsp")
+    try:
+        _load_kernel("naif-names.txt")
+    except OSError:
+        pass
+    _spice_setup = True
 
 def cal2et(date):
     """Convert calendar date to SPICE ephemeris time.
@@ -693,12 +716,10 @@ def cal2et(date):
     """
 
     from util import cal2iso
-    global _kernel_setup
+    global _spice_setup
 
-    if not _kernel_setup:
-        _load_tls()
-        _load_pck()
-        _kernel_setup = True
+    if not _spice_setup:
+        _setup_spice()
 
     if isinstance(date, (list, tuple, np.ndarray)):
         return [cal2et(x) for x in t]
@@ -759,12 +780,10 @@ def jd2et(jd):
 
     """
 
-    global _kernel_setup
+    global _spice_setup
 
-    if not _kernel_setup:
-        _load_tls()
-        _load_pck()
-        _kernel_setup = True
+    if not _spice_setup:
+        _setup_spice()
 
     if isinstance(jd, (list, tuple, np.ndarray)):
         return [jd2et(x) for x in jd]
@@ -791,12 +810,10 @@ def time2et(t):
 
     """
 
-    global _kernel_setup
+    global _spice_setup
 
-    if not _kernel_setup:
-        _load_tls()
-        _load_pck()
-        _kernel_setup = True
+    if not _spice_setup:
+        _setup_spice()
 
     if isinstance(t, (list, tuple, np.ndarray)) or len(t) > 1:
         return [time2et(x) for x in t]
@@ -855,13 +872,21 @@ def find_kernel(obj):
     """Find a planetary ephemeris kernel, based on object name.
 
     Searches the current directory first, then `_kernel_path`.
+    
+    Three steps are taken to find the appropriate kernel:
+
+    1) Try the object name with the suffix '.bsp'.
+
+    2) Convert `obj` to lower case, and remove all non-alphanumeric
+       characters.  The suffix '.bsp' is appended.
+
+    3) If `obj` is an integer and < 1000000, it is assumed to be an
+       asteroid designation.  Try once more, with `obj + 2000000`.
 
     Parameters
     ----------
     obj : string or int
-      The object's name or NAIF ID.  Object names are converted to
-      lower case, and all non-alphanumeric characters are removed.
-      The suffix '.bsp' is appended.
+      The object's name or NAIF ID.
 
     Returns
     -------
@@ -877,14 +902,25 @@ def find_kernel(obj):
     from os import path
     global _kernel_path
 
-    kernel = filter(lambda s: s.isalnum(), str(obj)) + '.bsp'
-    if not path.isfile(kernel):
-        if path.isfile(path.join(_kernel_path, kernel)):
-            kernel = path.join(_kernel_path, kernel)
-        else:
-            raise ValueError("Cannot find kernel (" + kernel + ")")
+    kernel = str(obj) + '.bsp'
+    if path.isfile(obj):
+        return kernel
+    elif path.isfile(path.join(_kernel_path, kernel)):
+        return path.join(_kernel_path, kernel)
 
-    return kernel
+    kernel = filter(lambda s: s.isalnum(), str(obj)).lower() + '.bsp'
+    if path.isfile(kernel):
+        return kernel
+    elif path.isfile(path.join(_kernel_path, kernel)):
+        return path.join(_kernel_path, kernel)
+
+    if isinstance(obj, int):
+        if obj < 1000000:
+            # looks like an asteroid designation, try the
+            # asteroid's NAIFID
+            return find_kernel(obj + 2000000)
+
+    raise ValueError("Cannot find kernel (" + kernel + ")")
 
 def getgeom(target, observer, date=None, ltt=False, kernel=None):
     """Moving target geometry parameters for an observer and date.
@@ -931,7 +967,7 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
         else:
             ValueError("{} is not in the built-in list: {}".format(
                     observer.lower(), _loaded_objects.keys()))
-    elif np.isiterable(observer):
+    elif np.iterable(observer):
         observer = FixedObject(target)
     elif not isinstance(target, MovingObject):
         raise ValueError("target must be a string or MovingObject")
@@ -1032,9 +1068,20 @@ Saturn = SpiceObject('saturn', kernel='planets.bsp')
 Uranus = SpiceObject('uranus', kernel='planets.bsp')
 Neptune = SpiceObject('neptune', kernel='planets.bsp')
 Pluto = SpiceObject('pluto', kernel='planets.bsp')
-Spitzer = SpiceObject('-79', kernel='spitzer.bsp')
-DeepImpact = SpiceObject('-140', kernel='deepimpact.txt')
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
-                       uranus=Uranus, neptune=Neptune, pluto=Pluto,
-                       spitzer=Spitzer, deepimpact=DeepImpact)
+                       uranus=Uranus, neptune=Neptune, pluto=Pluto)
+
+# load 'em if you got 'em
+try:
+    Spitzer = SpiceObject('-79', kernel='spitzer.bsp')
+    _loaded_objects['spitzer'] = Spitzer
+except OSError:
+    pass
+
+try:
+    DeepImpact = SpiceObject('-140', kernel='deepimpact.txt')
+    _loaded_objects['deepimpact'] = DeepImpact
+except OSError:
+    pass
+    
