@@ -5,10 +5,11 @@ mskpy --- MSK's personal library for astronomy and stuff
 ========================================================
 """
 
-import calib
-import util
+from . import calib
+from . import util
+from . import models
 
 try:
-    import ephem
+    from . import ephem
 except ImportError:
     pass
