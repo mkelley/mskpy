@@ -25,6 +25,14 @@ util --- Short and sweet functions, generic algorithms
    nearest
    whist
 
+   Spherical/Celestial/vectorial geometry
+   --------------------------------------
+
+   ec2eq
+   projected_vector_angle
+   spherical_coord_rotate
+   vector_rotate
+
    Statistics
    ----------
    kuiper
@@ -79,15 +87,16 @@ __all__ = [
     'Gaussian2d',
     'hav',
     'rotmat',
-    'spherical_coord_rotate',
-    'vector_rotate',
 
     'between',
-    'cmp_numalpha',
+    'cmp_leading_num',
     'groupby',
     'nearest',
     'takefrom',
     'whist',
+
+    'spherical_coord_rotate',
+    'vector_rotate',
 
     'kuiper',
     'kuiperprob',
@@ -549,7 +558,7 @@ def between(a, limits, closed=True):
 
     return i.astype(bool)
 
-def cmp_numalpha(x, y):
+def cmp_leading_num(x, y):
     """Compare two strings, considering leading multidigit integers.
 
     A normal string comparision will compare the strings character by
@@ -592,7 +601,7 @@ def cmp_numalpha(x, y):
         if xx > yy:
             return 1
         else:
-            return cmp_numalpha(mx[1], my[1])
+            return cmp_leading_num(mx[1], my[1])
 
 def groupby(key, *lists):
     """Sort elements of `lists` by `unique(key)`.
