@@ -1488,6 +1488,10 @@ def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
     -------
     B : Quantity
 
+    Raises
+    ------
+    ValueError when deriv isn't an allowed value.
+
     """
 
     from astropy import constants as const
@@ -1498,7 +1502,7 @@ def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
     wave = asQuantity(wave, u.um)
     T = asQuantity(T, u.K)
 
-    c1 = 2.0 * const.si.h * const.si.c
+    c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
     c2 = const.si.h * const.si.c / const.si.k_B
     a = np.exp(c2 / wave.si / T.to(u.K))
     B = c1 / ((wave.si)**3 * (a - 1.0)) / u.sr
@@ -1507,8 +1511,11 @@ def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
         if deriv.lower() == 't':
             B *= c2 / T.to(u.K)**2 / wave.si * a / (a - 1.0)
             unit /= u.K
+        else:
+            raise ValueError("deriv parameter ({}) not allowed.".format(
+                deriv))
 
-    equiv = u.spectral_density(wave.unit, wave.value)
+    equiv = u.spectral_density(wave.unit, wave)
     B = B.to(unit, equivalencies=equiv)
 
     # restore seterr
