@@ -122,13 +122,13 @@ class NEATM(SurfaceEmission):
 
         from .util import asQuantity
 
-        rh = asQuantity(geom['rh'], u.AU)
-        delta = asQuantity(geom['delta'], u.AU).to(u.m)
-        phase = asQuantity(geom['phase'], u.deg).to(u.rad)
-        wave = asQuantity(wave, u.um)
+        rh = asQuantity(geom['rh'], u.AU).value
+        delta = asQuantity(geom['delta'], u.AU).to(u.m).value
+        phase = asQuantity(geom['phase'], u.deg).to(u.rad).value
+        wave = asQuantity(wave, u.um).value
         if not np.iterable(wave):
-            wave = Quantity([wave], wave.unit)
-        T0 = self.T0(rh)
+            wave = np.array([wave])
+        T0 = self.T0(rh).value
 
         # Integrate theta from -pi/2 to pi/2: emission is emitted from
         # the daylit hemisphere: theta = (phase - pi/2) to (phase +
@@ -140,14 +140,14 @@ class NEATM(SurfaceEmission):
         fluxd = np.zeros(len(wave))
         for i in range(len(wave)):
             integral = quad(self._latitude_emission,
-                            -pi / 2.0 + phase.value, pi / 2.0,
+                            -pi / 2.0 + phase, pi / 2.0,
                             args=(wave[i], T0, phase),
                             epsrel=self.tol)
-            fluxd[i] = (self.epsilon * (self.D / delta)**2 *
-                        integral[0] / pi / 2.0).value # W/m^2/um
+            fluxd[i] = (self.epsilon * (self.D.value * 1e3 / delta)**2 *
+                        integral[0] / pi / 2.0) # W/m^2/Hz
 
-        fluxd = fluxd * u.Unit('W / (m2 um)')
-        equiv = u.spectral_density(wave.unit, wave)
+        fluxd = fluxd * u.Unit('W / (m2 Hz)')
+        equiv = u.spectral_density(u.um, wave)
         fluxd = fluxd.to(unit, equivalencies=equiv)
         if len(fluxd) == 1:
             return fluxd[0]
@@ -170,7 +170,7 @@ class NEATM(SurfaceEmission):
     @property
     def D(self):
         """Diameter."""
-        D = 2 * self.radius.to(u.m)  # diameter
+        return 2 * self.radius  # diameter
 
     def T0(self, rh):
         """Sub-solar point temperature.
@@ -187,16 +187,19 @@ class NEATM(SurfaceEmission):
 
         """
 
-        from astropy.constants import sigma_sb
         from .util import asQuantity
 
-        rh = asQuantity(rh, u.AU)
         #Fsun = L_sun / u.AU.to(u.m)**2 / 4 / np.pi * u.AU**2
-        Fsun = 1367.567 * u.Unit('W AU2 / m2')
-        # two sqrt because Quantity can't handle **0.25
-        T0 = ((((1.0 - self.A) * Fsun) / rh**2 / abs(self.eta) / self.epsilon
-              / sigma_sb.si)**0.5)**0.5
-        return T0
+        #Fsun = 1367.567 * u.Unit('W AU2 / m2')
+
+        if isinstance(rh, Quantity):
+            rh = rh.to(u.AU).value
+
+        Fsun = 1367.567 # W AU2 / m2
+        sigma = 5.670373e-08 # W / (K4 m2)
+        T0 = (((1.0 - self.A) * Fsun) / rh**2 / abs(self.eta)
+              / self.epsilon / sigma)**0.25
+        return T0 * u.K
 
     def _point_emission(self, phi, theta, wave, T0):
         """The emission from a single point.
@@ -205,11 +208,12 @@ class NEATM(SurfaceEmission):
 
         """
 
+        from numpy import pi
         from util import Planck
 
         T = T0 * np.cos(phi)**0.25 * np.cos(theta)**0.25
-        B = Planck(wave, T, unit=u.Unit('W/(m2 sr um)'))
-        return (B * pi * np.cos(phi)**2).value
+        B = Planck(wave, T, unit=None) # W / (m2 sr Hz)
+        return (B * pi * np.cos(phi)**2) # W / (m2 Hz)
 
     def _latitude_emission(self, theta, wave, T0, phase):
         """The emission from a single latitude.
@@ -227,18 +231,15 @@ class NEATM(SurfaceEmission):
         if not np.iterable(theta):
             theta = np.array([theta])
 
-        # Quantities do not support item assignment, so fluxd needs to
-        # be unitless
         fluxd = np.zeros_like(theta)
         for i in range(len(theta)):
             integral = quad(self._point_emission, 0.0, pi / 2.0,
                             args=(theta[i], wave, T0),
                             epsrel=self.tol / 10.0)
-            fluxd[i] = (integral[0] * np.cos(theta[i] - phase.value))
+            fluxd[i] = (integral[0] * np.cos(theta[i] - phase))
 
         i = np.isnan(fluxd)
         if any(i):
             fluxd[i] = 0.0
-
         return fluxd
 
