@@ -70,10 +70,11 @@ util --- Short and sweet functions, generic algorithms
    jd2doy
    jd2time
 
-   Variable manipulation
-   ---------------------
+   Other
+   -----
    asAngle
    asQuantity
+   spectral_density_sb
 
 """
 
@@ -1469,24 +1470,27 @@ def deresolve(func, wave, flux, err=None):
 
     return fluxout
 
-def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
+def Planck(wave, T, unit=None, deriv=None):
     """The Planck function.
 
     Parameters
     ----------
     wave : array or Quantity
       The wavelength(s) to evaluate the Planck function. [micron]
-    T : float, array, Quantity
+    T : float or array
       The temperature(s) of the Planck function. [Kelvin]
     unit : u.Unit
-      The output units.
+      The output units.  Set to `None` to return a float in the
+      default units.
     deriv : string
       Set to 'T' to return the first derivative with respect to
       temperature.
 
     Returns
     -------
-    B : Quantity
+    B : float or Quantity
+      If `unit is None`, a `float` will be returned in units of
+      W/m2/sr/Hz.
 
     Raises
     ------
@@ -1494,32 +1498,45 @@ def Planck(wave, T, unit=u.Unit('MJy/sr'), deriv=None):
 
     """
 
-    from astropy import constants as const
-
     # prevent over/underflow warnings
     oldseterr = np.seterr(all='ignore')
 
-    wave = asQuantity(wave, u.um)
-    T = asQuantity(T, u.K)
+    # wave in m
+    if isinstance(wave, Quantity):
+        wave = wave.si.value
+    else:
+        wave *= 1e-6
 
-    c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
-    c2 = const.si.h * const.si.c / const.si.k_B
-    a = np.exp(c2 / wave.si / T.to(u.K))
-    B = c1 / ((wave.si)**3 * (a - 1.0)) / u.sr
+    #from astropy import constants as const
+    #c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
+    #c2 = const.si.h * const.si.c / const.si.k_B
+    #a = np.exp(c2 / wave.si / T.to(u.K))
+    #B = c1 / ((wave.si)**3 * (a - 1.0)) / u.sr
+
+    c1 = 3.9728913665386057e-25  # J m
+    c2 = 0.0143877695998  # K m
+    a = np.exp(c2 / wave / T)
+    B = c1 / (wave**3 * (a - 1.0))
+
+    if unit is not None:
+        Bunit = u.Unit('W / (m2 sr Hz)')
 
     if deriv is not None:
         if deriv.lower() == 't':
-            B *= c2 / T.to(u.K)**2 / wave.si * a / (a - 1.0)
-            unit /= u.K
+            B *= c2 / T**2 / wave * a / (a - 1.0)
+            if unit is not None:
+                Bunit /= u.K
         else:
-            raise ValueError("deriv parameter ({}) not allowed.".format(
-                deriv))
-
-    equiv = u.spectral_density(wave.unit, wave)
-    B = B.to(unit, equivalencies=equiv)
+            raise ValueError("deriv parameter not allowed: {}".format(
+                    deriv))
 
     # restore seterr
     np.seterr(**oldseterr)
+
+    if unit is not None:
+        B *= Bunit
+        if unit != Bunit:
+            B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
     return B
 
@@ -1968,3 +1985,63 @@ def asQuantity(x, unit, **keywords):
         q = x
 
     return q.to(unit, **keywords)
+
+def spectral_density_sb(s):
+    """Equivalence pairs for spectra density surface brightness.
+
+    For use with `astropy.units`.
+
+    Parameters
+    ----------
+    s : Quantity
+      The spectral unit and value.
+
+    Returns
+    -------
+    equiv : list
+      A list of equivalence pairs.
+
+    Notes
+    -----
+    Basically a copy of `u.spectral_density`, but per steradian.
+
+    """
+
+    import astropy.constants as const
+
+    c_Aps = const.c.si.value * 10**10
+
+    fla = u.erg / u.angstrom / u.cm**2 / u.s / u.sr
+    fnu = u.erg / u.Hz / u.cm**2 / u.s / u.sr
+    nufnu = u.erg / u.cm**2 / u.s / u.sr
+    lafla = nufnu
+
+    sunit = s.decompose().unit
+    sfactor = s.decompose().value
+
+    def converter(x):
+        return x * (sunit.to(u.AA, sfactor, u.spectral())**2 / c_Aps)
+
+    def iconverter(x):
+        return x / (sunit.to(u.AA, sfactor, u.spectral())**2 / c_Aps)
+
+    def converter_fnu_nufnu(x):
+        return x * sunit.to(u.Hz, sfactor, u.spectral())
+
+    def iconverter_fnu_nufnu(x):
+        return x / sunit.to(u.Hz, sfactor, u.spectral())
+
+    def converter_fla_lafla(x):
+        return x * sunit.to(u.AA, sfactor, u.spectral())
+
+    def iconverter_fla_lafla(x):
+        return x / sunit.to(u.AA, sfactor, u.spectral())
+
+    return [
+        (u.AA, fnu, converter, iconverter),
+        (fla, fnu, converter, iconverter),
+        (u.AA, u.Hz, converter, iconverter),
+        (fla, u.Hz, converter, iconverter),
+        (fnu, nufnu, converter_fnu_nufnu, iconverter_fnu_nufnu),
+        (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
+    ]
