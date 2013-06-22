@@ -107,6 +107,7 @@ import exceptions
 from datetime import datetime
 
 import numpy as np
+import astropy.units as u
 from astropy.time import Time
 import spice
 
@@ -121,20 +122,34 @@ class Geom(dict):
 
     Not very robust and needs more error checking.
 
-    Key list and definitions:
-      rh = r_h [AU]
-      delta = Delta [AU]
-      phase = phase >0 for before opposition, <0 after [degrees]
-      ra = RA [degrees]
-      dec = Dec [degrees]
-      sangle = sun angle [degrees]
-      vangle = velocity angle [degrees]
-      selong = solar elongation [degrees]
-      lelong = lunar elongation [degrees]
-      date = the input date
-      obsxyz = the observer's position [km]
-      tarxyz = the target's position [km]
-      obsrh = the observer's heliocentric distance
+    Keys
+    ----
+    rh : float or Quantity
+      Heliocentric distance.  [float: AU]
+    delta = float or Quantity
+      Observer-target distance.  [float: AU]
+    phase : float, Quantity, or Angle
+      Phase angle.  May be signed.  [float: degrees]
+    ra : float, Quantity, or Angle
+      Right Ascension.  [float: degrees]
+    dec : float, Quantity, or Angle
+      Declination.  [float: degrees]
+    sangle : float, Quantity, or Angle
+      Projected Sun angle.  [float: degrees]
+    vangle : float, Quantity, or Angle
+      Projected velocity angle.  [float: degrees]
+    selong : float, Quantity, or Angle
+      Solar elongation.  [float: degrees]
+    lelong : float, Quantity, or Angle
+      Lunar elongation [float: degrees]
+    date : string, astropy Time, datetime
+      The input date.  Except for `Time` objects, UTC is assumed.
+    obsxyz : float or Quantity
+      The observer's position.  [float: km]
+    tarxyz : float or Quantity
+      The target's position.  [float: km]
+    obsrh : float or Quantity
+      The observer's heliocentric distance.  [float: AU]
 
     Parameters
     ----------
@@ -143,6 +158,13 @@ class Geom(dict):
 
     Notes
     -----
+    `g[key]` returns a Quantity, but `g.items()`, `g.values()`,
+    `g.itervalues()` returns the underlying values (floats or
+    ndarrays).
+
+    The only operation defined for `Geom['date']` is `-`; `+`, `*`,
+    `/` all return `None`.
+
     There is no sanity checking on the geometry.
 
     Dates are converted to Julian Date before adding, subtracting,
@@ -154,25 +176,43 @@ class Geom(dict):
                    'selong', 'sangle', 'vangle', 'obsxyz', 'tarxyz',
                    'obsrh')
 
+    units = dict(date=None, rh=u.au, delta=u.au, phase=u.deg,
+                 ra=u.deg, dec=u.deg, lelong=u.deg, selong=u.deg,
+                 sangle=u.deg, vangle=u.deg, obsxyz=u.km,
+                 tarxyz=u.km, obsrh=u.au)
+
     def __init__(self, g=None):
+        from astropy.units import Quantity
+        from astropy.coordinates import Angle
+
         if g is None:
             for k in self.allowedKeys:
                 self[k] = None
         else:
             for k, v in g.items():
-                self[k] = v
+                if self.units[k] is None:
+                    self[k] = v
+                elif isinstance(v, Quantity):
+                    self[k] = v.to(self.units[k]).value
+                elif isinstance(v, Angle):
+                    self[k] = v.degrees
+                else:
+                    self[k] = v
 
     def __getitem__(self, key):
         # are we slicing or getting a key?
-        if type(key) in (int, slice, list, np.ndarray):
+        if isinstance(key, (int, slice, list, np.ndarray)):
             r = Geom()
             for k, v in self.items():
                 r[k] = v[key]
             return r
         else:
             if key not in self.allowedKeys:
-                raise AttributeError("{:} is not an allowed key".format(key))
-            return dict.__getitem__(self, key)
+                raise AttributeError("{:} is not a Geom key".format(key))
+            v = dict.__getitem__(self, key)
+            if (v is not None) and (self.units[key] is not None):
+                v *= self.units[key]
+            return v
 
     def __len__(self):
         if self['rh'] is None:
@@ -183,45 +223,45 @@ class Geom(dict):
             return 1
 
     def __add__(self, other):
-        if type(self) != type(other):
-            return NotImplemented
+        if not isinstance(other, Geom):
+            raise NotImplemented("other must be a Geometry object")
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = self._date2jd(self[k]) + self._date2jd(other[k])
+                r[k] = None
             else:
                 r[k] = self[k] + other[k]
         return r
 
     def __sub__(self, other):
-        if type(self) != type(other):
-            return NotImplemented
+        if not isinstance(other, Geom):
+            raise NotImplemented("other must be a Geometry object")
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = self._date2jd(self[k]) - self._date2jd(other[k])
+                r[k] = self._date2time(self[k]) - self._date2time(other[k])
             else:
                 r[k] = self[k] - other[k]
         return r
 
     def __mul__(self, other):
-        if type(self) == type(other):
-            return NotImplemented
+        if not isinstance(other, Geom):
+            raise NotImplemented("other must be a Geometry object")
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = self._date2jd(self[k]) * other
+                r[k] = None
             else:
                 r[k] = self[k] * other
         return r
 
     def __div__(self, other):
-        if type(self) == type(other):
-            return NotImplemented
+        if not isinstance(other, Geom):
+            raise NotImplemented("other must be a Geometry object")
         r = Geom()
         for k in self.keys():
             if k == 'date':
-                r[k] = self._date2jd(self[k]) / other
+                r[k] = None
             else:
                 r[k] = self[k] / other
         return r
@@ -231,24 +271,40 @@ class Geom(dict):
             yield self[i]
 
     def append(self, g):
-        for k, v in g.items():
+        if not isinstance(g, Geom):
+            g = Geom(g)
+        for k in g.keys():
             if self[k] is None:
-                self[k] = v
-            elif isinstance(self[k], np.ndarray):
-                if v.shape == ():
-                    self[k] = np.concatenate((self[k], [v]))
+                self[k] = g[k]
+            elif np.iterable(self[k]):
+                this = self[k].value
+                that = np.array(g[k].value)
+                if that.shape == ():
+                    self[k] = np.concatenate((self[k], [that]))
                 elif 'xyz' in k:
-                    self[k] = np.vstack((self[k], v))
+                    self[k] = np.vstack((self[k], that))
                 else:
-                    self[k] = np.concatenate((self[k], v))
+                    self[k] = np.concatenate((self[k], that))
             else:
-                self[k] = np.concatenate(([self[k]], [v]))
+                self[k] = np.concatenate(([self[k]], [that]))
 
     def mean(self):
+        """Averaged geometry.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : Geom
+
+        """
+
         r = Geom()
         for k, v in self.items():
             if k == 'date':
-                r[k] = np.mean(self._date2jd(v))
+                r[k] = np.mean(self[k].jd)
             elif 'xyz' in k:
                 if np.rank(v) > 1:
                     r[k] = np.mean(v, 0)
@@ -258,17 +314,18 @@ class Geom(dict):
                 r[k] = np.mean(v)
         return r
 
-    def _date2jd(self, date):
+    def _date2time(self, date):
+        from .util import cal2time, jd2time
         if isinstance(date, str):
-            return cal2time(cal2iso(date), scale='utc').jd
+            return cal2time(cal2iso(date), scale='utc')
         elif isinstance(date, float):
-            return date
+            return jd2time(date)
         elif isinstance(date, Time):
-            return date.jd
+            return Time
         elif isinstance(date, datetime):
-            return Time(datetime, scale='utc').jd
+            return Time(datetime, scale='utc')
         elif isinstance(date, (list, tuple, np.ndarray)):
-            return np.ndarray([self._date2jd(d) for d in date])
+            return np.ndarray([self._date2time(d) for d in date])
         else:
             raise ValueError("Invalid date: {}".format(date))
 
@@ -288,7 +345,6 @@ class Geom(dict):
         """
 
         from astropy.coordinates import Angle
-        import astropy.units as u
         from util import jd2time
 
         g = self.mean()
@@ -297,8 +353,9 @@ class Geom(dict):
         time = time.split('.')[0]
 
         opts = dict(sep=':', precision=1, pad=True)
-        ra = Angle(g['ra'], u.deg).format('hour', **opts)
-        dec = Angle(g['dec'], u.deg).format('deg', alwayssign=True, **opts)
+        ra = Angle(g['ra'].value, u.deg).format('hour', **opts)
+        dec = Angle(g['dec'].value, u.deg).format('deg', alwayssign=True,
+                                                  **opts)
 
         print ("""
 {:>34s} {:s}
@@ -320,15 +377,15 @@ class Geom(dict):
 """.format("Date:", date,
            "Time (UT):", time,
            "Julian day:", g['date'],
-           "Heliocentric distance (AU):", g['rh'],
-           "Target-Observer distance (AU):", g['delta'],
-           "Sun-Object-Observer angle (deg):", g['phase'],
-           "Sun-Observer-Target angle (deg):", g['selong'],
-           "Moon-Observer-Target angle (deg):", g['lelong'],
+           "Heliocentric distance (AU):", g['rh'].value,
+           "Target-Observer distance (AU):", g['delta'].value,
+           "Sun-Object-Observer angle (deg):", g['phase'].value,
+           "Sun-Observer-Target angle (deg):", g['selong'].value,
+           "Moon-Observer-Target angle (deg):", g['lelong'].value,
            "RA (hr):", ra,
            "Dec (deg):", dec,
-           "Projected sun vector (deg):", g['sangle'],
-           "Projected velocity vector (deg):", g['vangle']))
+           "Projected sun vector (deg):", g['sangle'].value,
+           "Projected velocity vector (deg):", g['vangle'].value))
 
 class MovingObject(object):
     """An abstract class for an object moving in space.
@@ -375,7 +432,6 @@ class MovingObject(object):
 
         """
 
-        import astropy.units as u
         from astropy.time import TimeDelta
         import astropy.constants as const
 
