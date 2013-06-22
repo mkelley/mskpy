@@ -3,7 +3,7 @@
 def find_data_files():
     import os
     filelist = []
-    for root, dirnames, files in os.walk('data/'):
+    for root, dirnames, files in os.walk('mskpy/data/'):
         dirlist = []
         for f in files:
             for suffix in ['.dat', '.txt', '.tbl']:
