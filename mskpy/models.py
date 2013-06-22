@@ -58,7 +58,7 @@ class NEATM(SurfaceEmission):
     ----------
     radius : float or Quantity
       The radius of the asteroid (no, NOT diameter!).  [float: km]
-    albedo : float
+    pv : float
       The geometric albedo.
     eta : float
       The IR-beaming parameter.
@@ -84,12 +84,11 @@ class NEATM(SurfaceEmission):
 
     """
 
-    def __init__(self, radius, albedo, eta, epsilon=0.95, G=0.15, tol=1e-3):
-
+    def __init__(self, radius, pv, eta, epsilon=0.95, G=0.15, tol=1e-3):
         from util import asQuantity
 
         self.radius = asQuantity(radius, u.km)
-        self.albedo = albedo
+        self.pv = pv
         self.eta = eta
         self.epsilon = epsilon
         self.G = G
@@ -165,7 +164,7 @@ class NEATM(SurfaceEmission):
         -> A = 0.0157
 
         """
-        return self.albedo * (0.290 + 0.684 * self.G)
+        return self.pv * (0.290 + 0.684 * self.G)
 
     @property
     def D(self):
@@ -243,3 +242,127 @@ class NEATM(SurfaceEmission):
             fluxd[i] = 0.0
         return fluxd
 
+class HG(SurfaceEmission):
+    """The IAU HG system for reflected light from asteroids.
+
+    Parameters
+    ----------
+    H : float
+      Absolute magnitude.
+    G : float
+      The slope parameter.
+    zp : float or Quantity, optional
+      Flux density of magnitude 0. [float: W/m2/um]
+
+    Attributes
+    ----------
+
+    Methods
+    -------
+    R : Radius.
+    D : Diameter.
+    Phi : Phase function.
+    fluxd : Total flux density.
+
+    """
+
+    def __init__(self, H, G, mz=, Msun=):
+        self.H = H
+        self.G = G
+        self.zp = 
+        self.Msun = 
+
+    def _Phi_i(i, phase):
+        # i = integer, phase = float, radians
+        A = [3.332, 1.862]
+        B = [0.631, 1.218]
+        C = [0.986, 0.238]
+        Phi_S = 1.0 - C[i] * np.sin(phase) / \
+            (0.119 + 1.341 * np.sin(phase) - 0.754 * np.sin(phase)**2)
+        Phi_L = np.exp(-A[i] * np.tan(0.5 * phase)**B[i])
+        W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
+        return W * Phi_S + (1.0 - W) * Phi_L
+
+    def Phi(phase):
+        """Phase function.
+
+        Parameters
+        ----------
+        phase : float
+          Phase angle. [radians]
+
+        Returns
+        -------
+        phi : float
+
+        """
+        return (1.0 - self.G) * Phi_i(0, phase) + G * Phi_i(1, phase)
+
+    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+        """Flux density.
+
+        Parameters
+        ----------
+        geom : dict of floats or Quantities
+          A dictionary-like object with the keys 'rh' (heliocentric
+          distance), 'delta' (observer-target distance), and 'phase'
+          (phase angle). [floats: AU, AU, and deg]
+        wave : float, array, or Quantity
+          The wavelengths at which to compute the emission. [float:
+          micron]
+        unit : astropy Units, optional
+          The return units.  Must be spectral flux density.
+
+        Returns
+        -------
+        fluxd : Quantity
+          The flux density from the whole asteroid.
+
+        """
+
+        from numpy import pi
+        from scipy.integrate import quad
+
+        from .util import asQuantity
+
+        rh = asQuantity(geom['rh'], u.AU).value
+        delta = asQuantity(geom['delta'], u.AU).value
+        phase = abs(asQuantity(geom['phase'], u.deg).to(u.rad).value)
+        wave = asQuantity(wave, u.um).value
+        if not np.iterable(wave):
+            wave = np.array([wave])
+
+        mv = (H + 5.0 * np.log10(rh * delta)
+              - 2.5 * np.log10(HGPhi(phase, G))
+
+        fluxd = fluxd * u.Unit('W / (m2 Hz)')
+        equiv = u.spectral_density(u.um, wave)
+        fluxd = fluxd.to(unit, equivalencies=equiv)
+        if len(fluxd) == 1:
+            return fluxd[0]
+        else:
+            return fluxd
+
+    def D(self, pv, Msun=-26.75):
+        """Diameter.
+
+        Parameters
+        ----------
+        pv : float
+          Geometric albedo.
+        Msun : float, optional
+          Absolute magnitude of the Sun.
+
+        Returns
+        -------
+        D : Quantity
+          Diameter of the asteroid.
+        
+        """
+        import astropy.constants as const
+        return (2 * const.AU.to(u.km).value / np.sqrt(pv)
+                * 10**(0.2 * Msun - self.H))
+
+    def R(self, *args, **kwargs):
+        """Radius via D()."""
+        return self.D(*args, **kwargs) / 2.0
