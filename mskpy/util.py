@@ -11,8 +11,8 @@ util --- Short and sweet functions, generic algorithms
    archav
    cartesian
    davint
-   Gaussian
-   Gaussian2d
+   gaussian
+   gaussian2d
    deriv
    hav
    rotmat
@@ -54,7 +54,7 @@ util --- Short and sweet functions, generic algorithms
    -------------------
    bandpass
    deresolve
-   Planck
+   planck
    redden
    pcurve
    savitzky_golay
@@ -293,7 +293,7 @@ def deriv(y, x=None):
 
     return dydx
 
-def Gaussian(x, mu, sigma):
+def gaussian(x, mu, sigma):
     """A normalized Gaussian curve.
 
     Parameters
@@ -314,7 +314,7 @@ def Gaussian(x, mu, sigma):
     return (np.exp(-(x - mu)**2 / 2.0 / sigma**2) /
             np.sqrt(2.0 * pi) / sigma)
 
-def Gaussian2d(shape, sigma, theta=0):
+def gaussian2d(shape, sigma, theta=0):
     """A normalized 2-D Gaussian function.
 
     Take care to make sure the result is normalized, if needed.
@@ -1440,7 +1440,7 @@ def deresolve(func, wave, flux, err=None):
         if 'gaussian' in func.lower():
             sigma = float(re.findall('gaussian\(([^)]+)\)', func)[0])
             def func(dw):
-                return Gaussian(dw, 0, sigma)
+                return gaussian(dw, 0, sigma)
         elif 'uniform' in func.lower():
             hwhm = float(re.findall('uniform\(([^)]+)\)', func)[0]) / 2.0
             def func(dw):
@@ -1470,7 +1470,7 @@ def deresolve(func, wave, flux, err=None):
 
     return fluxout
 
-def Planck(wave, T, unit=None, deriv=None):
+def planck(wave, T, unit=None, deriv=None):
     """The Planck function.
 
     Parameters
