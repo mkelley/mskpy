@@ -74,6 +74,7 @@ util --- Short and sweet functions, generic algorithms
    -----
    asAngle
    asQuantity
+   asValue
    spectral_density_sb
 
 """
@@ -135,8 +136,10 @@ __all__ = [
     'jd2doy',
     'jd2time',
 
-    'asAngle'
-    'asQuantity'
+    'asAngle',
+    'asQuantity',
+    'asValue',
+    'spectral_density_sb'
 ]
 
 def archav(y):
@@ -1985,6 +1988,46 @@ def asQuantity(x, unit, **keywords):
         q = x
 
     return q.to(unit, **keywords)
+
+def asValue(x, unit_in, unit_out):
+    """Return the value of `x` in units of `unit_out`.
+
+    Parameters
+    ----------
+    x : float, array, Quantity, astropy Angle
+      The parameter to consider.
+    unit_in : astropy Unit
+      If `x` is a float or array, assume it is in these units.
+    unit_out : astropy Unit
+      `x` will be converted into these output units.
+
+    Returns
+    -------
+    y : float or ndarray
+
+    Raises
+    ------
+    ValueError when a `x` cannot be converted to `unit_out`.
+
+    """
+
+    from astropy.coordinates import Angle
+
+    if isinstance(x, Angle):
+        if unit_out == u.deg:
+            y = x.degrees
+        elif unit_out == u.rad:
+            y = x.radians
+        else:
+            raise ValueError("Cannot convert Angle to units of {}".format(
+                    unit_out))
+    elif isinstance(x, Quantity):
+        y = x.to(unit_out).value
+    else:
+        y = (x * unit_in).to(unit_out).value
+
+    return y
+
 
 def spectral_density_sb(s):
     """Equivalence pairs for spectra density surface brightness.
