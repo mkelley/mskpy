@@ -463,7 +463,7 @@ class Geom(object):
             raise ValueError("The dimensionality of ro and rt are equal, but"
                              " their shapes are different.")
 
-        if all(self._ro.ndim == 1, self._rt.ndim == 1):
+        if all((self._ro.ndim == 1, self._rt.ndim == 1)):
             self._len = 1
         else:
             self._len = max(self._ro.shape[0], self._rt.shape[0])
@@ -486,10 +486,28 @@ class Geom(object):
     def __getitem__(self, key):
         # are we slicing?
         if isinstance(key, (int, slice, list, np.ndarray)):
-            vo = None if (self._vo is None) else self.vo[key]
-            vt = None if (self._vt is None) else self.vt[key]
-            date = None if (self.date is None) else self.date[key]
-            return Geom(self.ro[key], self.rt[key], vo=vo, vt=vt, date=date)
+            ro = self.ro
+            vo = self.vo
+            if self._ro.ndim == 2:
+                ro = ro[key]
+                if vo is not None:
+                    vo = vo[key]
+
+            rt = self.rt
+            vt = self.vt
+            if self._rt.ndim == 2:
+                rt = rt[key]
+                if vt is not None:
+                    vt = vt[key]
+
+            if self.date is None:
+                date = None
+            elif len(self.date) == 1:
+                date = self.date
+            else:
+                date = self.date[key]
+
+            return Geom(ro, rt, vo=vo, vt=vt, date=date)
         else:
             return self.__getattribute__(key)
 
@@ -510,14 +528,14 @@ class Geom(object):
         if self._vo is None:
             return None
         else:
-            return self._vo * u.km
+            return self._vo * u.km / u.s
 
     @property
     def vt(self):
         if self._vt is None:
             return None
         else:
-            return self._vt * u.km
+            return self._vt * u.km / u.s
 
     @property
     def rh(self):
@@ -689,7 +707,29 @@ class MovingObject(object):
 
         from util import cal2time, jd2time, ec2eq, projected_vector_angle
 
-        global Moon
+        # reformat date as a Time object
+        if date is None:
+            date = Time(datetime.now(), scale='utc')
+        elif isinstance(date, float):
+            date = jd2time(date)
+        elif isinstance(date, str):
+            date = cal2time(date)
+        elif isinstance(date, datetime):
+            date = Time(date, scale='utc')
+
+        rt = target.r(date) # target postion
+        ro = self.r(date)   # observer position
+        vt = target.v(date) # target velocity
+        vo = self.v(date)   # observer velocity
+
+        g = Geom(ro, rt, vo=vo, vt=vt, date=date)
+
+        if ltt:
+            date -= TimeDelta(delta / const.c.si.value, format='sec')
+            g = self.observe(target, date, ltt=False)
+
+        return g
+
 
         if (isinstance(date, (list, tuple, np.ndarray))
             or (isinstance(date, Time) and len(date) > 1)):
@@ -816,8 +856,8 @@ class SpiceObject(MovingObject):
 
         Returns
         -------
-        r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
+        r : Quantity
+          Position vector (3-element or Nx3 element array).
        
         """
 
@@ -827,7 +867,7 @@ class SpiceObject(MovingObject):
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[:3])
+        return np.array(state[:3]) * u.km
 
     def v(self, date):
         """Velocity vector.
@@ -841,8 +881,8 @@ class SpiceObject(MovingObject):
 
         Returns
         -------
-        v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
+        v : Quantity
+          Velocity vector (3-element or Nx3 element array).
        
         """
 
@@ -852,7 +892,7 @@ class SpiceObject(MovingObject):
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[3:])
+        return np.array(state[3:]) * u.km / u.s
 
 class FixedObject(MovingObject):
     """A fixed point in space.
