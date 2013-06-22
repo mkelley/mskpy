@@ -72,8 +72,8 @@ class NEATM(SurfaceEmission):
 
     Parameters
     ----------
-    radius : float or Quantity
-      The radius of the asteroid (no, NOT diameter!).  [float: km]
+    radius : Quantity
+      The radius of the asteroid (no, NOT diameter!).
     pv : float
       The geometric albedo.
     eta : float
@@ -82,7 +82,9 @@ class NEATM(SurfaceEmission):
       The mean IR emissivity.
     G : float, optional
       The slope parameter of the Bowell H, G magnitude system, used to
-      estimate the phase integral.
+      estimate the phase integral when `phaseint` is `None`.
+    phaseint : float, optional
+      Use this phase integral instead of that from the HG system.
     tol : float, optional
       The relative error tolerance in the result.
 
@@ -100,7 +102,8 @@ class NEATM(SurfaceEmission):
 
     """
 
-    def __init__(self, radius, pv, eta, epsilon=0.95, G=0.15, tol=1e-3):
+    def __init__(self, radius, pv, eta, epsilon=0.95, G=0.15,
+                 phaseint=None, tol=1e-3):
         from ..util import asQuantity
 
         self.radius = asQuantity(radius, u.km)
@@ -108,6 +111,7 @@ class NEATM(SurfaceEmission):
         self.eta = eta
         self.epsilon = epsilon
         self.G = G
+        self.phaseint = phaseint
         self.tol = tol
 
     def fluxd(self, geom, wave, unit=u.Jy):
@@ -115,13 +119,12 @@ class NEATM(SurfaceEmission):
 
         Parameters
         ----------
-        geom : dict of floats or Quantities
+        geom : dict of Quantities
           A dictionary-like object with the keys 'rh' (heliocentric
           distance), 'delta' (observer-target distance), and 'phase'
-          (phase angle). [floats: AU, AU, and deg]
-        wave : float, array, or Quantity
-          The wavelengths at which to compute the emission. [float:
-          micron]
+          (phase angle).
+        wave : Quantity
+          The wavelengths at which to compute the emission.
         unit : astropy Units, optional
           The return units.  Must be spectral flux density.
 
@@ -134,16 +137,11 @@ class NEATM(SurfaceEmission):
 
         from numpy import pi
         from scipy.integrate import quad
+        from ..util import asAngle
 
-        from ..util import asAngle, asQuantity
-
-        rh = asQuantity(geom['rh'], u.AU).value
-        delta = asQuantity(geom['delta'], u.AU).to(u.m).value
-        phase = asAngle(np.abs(geom['phase']), u.deg).radians
-        wave = asQuantity(wave, u.um).value
-        if not np.iterable(wave):
-            wave = np.array([wave])
-        T0 = self.T0(rh).value
+        wave = np.array([wave.value]) * wave.unit
+        T0 = self.T0(geom['rh']).value
+        fluxd = np.zeros(len(wave))
 
         # Integrate theta from -pi/2 to pi/2: emission is emitted from
         # the daylit hemisphere: theta = (phase - pi/2) to (phase +
@@ -152,18 +150,19 @@ class NEATM(SurfaceEmission):
         #
         # Integrate phi from -pi/2 to pi/2 (or 2 * integral from 0 to
         # pi/2)
-        fluxd = np.zeros(len(wave))
+        theta_limits = [-pi / 2.0 + np.abs(asAngle(geom['phase']).radians),
+                         pi / 2.0]
         for i in range(len(wave)):
-            integral = quad(self._latitude_emission,
-                            -pi / 2.0 + phase, pi / 2.0,
+            fluxd[i] = quad(self._latitude_emission,
+                            theta_limits[0], theta_limits[1],
                             args=(wave[i], T0, phase),
                             epsrel=self.tol)
-            fluxd[i] = (self.epsilon * (self.D.value * 1e3 / delta)**2 *
-                        integral[0] / pi / 2.0) # W/m^2/Hz
+
+        fluxd *= (self.epsilon * (self.D / geom['delta'])**2
+                  / pi / 2.0).decompose() # W/m^2/Hz
 
         fluxd = fluxd * u.Unit('W / (m2 Hz)')
-        equiv = u.spectral_density(u.um, wave)
-        fluxd = fluxd.to(unit, equivalencies=equiv)
+        fluxd = fluxd.to(unit, equivalencies=u.spectral_density(u.um, wave))
         if len(fluxd) == 1:
             return fluxd[0]
         else:
@@ -180,7 +179,11 @@ class NEATM(SurfaceEmission):
         -> A = 0.0157
 
         """
-        return self.pv * (0.290 + 0.684 * self.G)
+        if self.phaseint is None:
+            A = self.pv * (0.290 + 0.684 * self.G)
+        else:
+            A = self.pv * self.phaseint
+        return A
 
     @property
     def D(self):
@@ -192,8 +195,8 @@ class NEATM(SurfaceEmission):
 
         Parameters
         ----------
-        rh : float or Quantity
-          Heliocentric distance. [float: AU]
+        rh : Quantity
+          Heliocentric distance.
 
         Returns
         -------
@@ -207,13 +210,10 @@ class NEATM(SurfaceEmission):
         #Fsun = L_sun / u.AU.to(u.m)**2 / 4 / np.pi * u.AU**2
         #Fsun = 1367.567 * u.Unit('W AU2 / m2')
 
-        if isinstance(rh, Quantity):
-            rh = rh.to(u.AU).value
-
-        Fsun = 1367.567 # W AU2 / m2
-        sigma = 5.670373e-08 # W / (K4 m2)
-        T0 = (((1.0 - self.A) * Fsun) / rh**2 / abs(self.eta)
-              / self.epsilon / sigma)**0.25
+        Fsun = 1367.567 / rh.to(u.au).value**2  # W / m2
+        sigma = 5.670373e-08  # W / (K4 m2)
+        T0 = (((1.0 - self.A) * Fsun) / abs(self.eta) / self.epsilon
+              / sigma)**0.25
         return T0 * u.K
 
     def _point_emission(self, phi, theta, wave, T0):
@@ -267,8 +267,8 @@ class HG(SurfaceEmission):
       Absolute magnitude.
     G : float
       The slope parameter.
-    mzp : float or Quantity, optional
-      Flux density of magnitude 0. [float: W/m2/um]
+    mzp : Quantity, optional
+      Flux density of magnitude 0.
 
     Attributes
     ----------
@@ -281,26 +281,22 @@ class HG(SurfaceEmission):
 
     """
 
-    def __init__(self, H, G, mzp=3.51e-8):
+    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)')):
         self.H = H
         self.G = G
-        if isinstance(mzp, Quantity):
-            self.mzp = mzp
-        else:
-            self.mzp = mzp * u.Unit('W/(m2 um)')
+        self.mzp = mzp
 
     def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
         """Flux density.
 
         Parameters
         ----------
-        geom : dict of floats or Quantities
+        geom : dict of Quantities
           A dictionary-like object with the keys 'rh' (heliocentric
           distance), 'delta' (observer-target distance), and 'phase'
-          (phase angle). [floats: AU, AU, and deg]
-        wave : float, array, or Quantity
-          The wavelengths at which to compute the emission. [float:
-          micron]
+          (phase angle).
+        wave : Quantity
+          The wavelengths at which to compute the emission.
         unit : astropy Units, optional
           The return units.  Must be spectral flux density.
 
@@ -314,21 +310,20 @@ class HG(SurfaceEmission):
         from ..util import asAngle, asQuantity
         from ..calib import solar_flux
 
-        rh = asQuantity(geom['rh'], u.AU).value
-        delta = asQuantity(geom['delta'], u.AU).value
-        phase = asAngle(np.abs(geom['phase']), u.deg).degrees
-        wave = asQuantity(wave, u.um).value
         if not np.iterable(wave):
-            wave = np.array([wave])
+            wave = np.array([wave.value]) * wave.unit
 
-        mv = (self.H + 5.0 * np.log10(rh * delta)
-              - 2.5 * np.log10(hg_phi(phase, self.G)))
+        rhdelta = geom['rh'].to(u.au).value * geom['delta'].to(u.au).value
+        phase = asAngle(geom['phase'])
+
+        mv = (self.H + 5.0 * np.log10(rhdelta)
+              - 2.5 * np.log10(hg_phi(phase.degrees, self.G)))
 
         wave_v = np.linspace(0.5, 0.6)
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
+        fsun = solar_flux(wave, unit=unit)
 
-        fluxd = (self.mzp * 10**(-0.4 * mv) * solar_flux(wave, unit=unit)
-                 / fsun_v)
+        fluxd = self.mzp * 10**(-0.4 * mv) * fsun / fsun_v
 
         if len(fluxd) == 1:
             return fluxd[0]
@@ -351,9 +346,8 @@ class HG(SurfaceEmission):
           Diameter of the asteroid.
         
         """
-        from astropy.constants import au
-        return (2 * au.to(u.km).value / np.sqrt(pv)
-                * 10**(0.2 * (Msun - self.H)))
+        return (2 * 149597870.7 / np.sqrt(pv)
+                * 10**(0.2 * (Msun - self.H))) * u.km
 
     def R(self, *args, **kwargs):
         """Radius via D()."""
@@ -364,7 +358,7 @@ class Dpv(SurfaceEmission):
 
     Parameters
     ----------
-    D : float or Quantity
+    D : Quantity
       Diameter.
     pv : float
       Geometric albedo.
@@ -385,7 +379,7 @@ class Dpv(SurfaceEmission):
 
     def __init__(self, D, pv, phasef):
         from ..util import asQuantity
-        self.D = asQuantity(D, u.km)
+        self.D = D
         self.pv = pv
 
         if hasattr(phasef, '__func__'):
@@ -400,13 +394,12 @@ class Dpv(SurfaceEmission):
 
         Parameters
         ----------
-        geom : dict of floats or Quantities
+        geom : dict of Quantities
           A dictionary-like object with the keys 'rh' (heliocentric
           distance), 'delta' (observer-target distance), and 'phase'
-          (phase angle). [floats: AU, AU, and deg]
-        wave : float, array, or Quantity
-          The wavelengths at which to compute the emission. [float:
-          micron]
+          (phase angle).
+        wave : Quantity
+          The wavelengths at which to compute the emission.
         unit : astropy Units, optional
           The return units.  Must be spectral flux density.
 
@@ -419,20 +412,19 @@ class Dpv(SurfaceEmission):
 
         from numpy import pi
 
-        from ..util import asAngle, asQuantity
+        from ..util import asAngle
         from ..calib import solar_flux
 
-        rh = asQuantity(geom['rh'], u.AU).value
-        delta = asQuantity(geom['delta'], u.m).value
-        phase = asAngle(np.abs(geom['phase']), u.deg).degrees
-        wave = asQuantity(wave, u.um).value
         if not np.iterable(wave):
-            wave = np.array([wave])
+            wave = np.array([wave.value]) * wave.unit
 
-        fsun = solar_flux(wave) / rh**2
+        delta = geom['delta'].to(u.m).value
+        phase = np.abs(asAngle(geom['phase']).degrees)
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
         R = self.R.to(u.m).value**2
+
         #fsca = fsun * pv * phasef(phase) * pi * R**2 / pi / delta**2
-        fsca = (fsun * self.pv * self.phasef(phase) * R**2 / delta**2)
+        fsca = fsun * self.pv * self.phasef(phase) * (R / delta)**2
 
         if unit != fsca.unit:
             fsca = fsca.to(unit, equivalencies=u.spectral_density(u.um, wave))
@@ -453,9 +445,8 @@ class Dpv(SurfaceEmission):
 
         """
 
-        from astropy.constants import au
-
-        return 5 * np.log10(self.D.value * np.sqrt(self.pv) / 2 / au) - Msun
+        return 5 * np.log10(self.D.to(u.km).value * np.sqrt(self.pv)
+                            / 299195741.4) - Msun
 
     @property
     def R(self):
@@ -484,7 +475,7 @@ def hg_phi(phase, G):
 
     Parameters
     ----------
-    phase : float or astropy Angle
+    phase : float
       Phase angle. [deg]
 
     Returns
@@ -492,8 +483,5 @@ def hg_phi(phase, G):
       phi : float
 
     """
-
-    from ..util import asAngle
-
-    phase = asAngle(phase, u.deg).radians
+    phase = np.radians(phase)
     return ((1.0 - G) * _hg_phi_i(0, phase) + G * _hg_phi_i(1, phase))
