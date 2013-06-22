@@ -3,6 +3,10 @@
 """
 mskpy --- MSK's personal library for astronomy and stuff
 ========================================================
+
+.. autosummary::
+   :toctree: generated/
+
 """
 
 from . import calib

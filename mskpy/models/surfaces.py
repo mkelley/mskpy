@@ -10,21 +10,35 @@ models --- MSK's model library
    --------------
 
    SurfaceEmission
+   Dpv
    HG
    NEATM
+   Lambertian
+
+   Phase functions
+   ---------------
+
+   hg_phi
+   lambertian
+   
 
 
 """
 
-__all__ = [
-    'SurfaceEmission'
-    'HG',
-    'NEATM',
-]
-
+from __future__ import print_function
 import numpy as np
 import astropy.units as u
 from astropy.units import Quantity
+
+__all__ = [
+    'SurfaceEmission',
+    'Dpv',
+    'HG',
+    'NEATM',
+
+    'hg_phi',
+    'lambertian'
+]
 
 class SurfaceEmission(object):
     """An abstract class for surface emission in the Solar System.
@@ -87,7 +101,7 @@ class NEATM(SurfaceEmission):
     """
 
     def __init__(self, radius, pv, eta, epsilon=0.95, G=0.15, tol=1e-3):
-        from util import asQuantity
+        from ..util import asQuantity
 
         self.radius = asQuantity(radius, u.km)
         self.pv = pv
@@ -121,11 +135,11 @@ class NEATM(SurfaceEmission):
         from numpy import pi
         from scipy.integrate import quad
 
-        from .util import asQuantity
+        from ..util import asAngle, asQuantity
 
         rh = asQuantity(geom['rh'], u.AU).value
         delta = asQuantity(geom['delta'], u.AU).to(u.m).value
-        phase = asQuantity(geom['phase'], u.deg).to(u.rad).value
+        phase = asAngle(np.abs(geom['phase']), u.deg).radians
         wave = asQuantity(wave, u.um).value
         if not np.iterable(wave):
             wave = np.array([wave])
@@ -188,7 +202,7 @@ class NEATM(SurfaceEmission):
 
         """
 
-        from .util import asQuantity
+        from ..util import asQuantity
 
         #Fsun = L_sun / u.AU.to(u.m)**2 / 4 / np.pi * u.AU**2
         #Fsun = 1367.567 * u.Unit('W AU2 / m2')
@@ -210,10 +224,10 @@ class NEATM(SurfaceEmission):
         """
 
         from numpy import pi
-        from util import Planck
+        from util import planck
 
         T = T0 * np.cos(phi)**0.25 * np.cos(theta)**0.25
-        B = Planck(wave, T, unit=None) # W / (m2 sr Hz)
+        B = planck(wave, T, unit=None) # W / (m2 sr Hz)
         return (B * pi * np.cos(phi)**2) # W / (m2 Hz)
 
     def _latitude_emission(self, theta, wave, T0, phase):
@@ -297,21 +311,18 @@ class HG(SurfaceEmission):
 
         """
 
-        from numpy import pi
-        from scipy.integrate import quad
-
-        from .util import asQuantity
-        from .calib import solar_flux
+        from ..util import asAngle, asQuantity
+        from ..calib import solar_flux
 
         rh = asQuantity(geom['rh'], u.AU).value
         delta = asQuantity(geom['delta'], u.AU).value
-        phase = abs(asQuantity(geom['phase'], u.deg).to(u.rad).value)
+        phase = asAngle(np.abs(geom['phase']), u.deg).degrees
         wave = asQuantity(wave, u.um).value
         if not np.iterable(wave):
             wave = np.array([wave])
 
         mv = (self.H + 5.0 * np.log10(rh * delta)
-              - 2.5 * np.log10(Phi(phase, self.G)))
+              - 2.5 * np.log10(hg_phi(phase, self.G)))
 
         wave_v = np.linspace(0.5, 0.6)
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
@@ -357,8 +368,14 @@ class Dpv(SurfaceEmission):
       Diameter.
     pv : float
       Geometric albedo.
-    Phi : function, optional
-      Phase function.  Default is HG system phase function for G=0.15.
+    phasef : float or function
+      Phase function.  If `phasef` is a `float`, generate an IAU HG
+      system phase function with `G = phasef`.  If a function, it must
+      only take one parameter, phase angle, in units of degrees.
+
+    Attributes
+    ----------
+    R : radius
 
     Methods
     -------
@@ -366,14 +383,61 @@ class Dpv(SurfaceEmission):
 
     """
 
-    def __init__(self, D, pv, Phi=genPhi(0.15)):
-        from .util import asQuantity
-        self.D = asQuantity(self.D, u.km)
+    def __init__(self, D, pv, phasef):
+        from ..util import asQuantity
+        self.D = asQuantity(D, u.km)
         self.pv = pv
-        self.Phi = Phi
+
+        if hasattr(phasef, '__func__'):
+            self.phasef = phasef
+        else:
+            def phi_g(phase):
+                return hg_phi(phase, phasef)
+            self.phasef = phi_g
 
     def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
-        pass
+        """Flux density.
+
+        Parameters
+        ----------
+        geom : dict of floats or Quantities
+          A dictionary-like object with the keys 'rh' (heliocentric
+          distance), 'delta' (observer-target distance), and 'phase'
+          (phase angle). [floats: AU, AU, and deg]
+        wave : float, array, or Quantity
+          The wavelengths at which to compute the emission. [float:
+          micron]
+        unit : astropy Units, optional
+          The return units.  Must be spectral flux density.
+
+        Returns
+        -------
+        fluxd : Quantity
+          The flux density from the whole asteroid.
+
+        """
+
+        from numpy import pi
+
+        from ..util import asAngle, asQuantity
+        from ..calib import solar_flux
+
+        rh = asQuantity(geom['rh'], u.AU).value
+        delta = asQuantity(geom['delta'], u.m).value
+        phase = asAngle(np.abs(geom['phase']), u.deg).degrees
+        wave = asQuantity(wave, u.um).value
+        if not np.iterable(wave):
+            wave = np.array([wave])
+
+        fsun = solar_flux(wave) / rh**2
+        R = self.R.to(u.m).value**2
+        #fsca = fsun * pv * phasef(phase) * pi * R**2 / pi / delta**2
+        fsca = (fsun * self.pv * self.phasef(phase) * R**2 / delta**2)
+
+        if unit != fsca.unit:
+            fsca = fsca.to(unit, equivalencies=u.spectral_density(u.um, wave))
+
+        return fsca
 
     def H(self, Msun=-26.75):
         """Absolute (V) magnitude.
@@ -399,9 +463,13 @@ class Dpv(SurfaceEmission):
         return self.D / 2.0
 
 
-def _Phi_i(i, phase):
-    """Helper function for Phi."""
-    # i = integer, phase = float, radians
+def _hg_phi_i(i, phase):
+    """Helper function for hg_phi.
+
+    i: integer
+    phase : float, radians
+
+    """
     A = [3.332, 1.862]
     B = [0.631, 1.218]
     C = [0.986, 0.238]
@@ -411,37 +479,21 @@ def _Phi_i(i, phase):
     W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
     return W * Phi_S + (1.0 - W) * Phi_L
 
-def Phi(phase, G):
+def hg_phi(phase, G):
     """IAU HG system phase function.
 
     Parameters
     ----------
-    phase : float
-      Phase angle. [radians]
+    phase : float or astropy Angle
+      Phase angle. [deg]
 
     Returns
     -------
       phi : float
 
     """
-    return ((1.0 - G) * _Phi_i(0, phase) + G * _Phi_i(1, phase))
 
-def genPhi(G):
-    """Return a phase function, given G.
+    from ..util import asAngle
 
-    Parameters
-    ----------
-    G : float
-      IAU HG system phase parameter.
-
-    Returns
-    -------
-    Phi_G : function
-
-    """
-
-    def Phi_G(phase):
-        return Phi(phase, G)
-
-    return Phi_G
-
+    phase = asAngle(phase, u.deg).radians
+    return ((1.0 - G) * _hg_phi_i(0, phase) + G * _hg_phi_i(1, phase))
