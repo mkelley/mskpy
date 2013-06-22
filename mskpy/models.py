@@ -10,14 +10,16 @@ models --- MSK's model library
    --------------
 
    SurfaceEmission
+   HG
    NEATM
 
 
 """
 
 __all__ = [
-    'Surface',
-    'NEATM'
+    'SurfaceEmission'
+    'HG',
+    'NEATM',
 ]
 
 import numpy as np
@@ -251,7 +253,7 @@ class HG(SurfaceEmission):
       Absolute magnitude.
     G : float
       The slope parameter.
-    zp : float or Quantity, optional
+    mzp : float or Quantity, optional
       Flux density of magnitude 0. [float: W/m2/um]
 
     Attributes
@@ -266,13 +268,15 @@ class HG(SurfaceEmission):
 
     """
 
-    def __init__(self, H, G, mz=, Msun=):
+    def __init__(self, H, G, mzp=3.51e-8):
         self.H = H
         self.G = G
-        self.zp = 
-        self.Msun = 
+        if isinstance(mzp, Quantity):
+            self.mzp = mzp
+        else:
+            self.mzp = mzp * u.Unit('W/(m2 um)')
 
-    def _Phi_i(i, phase):
+    def _Phi_i(self, i, phase):
         # i = integer, phase = float, radians
         A = [3.332, 1.862]
         B = [0.631, 1.218]
@@ -283,7 +287,7 @@ class HG(SurfaceEmission):
         W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
         return W * Phi_S + (1.0 - W) * Phi_L
 
-    def Phi(phase):
+    def Phi(self, phase):
         """Phase function.
 
         Parameters
@@ -296,7 +300,8 @@ class HG(SurfaceEmission):
         phi : float
 
         """
-        return (1.0 - self.G) * Phi_i(0, phase) + G * Phi_i(1, phase)
+        return ((1.0 - self.G) * self._Phi_i(0, phase)
+                + self.G * self._Phi_i(1, phase))
 
     def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
         """Flux density.
@@ -324,6 +329,7 @@ class HG(SurfaceEmission):
         from scipy.integrate import quad
 
         from .util import asQuantity
+        from .calib import solar_flux
 
         rh = asQuantity(geom['rh'], u.AU).value
         delta = asQuantity(geom['delta'], u.AU).value
@@ -332,12 +338,15 @@ class HG(SurfaceEmission):
         if not np.iterable(wave):
             wave = np.array([wave])
 
-        mv = (H + 5.0 * np.log10(rh * delta)
-              - 2.5 * np.log10(HGPhi(phase, G))
+        mv = (self.H + 5.0 * np.log10(rh * delta)
+              - 2.5 * np.log10(self.Phi(phase)))
 
-        fluxd = fluxd * u.Unit('W / (m2 Hz)')
-        equiv = u.spectral_density(u.um, wave)
-        fluxd = fluxd.to(unit, equivalencies=equiv)
+        wave_v = np.linspace(0.5, 0.6)
+        fsun_v = solar_flux(wave_v, unit=unit).value.mean()
+
+        fluxd = (self.mzp * 10**(-0.4 * mv) * solar_flux(wave, unit=unit)
+                 / fsun_v)
+
         if len(fluxd) == 1:
             return fluxd[0]
         else:
@@ -360,8 +369,8 @@ class HG(SurfaceEmission):
         
         """
         import astropy.constants as const
-        return (2 * const.AU.to(u.km).value / np.sqrt(pv)
-                * 10**(0.2 * Msun - self.H))
+        return (2 * const.au.to(u.km).value / np.sqrt(pv)
+                * 10**(0.2 * (Msun - self.H)))
 
     def R(self, *args, **kwargs):
         """Radius via D()."""
