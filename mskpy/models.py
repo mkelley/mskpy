@@ -263,7 +263,6 @@ class HG(SurfaceEmission):
     -------
     R : Radius.
     D : Diameter.
-    Phi : Phase function.
     fluxd : Total flux density.
 
     """
@@ -275,33 +274,6 @@ class HG(SurfaceEmission):
             self.mzp = mzp
         else:
             self.mzp = mzp * u.Unit('W/(m2 um)')
-
-    def _Phi_i(self, i, phase):
-        # i = integer, phase = float, radians
-        A = [3.332, 1.862]
-        B = [0.631, 1.218]
-        C = [0.986, 0.238]
-        Phi_S = 1.0 - C[i] * np.sin(phase) / \
-            (0.119 + 1.341 * np.sin(phase) - 0.754 * np.sin(phase)**2)
-        Phi_L = np.exp(-A[i] * np.tan(0.5 * phase)**B[i])
-        W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
-        return W * Phi_S + (1.0 - W) * Phi_L
-
-    def Phi(self, phase):
-        """Phase function.
-
-        Parameters
-        ----------
-        phase : float
-          Phase angle. [radians]
-
-        Returns
-        -------
-        phi : float
-
-        """
-        return ((1.0 - self.G) * self._Phi_i(0, phase)
-                + self.G * self._Phi_i(1, phase))
 
     def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
         """Flux density.
@@ -339,7 +311,7 @@ class HG(SurfaceEmission):
             wave = np.array([wave])
 
         mv = (self.H + 5.0 * np.log10(rh * delta)
-              - 2.5 * np.log10(self.Phi(phase)))
+              - 2.5 * np.log10(Phi(phase, self.G)))
 
         wave_v = np.linspace(0.5, 0.6)
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
@@ -368,10 +340,108 @@ class HG(SurfaceEmission):
           Diameter of the asteroid.
         
         """
-        import astropy.constants as const
-        return (2 * const.au.to(u.km).value / np.sqrt(pv)
+        from astropy.constants import au
+        return (2 * au.to(u.km).value / np.sqrt(pv)
                 * 10**(0.2 * (Msun - self.H)))
 
     def R(self, *args, **kwargs):
         """Radius via D()."""
         return self.D(*args, **kwargs) / 2.0
+
+class Dpv(SurfaceEmission):
+    """Reflected light from asteroids given D, pv.
+
+    Parameters
+    ----------
+    D : float or Quantity
+      Diameter.
+    pv : float
+      Geometric albedo.
+    Phi : function, optional
+      Phase function.  Default is HG system phase function for G=0.15.
+
+    Methods
+    -------
+    H : Absolute magnitude
+
+    """
+
+    def __init__(self, D, pv, Phi=genPhi(0.15)):
+        from .util import asQuantity
+        self.D = asQuantity(self.D, u.km)
+        self.pv = pv
+        self.Phi = Phi
+
+    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+        pass
+
+    def H(self, Msun=-26.75):
+        """Absolute (V) magnitude.
+
+        Parameters
+        ----------
+        Msun : float, optional
+          Absolute magnitude of the Sun.
+
+        Returns
+        -------
+        H : float
+
+        """
+
+        from astropy.constants import au
+
+        return 5 * np.log10(self.D.value * np.sqrt(self.pv) / 2 / au) - Msun
+
+    @property
+    def R(self):
+        """Radius."""
+        return self.D / 2.0
+
+
+def _Phi_i(i, phase):
+    """Helper function for Phi."""
+    # i = integer, phase = float, radians
+    A = [3.332, 1.862]
+    B = [0.631, 1.218]
+    C = [0.986, 0.238]
+    Phi_S = 1.0 - C[i] * np.sin(phase) / \
+        (0.119 + 1.341 * np.sin(phase) - 0.754 * np.sin(phase)**2)
+    Phi_L = np.exp(-A[i] * np.tan(0.5 * phase)**B[i])
+    W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
+    return W * Phi_S + (1.0 - W) * Phi_L
+
+def Phi(phase, G):
+    """IAU HG system phase function.
+
+    Parameters
+    ----------
+    phase : float
+      Phase angle. [radians]
+
+    Returns
+    -------
+      phi : float
+
+    """
+    return ((1.0 - G) * _Phi_i(0, phase) + G * _Phi_i(1, phase))
+
+def genPhi(G):
+    """Return a phase function, given G.
+
+    Parameters
+    ----------
+    G : float
+      IAU HG system phase parameter.
+
+    Returns
+    -------
+    Phi_G : function
+
+    """
+
+    def Phi_G(phase):
+        return Phi(phase, G)
+
+    return Phi_G
+
