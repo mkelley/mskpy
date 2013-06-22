@@ -132,8 +132,8 @@ def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
 
     Parameters
     ----------
-    wave : array or Quantity
-        Wavelength. [microns]
+    wave : float, array or Quantity
+        Wavelength. [float/array: microns]
     smooth : bool, optional
         Set to `True` to use `e490`'s smoothed spectrum.
     unit : astropy Unit
@@ -147,9 +147,9 @@ def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
     """
 
     from scipy.interpolate import interp1d
+    from .util import asQuantity
 
-    if not isinstance(wave, Quantity):
-        wave *= u.um  # micron assumed
+    wave = asQuantity(wave, u.um).value
 
     solarw, solarf = e490(smooth=smooth, unit=unit)
     solarInterp = interp1d(solarw.value, solarf.value)
