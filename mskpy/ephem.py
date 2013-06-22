@@ -118,276 +118,6 @@ _spice_setup = False
 class ObjectError(Exception):
     pass
 
-class GeomOld(dict):
-    """Contains observing geometry parameters for solar system objects.
-
-    Not very robust and needs more error checking.
-
-    Keys
-    ----
-    rh : float or Quantity
-      Heliocentric distance.  [float: AU]
-    delta = float or Quantity
-      Observer-target distance.  [float: AU]
-    phase : float, Quantity, or Angle
-      Phase angle.  May be signed.  [float: degrees]
-    ra : float, Quantity, or Angle
-      Right Ascension.  [float: degrees]
-    dec : float, Quantity, or Angle
-      Declination.  [float: degrees]
-    sangle : float, Quantity, or Angle
-      Projected Sun angle.  [float: degrees]
-    vangle : float, Quantity, or Angle
-      Projected velocity angle.  [float: degrees]
-    selong : float, Quantity, or Angle
-      Solar elongation.  [float: degrees]
-    lelong : float, Quantity, or Angle
-      Lunar elongation [float: degrees]
-    date : string, astropy Time, datetime
-      The input date.  Except for `Time` objects, UTC is assumed.
-    obsxyz : float or Quantity
-      The observer's position.  [float: km]
-    tarxyz : float or Quantity
-      The target's position.  [float: km]
-    obsrh : float or Quantity
-      The observer's heliocentric distance.  [float: AU]
-
-    Parameters
-    ----------
-    g : dict or Geom, optional
-      The parameters.
-
-    Notes
-    -----
-    `g[key]` returns a Quantity, but `g.items()`, `g.values()`,
-    `g.itervalues()` returns the underlying values (floats or
-    ndarrays).
-
-    The only operation defined for `Geom['date']` is `-`; `+`, `*`,
-    `/` all return `None`.
-
-    There is no sanity checking on the geometry.
-
-    Dates are converted to Julian Date before adding, subtracting,
-    etc.
-
-    """
-
-    allowedKeys = ('date', 'rh', 'delta', 'phase', 'ra', 'dec', 'lelong',
-                   'selong', 'sangle', 'vangle', 'obsxyz', 'tarxyz',
-                   'obsrh')
-
-    units = dict(date=None, rh=u.au, delta=u.au, phase=u.deg,
-                 ra=u.deg, dec=u.deg, lelong=u.deg, selong=u.deg,
-                 sangle=u.deg, vangle=u.deg, obsxyz=u.km,
-                 tarxyz=u.km, obsrh=u.au)
-
-    def __init__(self, g=None):
-        from astropy.units import Quantity
-        from astropy.coordinates import Angle
-
-        if g is None:
-            for k in self.allowedKeys:
-                self[k] = None
-        else:
-            for k, v in g.items():
-                if self.units[k] is None:
-                    self[k] = v
-                elif isinstance(v, Quantity):
-                    self[k] = v.to(self.units[k]).value
-                elif isinstance(v, Angle):
-                    self[k] = v.degrees
-                else:
-                    self[k] = v
-
-    def __getitem__(self, key):
-        # are we slicing or getting a key?
-        if isinstance(key, (int, slice, list, np.ndarray)):
-            r = Geom()
-            for k, v in self.items():
-                r[k] = v[key]
-            return r
-        else:
-            if key not in self.allowedKeys:
-                raise AttributeError("{:} is not a Geom key".format(key))
-            v = dict.__getitem__(self, key)
-            if (v is not None) and (self.units[key] is not None):
-                v *= self.units[key]
-            return v
-
-    def __len__(self):
-        if self['rh'] is None:
-            return 0
-        elif np.iterable(self['rh']):
-            return len(self['rh'])
-        else:
-            return 1
-
-    def __add__(self, other):
-        if not isinstance(other, Geom):
-            raise NotImplemented("other must be a Geometry object")
-        r = Geom()
-        for k in self.keys():
-            if k == 'date':
-                r[k] = None
-            else:
-                r[k] = self[k] + other[k]
-        return r
-
-    def __sub__(self, other):
-        if not isinstance(other, Geom):
-            raise NotImplemented("other must be a Geometry object")
-        r = Geom()
-        for k in self.keys():
-            if k == 'date':
-                r[k] = self._date2time(self[k]) - self._date2time(other[k])
-            else:
-                r[k] = self[k] - other[k]
-        return r
-
-    def __mul__(self, other):
-        if not isinstance(other, Geom):
-            raise NotImplemented("other must be a Geometry object")
-        r = Geom()
-        for k in self.keys():
-            if k == 'date':
-                r[k] = None
-            else:
-                r[k] = self[k] * other
-        return r
-
-    def __div__(self, other):
-        if not isinstance(other, Geom):
-            raise NotImplemented("other must be a Geometry object")
-        r = Geom()
-        for k in self.keys():
-            if k == 'date':
-                r[k] = None
-            else:
-                r[k] = self[k] / other
-        return r
-
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-
-    def append(self, g):
-        if not isinstance(g, Geom):
-            g = Geom(g)
-        for k in g.keys():
-            if self[k] is None:
-                self[k] = g[k]
-            elif np.iterable(self[k]):
-                this = self[k].value
-                that = np.array(g[k].value)
-                if that.shape == ():
-                    self[k] = np.concatenate((self[k], [that]))
-                elif 'xyz' in k:
-                    self[k] = np.vstack((self[k], that))
-                else:
-                    self[k] = np.concatenate((self[k], that))
-            else:
-                self[k] = np.concatenate(([self[k]], [that]))
-
-    def mean(self):
-        """Averaged geometry.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        g : Geom
-
-        """
-
-        r = Geom()
-        for k, v in self.items():
-            if k == 'date':
-                r[k] = np.mean(self[k].jd)
-            elif 'xyz' in k:
-                if np.rank(v) > 1:
-                    r[k] = np.mean(v, 0)
-                else:
-                    r[k] = v
-            else:
-                r[k] = np.mean(v)
-        return r
-
-    def _date2time(self, date):
-        from .util import cal2time, jd2time
-        if isinstance(date, str):
-            return cal2time(cal2iso(date), scale='utc')
-        elif isinstance(date, float):
-            return jd2time(date)
-        elif isinstance(date, Time):
-            return Time
-        elif isinstance(date, datetime):
-            return Time(datetime, scale='utc')
-        elif isinstance(date, (list, tuple, np.ndarray)):
-            return np.ndarray([self._date2time(d) for d in date])
-        else:
-            raise ValueError("Invalid date: {}".format(date))
-
-    def summary(self):
-        """Print a pretty summary of the object.
-
-        If `Geom` is an array, then mean values will be printed.
-
-        Parameters
-        ----------
-        None
-
-        Returns
-        -------
-        None
-
-        """
-
-        from astropy.coordinates import Angle
-        from util import jd2time
-
-        g = self.mean()
-
-        date, time = jd2time(g['date']).iso.split()
-        time = time.split('.')[0]
-
-        opts = dict(sep=':', precision=1, pad=True)
-        ra = Angle(g['ra'].value, u.deg).format('hour', **opts)
-        dec = Angle(g['dec'].value, u.deg).format('deg', alwayssign=True,
-                                                  **opts)
-
-        print ("""
-{:>34s} {:s}
-{:>34s} {:s}
-{:>34s} {:f}
-
-{:>34s} {:8.3f}
-{:>34s} {:8.3f}
-{:>34s} {:+8.3f}
-
-{:>34s} {:8.3f}
-{:>34s} {:8.3f}
-
-{:>34s}  {:}
-{:>34s} {:}
-
-{:>34s} {:8.3f}
-{:>34s} {:8.3f}
-""".format("Date:", date,
-           "Time (UT):", time,
-           "Julian day:", g['date'],
-           "Heliocentric distance (AU):", g['rh'].value,
-           "Target-Observer distance (AU):", g['delta'].value,
-           "Sun-Object-Observer angle (deg):", g['phase'].value,
-           "Sun-Observer-Target angle (deg):", g['selong'].value,
-           "Moon-Observer-Target angle (deg):", g['lelong'].value,
-           "RA (hr):", ra,
-           "Dec (deg):", dec,
-           "Projected sun vector (deg):", g['sangle'].value,
-           "Projected velocity vector (deg):", g['vangle'].value))
-
 class Geom(object):
     """Observing geometry parameters for Solar System objects.
 
@@ -412,9 +142,9 @@ class Geom(object):
       Target's heliocentric distance.
     delta : Quantity
       Observer-target distance.
-    phase : Angle
+    phase : Quantity
       Phase angle (Sun-target-observer).
-    signedphase : Angle
+    signedphase : Quantity
       Phase angle, <0 for pre-opposition, >0 for post-opposition.
     obsrh : Quantity
       The observer's heliocentric distance.
@@ -422,17 +152,25 @@ class Geom(object):
       The observer's speed.
     st : Quantity
       The target's speed.
-    ra : Angle
-      Right Ascension.
-    dec : Angle
+    lambet : tuple of Quantity
+      Ecliptic longitude and latitude.
+    lam : Quantity
+      Ecliptic longitude.
+    bet : Quantity
+      Ecliptic latitude.
+    radec : tuple of Quantity
+      Right ascension and declination.
+    ra : Quantity
+      Right ascension.
+    dec : Quantity
       Declination.
-    sangle : Angle
+    sangle : Quantity
       Projected Sun angle.
-    vangle : Angle
+    vangle : Quantity
       Projected velocity angle.
-    selong : Angle
+    selong : Quantity
       Solar elongation.
-    lelong : Angle
+    lelong : Quantity
       Lunar elongation.
 
     Methods
@@ -445,6 +183,9 @@ class Geom(object):
     _rt = None
     _vo = None
     _vt = None
+    _keys = ['ro', 'rt', 'vo', 'vt', 'date', 'rh', 'delta', 'phase',
+             'signedphase', 'obsrh', 'so', 'st', 'lambet', 'lam', 'bet',
+             'radec', 'ra', 'dec', 'sangle', 'vangle', 'selong', 'lelong']
 
     def __init__(self, ro, rt, vo=None, vt=None, date=None):
         from astropy.units import Quantity
@@ -455,23 +196,19 @@ class Geom(object):
         if (self._ro.shape[-1] != 3) or (self._ro.ndim > 2):
             raise ValueError("Incorrect shape for ro.  Must be (3,) or (N, 3).")
 
-        if (self._rt.shape[-1] != 3) or (self._rt.ndim > 2):
-            raise ValueError("Incorrect shape for rt.  Must be (3,) or (N, 3).")
+        if self._rt.shape != self._ro.shape:
+            raise ValueError("The shapes of ro and ro must agree.")
 
-        if ((self._ro.ndim == self._rt.ndim)
-              and (len(self._ro) != len(self._rt))):
-            raise ValueError("The dimensionality of ro and rt are equal, but"
-                             " their shapes are different.")
-
-        if all((self._ro.ndim == 1, self._rt.ndim == 1)):
+        if self._ro.ndim == 1:
             self._len = 1
         else:
-            self._len = max(self._ro.shape[0], self._rt.shape[0])
+            self._len = self._ro.shape[0]
 
         if vo is not None:
             self._vo = vo.to(u.km / u.s).value
             if self._vo.shape != self._ro.shape:
                 raise ValueError("The shape of vo and ro must agree.")
+
         if vt is not None:
             self._vt = vt.to(u.km / u.s).value
             if self._vt.shape != self._rt.shape:
@@ -479,13 +216,23 @@ class Geom(object):
 
         if date is not None:
             self.date = date
-            if (len(self.date) != 1) and (len(self.date) != self._len):
-                raise ValueError("The length of date must be 1 or {}.".format(
-                        self._len))
+            if len(self.date) != self._len:
+                raise ValueError("Given ro, the length of date "
+                                 " must be {}.".format(self._len))
+
+    def __len__(self):
+        if self._ro.ndim == 1:
+            self._len = 1
+        else:
+            self._len = self._ro.shape[0]
+        return self._len
 
     def __getitem__(self, key):
         # are we slicing?
         if isinstance(key, (int, slice, list, np.ndarray)):
+            if self._ro.ndim == 1:
+                raise IndexError("Attempting to subscript a 1D Geom object.")
+
             ro = self.ro
             vo = self.vo
             if self._ro.ndim == 2:
@@ -549,7 +296,7 @@ class Geom(object):
     def phase(self):
         phase = np.arccos((self.rh**2 + self.delta**2 - self.obsrh**2) /
                           2.0 / self.rh / self.delta)
-        return Angle(phase, u.rad)
+        return np.degrees(phase) * u.deg
 
     @property
     def signedphase(self):
@@ -561,9 +308,11 @@ class Geom(object):
         """
         if self._vt is None:
             return None
-        sign = np.sign((np.cross(self._rt, self._rot)
-                        * np.cross(self.ro, self.vo)))
-        return sign * self.phase
+        dot = np.sum((np.cross(self._rt, self._rot)
+                      * np.cross(self._ro, self._vo)), -1)
+        sign = np.sign(dot)
+        phase = self.phase
+        return (sign * self.phase.value) * u.deg
 
     @property
     def obsrh(self):
@@ -575,76 +324,162 @@ class Geom(object):
         """The observer's speed."""
         if self._vo is None:
             return None
-        return np.sqrt(np.sum(self._vo**2, -1))
+        return np.sqrt(np.sum(self._vo**2, -1)) * u.km / u.s
 
     @property
     def st(self):
         """The target's speed."""
         if self._vt is None:
             return None
-        return np.sqrt(np.sum(self._vt**2, -1))
+        return np.sqrt(np.sum(self._vt**2, -1)) * u.km / u.s
 
     @property
     def lambet(self):
         """Ecliptic longitude and latitude."""
-        lam = np.arctan2(self._rot[1], self._rot[0])
-        bet = np.arctan2(self._rot[2],
-                         np.sqrt(self._rot[0]**2 + self._rot[1]**2))
-        return Angle(lam, u.rad), Angle(bet, u.rad)
+        lam = np.arctan2(self._rot.T[1], self._rot.T[0])
+        bet = np.arctan2(self._rot.T[2],
+                         np.sqrt(self._rot.T[0]**2 + self._rot.T[1]**2))
+        return np.degrees(lam) * u.deg, np.degrees(bet) * u.deg
+
+    @property
+    def lam(self):
+        """Ecliptic longitude."""
+        return self.lambet[0]
+
+    @property
+    def bet(self):
+        """Ecliptic latitude."""
+        return self.lambet[1]
 
     @property
     def radec(self):
-        """Right Ascension and declination."""
+        """Right ascension and declination."""
         from .util import ec2eq
         lam, bet = self.lambet
-        ra, dec = ec2eq(lam.degrees, bet.degrees)
-        return Angle(ra, u.deg), Angle(dec, u.deg)
+        ra, dec = ec2eq(lam.degree, bet.degree)
+        return ra * u.deg, dec * u.deg
 
     @property
     def ra(self):
-        """Right Ascension."""
+        """Right ascension."""
         return self.radec[0]
 
     @property
     def dec(self):
         """Declination."""
-        return self.dec[0]
+        return self.radec[1]
 
     @property
     def sangle(self):
         """Projected Sun angle."""
+
         from .util import projected_vector_angle as pva
+
         ra, dec = self.radec
-        return Angle(pva(-self._rt, self._rot, ra.degrees, dec.degrees), u.deg)
+        if len(self) > 1:
+            sangle = np.zeros(len(self))
+            for i in range(len(self)):
+                sangle[i] = pva(-self._rt[i], self._rot[i], ra[i].degree,
+                                 dec[i].degree)
+        else:
+            sangle = pva(-self._rt, self._rot, ra.degree, dec.degree)
+            
+        return sangle * u.deg
 
     @property
     def vangle(self):
         """Projected velocity angle."""
+
         from .util import projected_vector_angle as pva
+
         ra, dec = self.radec
-        return Angle(pva(self._vt, self._rot, ra.degrees, dec.degrees), u.deg)
+        if len(self) > 1:
+            vangle = np.zeros(len(self))
+            for i in range(len(self)):
+                vangle[i] = pva(-self._vt[i], self._rot[i], ra[i].degree,
+                                 dec[i].degree)
+        else:
+            vangle = pva(-self._vt, self._rot, ra.degree, dec.degree)
+
+        return vangle * u.deg
 
     @property
     def selong(self):
         """Solar elongation."""
         selong = np.arccos(np.sum(-self._ro * self._rot, -1)
-                           / self._obsrh.kilometer / self.delta.kilometer)
-        return Angle(selong, u.rad)
+                           / self.obsrh.kilometer / self.delta.kilometer)
+        return np.degrees(selong) * u.deg
 
     @property
     def lelong(self):
         """Lunar elongation."""
         from .ephem import Moon
-        if self._date is None:
+        if self.date is None:
             return None
         rom = Moon.r(self.date)
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
                            / deltam / self.delta.kilometer)
-        return Angle(lelong, u.rad)
+        return np.degrees(lelong) * u.deg
+
+    def reduce(self, func, units=False):
+        """Apply `func` to each vector.
+
+        Parameters
+        ----------
+        func : function
+          The function to apply; accepts an ndarray as its first
+          argument, and an optional axis to iterate over as its
+          second.
+        units : bool, optional
+          Set to `True` to keep the units of each parameter in the
+          output dictionary.  Keeping track of the units may not make
+          sense for some functions, e.g., `np.argmin`.
+
+        Returns
+        -------
+        g : dict
+
+        """
+        g = dict()
+
+        for k in ['ro', 'rt', 'vo', 'vt']:
+            v = self[k]
+            if v is None:
+                g[k] = None
+            else:
+                if v.value.ndim == 2:
+                    g[k] = func(v.value, 0)
+                else:
+                    g[k] = v.value  # nothing to do
+                if units:
+                    g[k] *= v.unit
+            
+        if self['date'] is None:
+            g['date'] = None
+        else:
+            g['date'] = func(self.date.utc.jd)
+            if units:
+                g['date'] = Time(g['date'], scale='utc', format='jd')
+
+        for k in ['rh', 'delta', 'phase', 'signedphase', 'obsrh', 'so', 'st',
+                  'lam', 'bet', 'ra', 'dec', 'sangle', 'vangle', 'selong',
+                  'lelong']:
+            v = self[k]
+            if v is None:
+                g[k] = None
+            else:
+                g[k] = func(v.value)
+                if units:
+                    g[k] *= v.unit
+
+        g['lambet'] = g['lam'], g['bet']
+        g['radec'] = g['ra'], g['dec']
+
+        return g
 
     def mean(self):
-        """Averaged geometry.
+        """Mean of each attribute.
 
         Parameters
         ----------
@@ -652,10 +487,73 @@ class Geom(object):
 
         Returns
         -------
-        g : FrozenGeom
+        g : dict
 
         """
-        pass
+        return self.reduce(np.mean, units=True)
+
+    def min(self):
+        """Minimum of each attribute.
+
+        Note that vectors like `ro` will now be `[min(x), min(y),
+        min(z)]`, and likely not a real vector from the original.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : dict
+
+        """
+        return self.reduce(np.min, units=True)
+
+    def max(self):
+        """Maximum of each attribute.
+
+        Note that vectors like `ro` will now be `[max(x), max(y),
+        max(z)]`, and likely not a real vector from the original.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : dict
+
+        """
+        return self.reduce(np.max, units=True)
+
+    def argmin(self):
+        """Index of the minimum of each attribute.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : dict
+
+        """
+        return self.reduce(np.argmin)
+
+    def argmax(self):
+        """Index of the maximum of each attribute.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : dict
+
+        """
+        return self.reduce(np.argmax)
+
 
 class MovingObject(object):
     """An abstract class for an object moving in space.
@@ -675,10 +573,59 @@ class MovingObject(object):
     def __init__(self):
         pass
 
+    def _date2time(self, date):
+        # reformat date as a Time object
+        from .util import cal2time, jd2time
+
+        if date is None:
+            date = Time(datetime.now(), scale='utc')
+        elif isinstance(date, float):
+            date = jd2time(date)
+        elif isinstance(date, str):
+            date = cal2time(date)
+        elif isinstance(date, datetime):
+            date = Time(date, scale='utc')
+        elif isinstance(date, (list, tuple, np.ndarray)):
+            date = [self._date2time(d) for d in date]
+            date = Time(date)
+        else:
+            raise ValueError("Bad date: {}".format(date))
+        return date
+
     def r(self, date):
+        """Position vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Strings are parsed with `util.cal2iso`.  Floats are assumed
+          to be Julian dates.  All dates except instances of `Time`
+          are assumed to be UTC.
+
+        Returns
+        -------
+        r : ndarray
+          Position vector (3-element or Nx3 element array). [km]
+       
+        """
         pass
 
     def v(self, date):
+        """Velocity vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Strings are parsed with `util.cal2iso`.  Floats are assumed
+          to be Julian dates.  All dates except instances of `Time`
+          are assumed to be UTC.
+
+        Returns
+        -------
+        v : ndarray
+          Velocity vector (3-element or Nx3 element array). [km/s]
+       
+        """
         pass
 
     def observe(self, target, date, ltt=False):
@@ -707,22 +654,16 @@ class MovingObject(object):
 
         from util import cal2time, jd2time, ec2eq, projected_vector_angle
 
-        # reformat date as a Time object
-        if date is None:
-            date = Time(datetime.now(), scale='utc')
-        elif isinstance(date, float):
-            date = jd2time(date)
-        elif isinstance(date, str):
-            date = cal2time(date)
-        elif isinstance(date, datetime):
-            date = Time(date, scale='utc')
+        date = self._date2time(date)
 
         rt = target.r(date) # target postion
         ro = self.r(date)   # observer position
         vt = target.v(date) # target velocity
         vo = self.v(date)   # observer velocity
 
-        g = Geom(ro, rt, vo=vo, vt=vt, date=date)
+        g = Geom(ro * u.km, rt * u.km,
+                 vo=vo * u.km / u.s, vt=vt * u.km / u.s,
+                 date=date)
 
         if ltt:
             date -= TimeDelta(delta / const.c.si.value, format='sec')
@@ -783,18 +724,21 @@ class SpiceObject(MovingObject):
 
         Returns
         -------
-        r : Quantity
-          Position vector (3-element or Nx3 element array).
+        r : ndarray
+          Position vector (3-element or Nx3 element array). [km]
        
         """
 
+        if isinstance(date, (list, tuple, np.ndarray)):
+            return np.array([self.r(d) for d in date])
+        if isinstance(date, Time) and len(date) > 1:
+            return np.array([self.r(d) for d in date])
+
         et = date2et(date)
-        if np.iterable(et):
-            return np.array([self.r(t) for t in et])
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[:3]) * u.km
+        return np.array(state[:3])
 
     def v(self, date):
         """Velocity vector.
@@ -808,18 +752,20 @@ class SpiceObject(MovingObject):
 
         Returns
         -------
-        v : Quantity
-          Velocity vector (3-element or Nx3 element array).
+        v : ndarray
+          Velocity vector (3-element or Nx3 element array). [km/s]
        
         """
+        if isinstance(date, (list, tuple, np.ndarray)):
+            return np.array([self.v(d) for d in date])
+        if isinstance(date, Time) and len(date) > 1:
+            return np.array([self.v(d) for d in date])
 
         et = date2et(date)
-        if np.iterable(et):
-            return np.array([self.v(t) for t in et])
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[3:]) * u.km / u.s
+        return np.array(state[3:])
 
 class FixedObject(MovingObject):
     """A fixed point in space.
