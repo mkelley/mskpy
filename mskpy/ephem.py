@@ -109,6 +109,7 @@ from datetime import datetime
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
+from astropy.coordinates import Angle
 import spice
 
 _kernel_path = '/home/msk/data/kernels'
@@ -117,7 +118,7 @@ _spice_setup = False
 class ObjectError(Exception):
     pass
 
-class Geom(dict):
+class GeomOld(dict):
     """Contains observing geometry parameters for solar system objects.
 
     Not very robust and needs more error checking.
@@ -386,6 +387,257 @@ class Geom(dict):
            "Dec (deg):", dec,
            "Projected sun vector (deg):", g['sangle'].value,
            "Projected velocity vector (deg):", g['vangle'].value))
+
+class Geom(object):
+    """Observing geometry parameters for Solar System objects.
+
+    Coordinates are all in the heliocentric ecliptic J2000 frame.
+
+    Parameters
+    ----------
+    ro : Quantity
+      The observer's coordinates, shape must be (3,) or (N, 3).
+    rt : Quantity
+      The target's coordinates.
+    vo : Quantity, optional
+      The observer's velocity, shape must be the same as `ro`.
+    vt : Quantity, optional
+      The target's velocity, shape must be the same as `rt`.
+    date : astropy Time, optional
+      The date of the observation.
+
+    Attributes
+    ----------
+    rh : Quantity
+      Target's heliocentric distance.
+    delta : Quantity
+      Observer-target distance.
+    phase : Angle
+      Phase angle (Sun-target-observer).
+    signedphase : Angle
+      Phase angle, <0 for pre-opposition, >0 for post-opposition.
+    obsrh : Quantity
+      The observer's heliocentric distance.
+    so : Quantity
+      The observer's speed.
+    st : Quantity
+      The target's speed.
+    ra : Angle
+      Right Ascension.
+    dec : Angle
+      Declination.
+    sangle : Angle
+      Projected Sun angle.
+    vangle : Angle
+      Projected velocity angle.
+    selong : Angle
+      Solar elongation.
+    lelong : Angle
+      Lunar elongation.
+
+    Methods
+    -------
+    mean : Return the average geometry as a `FrozenGeom`.
+
+    """
+
+    _ro = None
+    _rt = None
+    _vo = None
+    _vt = None
+
+    def __init__(self, ro, rt, vo=None, vt=None, date=None):
+        from astropy.units import Quantity
+
+        self._ro = ro.to(u.km).value
+        self._rt = rt.to(u.km).value
+
+        if (self._ro.shape[-1] != 3) or (self._ro.ndim > 2):
+            raise ValueError("Incorrect shape for ro.  Must be (3,) or (N, 3).")
+
+        if (self._rt.shape[-1] != 3) or (self._rt.ndim > 2):
+            raise ValueError("Incorrect shape for rt.  Must be (3,) or (N, 3).")
+
+        if ((self._ro.ndim == self._rt.ndim)
+              and (len(self._ro) != len(self._rt))):
+            raise ValueError("The dimensionality of ro and rt are equal, but"
+                             " their shapes are different.")
+
+        if all(self._ro.ndim == 1, self._rt.ndim == 1):
+            self._len = 1
+        else:
+            self._len = max(self._ro.shape[0], self._rt.shape[0])
+
+        if vo is not None:
+            self._vo = vo.to(u.km / u.s).value
+            if self._vo.shape != self._ro.shape:
+                raise ValueError("The shape of vo and ro must agree.")
+        if vt is not None:
+            self._vt = vt.to(u.km / u.s).value
+            if self._vt.shape != self._rt.shape:
+                raise ValueError("The shape of vt and rt must agree.")
+
+        if date is not None:
+            self.date = date
+            if (len(self.date) != 1) and (len(self.date) != self._len):
+                raise ValueError("The length of date must be 1 or {}.".format(
+                        self._len))
+
+    def __getitem__(self, key):
+        # are we slicing?
+        if isinstance(key, (int, slice, list, np.ndarray)):
+            vo = None if (self._vo is None) else self.vo[key]
+            vt = None if (self._vt is None) else self.vt[key]
+            date = None if (self.date is None) else self.date[key]
+            return Geom(self.ro[key], self.rt[key], vo=vo, vt=vt, date=date)
+        else:
+            return self.__getattribute__(key)
+
+    @property
+    def _rot(self):
+        return self._rt - self._ro
+
+    @property
+    def ro(self):
+        return self._ro * u.km
+
+    @property
+    def rt(self):
+        return self._rt * u.km
+
+    @property
+    def vo(self):
+        if self._vo is None:
+            return None
+        else:
+            return self._vo * u.km
+
+    @property
+    def vt(self):
+        if self._vt is None:
+            return None
+        else:
+            return self._vt * u.km
+
+    @property
+    def rh(self):
+        return np.sqrt(np.sum(self._rt**2, -1)) / 1.495978707e8 * u.au
+
+    @property
+    def delta(self):
+        return np.sqrt(np.sum(self._rot**2, -1)) / 1.495978707e8 * u.au
+
+    @property
+    def phase(self):
+        phase = np.arccos((self.rh**2 + self.delta**2 - self.obsrh**2) /
+                          2.0 / self.rh / self.delta)
+        return Angle(phase, u.rad)
+
+    @property
+    def signedphase(self):
+        """Signed phase angle, based on pre- or post-opposition.
+
+        For ho, the angular momentum of the observer's orbit (ro X
+        vo), the sign is + when (rt X rot) * h > 0.
+
+        """
+        if self._vt is None:
+            return None
+        sign = np.sign((np.cross(self._rt, self._rot)
+                        * np.cross(self.ro, self.vo)))
+        return sign * self.phase
+
+    @property
+    def obsrh(self):
+        """The observer's heliocentric distance."""
+        return np.sqrt(np.sum(self._ro**2, -1)) / 1.495978707e8 * u.au
+
+    @property
+    def so(self):
+        """The observer's speed."""
+        if self._vo is None:
+            return None
+        return np.sqrt(np.sum(self._vo**2, -1))
+
+    @property
+    def st(self):
+        """The target's speed."""
+        if self._vt is None:
+            return None
+        return np.sqrt(np.sum(self._vt**2, -1))
+
+    @property
+    def lambet(self):
+        """Ecliptic longitude and latitude."""
+        lam = np.arctan2(self._rot[1], self._rot[0])
+        bet = np.arctan2(self._rot[2],
+                         np.sqrt(self._rot[0]**2 + self._rot[1]**2))
+        return Angle(lam, u.rad), Angle(bet, u.rad)
+
+    @property
+    def radec(self):
+        """Right Ascension and declination."""
+        from .util import ec2eq
+        lam, bet = self.lambet
+        ra, dec = ec2eq(lam.degrees, bet.degrees)
+        return Angle(ra, u.deg), Angle(dec, u.deg)
+
+    @property
+    def ra(self):
+        """Right Ascension."""
+        return self.radec[0]
+
+    @property
+    def dec(self):
+        """Declination."""
+        return self.dec[0]
+
+    @property
+    def sangle(self):
+        """Projected Sun angle."""
+        from .util import projected_vector_angle as pva
+        ra, dec = self.radec
+        return Angle(pva(-self._rt, self._rot, ra.degrees, dec.degrees), u.deg)
+
+    @property
+    def vangle(self):
+        """Projected velocity angle."""
+        from .util import projected_vector_angle as pva
+        ra, dec = self.radec
+        return Angle(pva(self._vt, self._rot, ra.degrees, dec.degrees), u.deg)
+
+    @property
+    def selong(self):
+        """Solar elongation."""
+        selong = np.arccos(np.sum(-self._ro * self._rot, -1)
+                           / self._obsrh.kilometer / self.delta.kilometer)
+        return Angle(selong, u.rad)
+
+    @property
+    def lelong(self):
+        """Lunar elongation."""
+        from .ephem import Moon
+        if self._date is None:
+            return None
+        rom = Moon.r(self.date)
+        deltam = np.sqrt(np.sum(rom**2, -1))
+        lelong = np.arccos(np.sum(rom * self._rot, -1)
+                           / deltam / self.delta.kilometer)
+        return Angle(lelong, u.rad)
+
+    def mean(self):
+        """Averaged geometry.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        g : FrozenGeom
+
+        """
+        pass
 
 class MovingObject(object):
     """An abstract class for an object moving in space.
