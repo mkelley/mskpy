@@ -37,7 +37,7 @@ __all__ = [
     'NEATM',
 
     'hg_phi',
-    'lambertian'
+#    'lambertian'
 ]
 
 class SurfaceEmission(object):
