@@ -49,7 +49,9 @@ class SurfaceEmission(object):
 
     Notes
     -----
-    Inheriting classes should override `fluxd`.
+    Inheriting classes should override `fluxd`, and `__init__`
+    functions, if it makes sense, should only take D and pv as
+    arguments, remaining parameters should be keywords.
 
     """
 
