@@ -72,11 +72,11 @@ class NEATM(SurfaceEmission):
 
     Parameters
     ----------
-    radius : Quantity
-      The radius of the asteroid (no, NOT diameter!).
+    D : Quantity
+      The diameter of the asteroid.
     pv : float
       The geometric albedo.
-    eta : float
+    eta : float, optional
       The IR-beaming parameter.
     epsilon : float, optional
       The mean IR emissivity.
@@ -92,8 +92,8 @@ class NEATM(SurfaceEmission):
     ----------
     A : float
       Bond albedo.
-    D : Quantity
-      Diameter.
+    R : Quantity
+      Radius.
 
     Methods
     -------
@@ -102,11 +102,11 @@ class NEATM(SurfaceEmission):
 
     """
 
-    def __init__(self, radius, pv, eta, epsilon=0.95, G=0.15,
+    def __init__(self, D, pv, eta=1.0, epsilon=0.95, G=0.15,
                  phaseint=None, tol=1e-3):
         from ..util import asQuantity
 
-        self.radius = asQuantity(radius, u.km)
+        self.D = D.to(u.km)
         self.pv = pv
         self.eta = eta
         self.epsilon = epsilon
@@ -186,9 +186,9 @@ class NEATM(SurfaceEmission):
         return A
 
     @property
-    def D(self):
-        """Diameter."""
-        return 2 * self.radius  # diameter
+    def R(self):
+        """Radius."""
+        return self.D / 2.0
 
     def T0(self, rh):
         """Sub-solar point temperature.
