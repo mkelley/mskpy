@@ -18,3 +18,5 @@ __all__ = [
 ]
 
 from . import surfaces
+
+from surfaces import *

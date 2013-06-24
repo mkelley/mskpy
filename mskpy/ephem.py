@@ -43,7 +43,7 @@ it is for `Time` instances), we assume the scale is UTC.
    Classes
    -------
    Geom
-   MovingObject
+   SolarSysObject
    SpiceObject
 
    Functions
@@ -57,7 +57,7 @@ it is for `Time` instances), we assume the scale is UTC.
    getxyz
    summarizegeom
 
-   Built-in MovingObjects
+   Built-in SolarSysObjects
    ----------------------
    Sun
    Mercury
@@ -82,7 +82,7 @@ it is for `Time` instances), we assume the scale is UTC.
 
 __all__ = [
     'Geom',
-    'MovingObject',
+    'SolarSysObject',
     'SpiceObject',
 
     'find_kernel',
@@ -555,8 +555,8 @@ class Geom(object):
         return self.reduce(np.argmax)
 
 
-class MovingObject(object):
-    """An abstract class for an object moving in space.
+class SolarSysObject(object):
+    """An abstract class for an object in the Solar System.
 
     Methods
     -------
@@ -633,7 +633,7 @@ class MovingObject(object):
 
         Parameters
         ----------
-        target : MovingObject
+        target : SolarSysObject
           The target to observe.
         date : string, float, astropy Time, datetime, or array
           Strings are parsed with `util.cal2iso`.  Floats are assumed
@@ -671,7 +671,7 @@ class MovingObject(object):
 
         return g
 
-class SpiceObject(MovingObject):
+class SpiceObject(SolarSysObject):
     """A moving object saved in a SPICE planetary ephemeris kernel.
 
     Parameters
@@ -767,7 +767,7 @@ class SpiceObject(MovingObject):
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
         return np.array(state[3:])
 
-class FixedObject(MovingObject):
+class FixedObject(SolarSysObject):
     """A fixed point in space.
 
     Parameters
@@ -1067,7 +1067,7 @@ def find_kernel(obj):
     global _kernel_path
 
     kernel = str(obj) + '.bsp'
-    if path.isfile(obj):
+    if path.isfile(kernel):
         return kernel
     elif path.isfile(path.join(_kernel_path, kernel)):
         return path.join(_kernel_path, kernel)
@@ -1091,12 +1091,12 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     Parameters
     ----------
-    target : string, MovingObject
+    target : string, SolarSysObject
       The object's name or NAIF ID, as found in the relevant SPICE
-      kernel, or a `MovingObject`.
-    observer : string, array, MovingObject
+      kernel, or a `SolarSysObject`.
+    observer : string, array, SolarSysObject
       A valid built-in observer name, set of heliocentric rectangular
-      ecliptic J2000 coordinates, or a `MovingObject`.  See the
+      ecliptic J2000 coordinates, or a `SolarSysObject`.  See the
       `ephem` package documentation for built-in moving objects that
       can be used as observers.
     date : string, float or array, optional
@@ -1122,8 +1122,8 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     if isinstance(target, str):
         target = SpiceObject(target, kernel=kernel)
-    elif not isinstance(target, MovingObject):
-        raise ValueError("target must be a string or MovingObject")
+    elif not isinstance(target, SolarSysObject):
+        raise ValueError("target must be a string or SolarSysObject")
 
     if isinstance(observer, str):
         if observer.lower() in _loaded_objects:
@@ -1133,8 +1133,8 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
                     observer.lower(), _loaded_objects.keys()))
     elif np.iterable(observer):
         observer = FixedObject(observer)
-    elif not isinstance(observer, MovingObject):
-        raise ValueError("observer must be a string or MovingObject")
+    elif not isinstance(observer, SolarSysObject):
+        raise ValueError("observer must be a string or SolarSysObject")
 
     return observer.observe(target, date, ltt=ltt)
 
