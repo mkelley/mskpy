@@ -35,7 +35,7 @@ class Asteroid(SpiceObject):
       The name, NAIF ID, or integer designation of the object.
     D : Quantity
       Diameter.
-    pv : float
+    Ap : float
       Geometric albedo.
     reflected : SurfaceEmission
       Will be initialized using **kwargs.
@@ -53,13 +53,13 @@ class Asteroid(SpiceObject):
 
     """
 
-    def __init__(self, obj, D, pv, reflected=DAv, thermal=NEATM,
+    def __init__(self, obj, D, Ap, reflected=DAv, thermal=NEATM,
                  kernel=None, **kwargs):
         self.obj = obj
         self.D = D
-        self.pv = pv
-        self.reflected = reflected(self.D, self.pv, **kwargs)
-        self.thermal = thermal(self.D, self.pv, **kwargs)
+        self.Ap = Ap
+        self.reflected = reflected(self.D, self.Ap, **kwargs)
+        self.thermal = thermal(self.D, self.Ap, **kwargs)
         self.kernel = kernel
         SpiceObject.__init__(self, obj, kernel=kernel)
 
