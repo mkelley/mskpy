@@ -24,7 +24,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from .ephem import SolarSysObject, SpiceObject
-from .models import DAv, NEATM
+from .models import SurfaceEmission, DAv, NEATM
 
 class Asteroid(SolarSysObject):
     """An asteroid.
@@ -38,10 +38,10 @@ class Asteroid(SolarSysObject):
       Diameter.
     Ap : float
       Geometric albedo.
-    reflected : SurfaceEmission, optional
+    reflected : dict or SurfaceEmission, optional
       A model of the reflected light.  If `None` a `DAp` model will be
       initialized (including `**kwargs`).
-    thermal : SurfaceEmission, optional
+    thermal : dict or SurfaceEmission, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
     kernel : string, optional
@@ -67,15 +67,15 @@ class Asteroid(SolarSysObject):
         self.D = D
         self.Ap = Ap
 
-        if reflected is None:
-            self.reflected = DAp(self.D, self.Ap, **kwargs)
-        else:
+        if isinstance(reflected, SurfaceEmission):
             self.reflected = reflected
-
-        if thermal is None:
-            self.thermal = NEATM(self.D, self.Ap, **kwargs)
         else:
+            self.reflected = DAp(self.D, self.Ap, **reflected)
+
+        if isinstance(thermal, SurfaceEmisssion):
             self.thermal = thermal
+        else:
+            self.thermal = NEATM(self.D, self.Ap, **thermal)
 
         self.kernel = kernel
         SpiceObject.__init__(self, obj, kernel=kernel)
@@ -117,20 +117,16 @@ class Asteroid(SolarSysObject):
 
         """
 
+        fluxd = np.zeros(len(wave)) * unit
         if self.D <= 0:
-            return np.zeros(len(wave)) * unit
+            return fluxd
 
         g = observer.observe(self.obj, date, ltt=ltt)
 
         if reflected:
-            reflected = self.reflected.fluxd(g, wave, unit=unit)
-        else:
-            reflected = 0 * unit
-
+            fluxd += self.reflected.fluxd(g, wave, unit=unit)
         if thermal:
-            thermal = self.thermal.fluxd(g, wave, unit=unit)
-        else:
-            thermal = 0 * unit
+            fluxd += self.thermal.fluxd(g, wave, unit=unit)
 
-        return reflected + thermal
+        return fluxd
 
