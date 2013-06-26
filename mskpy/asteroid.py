@@ -8,10 +8,15 @@ asteroid --- Asteroids!
 .. autosummary::
    :toctree: generated/
 
+   Classes
+   -------
+   Asteroid
 
 """
 
-__all__ = []
+__all__ = [
+    'Asteroid'
+]
 
 
 import numpy as np
@@ -19,7 +24,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from .ephem import SpiceObject
-from .models import Dpv, NEATM
+from .models import DAv, NEATM
 
 class Asteroid(SpiceObject):
     """An asteroid.
@@ -48,7 +53,7 @@ class Asteroid(SpiceObject):
 
     """
 
-    def __init__(self, obj, D, pv, reflected=Dpv, thermal=NEATM,
+    def __init__(self, obj, D, pv, reflected=DAv, thermal=NEATM,
                  kernel=None, **kwargs):
         self.obj = obj
         self.D = D
