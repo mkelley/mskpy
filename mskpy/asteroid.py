@@ -92,6 +92,9 @@ class Asteroid(SpiceObject):
 
         """
 
+        if self.D <= 0:
+            return np.zeros(len(wave)) * unit
+
         g = observer.observe(self, date, ltt=ltt)
 
         if reflected:
