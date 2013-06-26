@@ -37,11 +37,11 @@ class Asteroid(SpiceObject):
       Diameter.
     Ap : float
       Geometric albedo.
-    reflected : SurfaceEmission
+    reflected : SurfaceEmission, optional
       Will be initialized using **kwargs.
-    thermal : SurfaceEmission
+    thermal : SurfaceEmission, optional
       Will be initialized using **kwargs.
-    kernel : string
+    kernel : string, optional
       The name of an ephemeris kernel in which to find the ephemeris
       for `obj`.
     **kwargs
