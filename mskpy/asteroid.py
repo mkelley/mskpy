@@ -23,29 +23,33 @@ import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SpiceObject
+from .ephem import SolarSysObject, SpiceObject
 from .models import DAv, NEATM
 
-class Asteroid(SpiceObject):
+class Asteroid(SolarSysObject):
     """An asteroid.
 
     Parameters
     ----------
-    obj : string or int
-      The name, NAIF ID, or integer designation of the object.
+    obj : string, int, or SolarSysObject
+      The name, NAIF ID, or integer designation of the object, or a
+      `SolarSysObject`.
     D : Quantity
       Diameter.
     Ap : float
       Geometric albedo.
     reflected : SurfaceEmission, optional
-      Will be initialized using **kwargs.
+      A model of the reflected light.  If `None` a `DAp` model will be
+      initialized (including `**kwargs`).
     thermal : SurfaceEmission, optional
-      Will be initialized using **kwargs.
+      A model of the thermal emission.  If `None` a `NEATM` model will
+      be initialized (including `**kwargs`).
     kernel : string, optional
       The name of an ephemeris kernel in which to find the ephemeris
       for `obj`.
     **kwargs
-      Additional keywords are passed to `reflected` and `thermal`.
+      Additional keywords for the default `reflected` and `thermal`
+      models.
 
     Methods
     -------
@@ -53,15 +57,36 @@ class Asteroid(SpiceObject):
 
     """
 
-    def __init__(self, obj, D, Ap, reflected=DAv, thermal=NEATM,
+    def __init__(self, obj, D, Ap, reflected=None, thermal=None,
                  kernel=None, **kwargs):
-        self.obj = obj
+        if isinstance(obj, SolarSysObject):
+            self.obj = obj
+        else:
+            self.obj = SpiceObject(obj, kernel=kernel)
+
         self.D = D
         self.Ap = Ap
-        self.reflected = reflected(self.D, self.Ap, **kwargs)
-        self.thermal = thermal(self.D, self.Ap, **kwargs)
+
+        if reflected is None:
+            self.reflected = DAp(self.D, self.Ap, **kwargs)
+        else:
+            self.reflected = reflected
+
+        if thermal is None:
+            self.thermal = NEATM(self.D, self.Ap, **kwargs)
+        else:
+            self.thermal = thermal
+
         self.kernel = kernel
         SpiceObject.__init__(self, obj, kernel=kernel)
+
+    def r(self, date):
+        return self.obj.r(date)
+    r.__doc__ = self.obj.r.__doc__
+
+    def v(self, date):
+        return self.obj.v(date)
+    v.__doc__ = self.obj.v.__doc__
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):
@@ -95,7 +120,7 @@ class Asteroid(SpiceObject):
         if self.D <= 0:
             return np.zeros(len(wave)) * unit
 
-        g = observer.observe(self, date, ltt=ltt)
+        g = observer.observe(self.obj, date, ltt=ltt)
 
         if reflected:
             reflected = self.reflected.fluxd(g, wave, unit=unit)
