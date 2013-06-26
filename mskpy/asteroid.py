@@ -81,7 +81,7 @@ class Asteroid(SpiceObject):
         thermal : bool, optional
           If `True` include the thermal emission model.
         ltt : bool, optional
-          Set to `True` to correct the asteroid's position for light
+          Set to `True` to correct the object's position for light
           travel time.
         unit : astropy Unit
           The return unit, must be flux density.
