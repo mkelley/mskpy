@@ -77,9 +77,6 @@ class Asteroid(SolarSysObject):
         else:
             self.thermal = NEATM(self.D, self.Ap, **thermal)
 
-        self.kernel = kernel
-        SpiceObject.__init__(self, obj, kernel=kernel)
-
     def r(self, date):
         return self.obj.r(date)
     r.__doc__ = self.obj.r.__doc__
