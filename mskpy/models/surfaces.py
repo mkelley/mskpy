@@ -9,19 +9,15 @@ models --- MSK's model library
    Surface Models
    --------------
 
-   SurfaceEmission
-   Dpv
-   HG
-   NEATM
-   Lambertian
+   SurfaceEmission - Base class for all surfaces.
+   DAp - Reflected light based on diameter and geometric albedo.
+   HG - Reflected light based on IAU H-G magnitude system.
+   NEATM - Near-Earth asteroid thermal model.
 
    Phase functions
    ---------------
-
-   hg_phi
-   lambertian
-   
-
+   hg_phi - IAU H-G phase function
+   lambertian - Lambertian sphere.
 
 """
 
@@ -32,12 +28,12 @@ from astropy.units import Quantity
 
 __all__ = [
     'SurfaceEmission',
-    'Dpv',
+    'DAp',
     'HG',
     'NEATM',
 
     'hg_phi',
-#    'lambertian'
+    'lambertian'
 ]
 
 class SurfaceEmission(object):
@@ -50,7 +46,7 @@ class SurfaceEmission(object):
     Notes
     -----
     Inheriting classes should override `fluxd`, and `__init__`
-    functions, if it makes sense, should only take D and pv as
+    functions, if it makes sense, should only take D and Ap as
     arguments, remaining parameters should be keywords.
 
     Keyword parameters for `__init__` should be accepted via
@@ -82,7 +78,7 @@ class NEATM(SurfaceEmission):
     ----------
     D : Quantity
       The diameter of the asteroid.
-    pv : float
+    Ap : float
       The geometric albedo.
     eta : float, optional
       The IR-beaming parameter.
@@ -110,10 +106,10 @@ class NEATM(SurfaceEmission):
 
     """
 
-    def __init__(self, D, pv, eta=1.0, epsilon=0.95, G=0.15,
+    def __init__(self, D, Ap, eta=1.0, epsilon=0.95, G=0.15,
                  phaseint=None, tol=1e-3, **kwargs):
         self.D = D.to(u.km)
-        self.pv = pv
+        self.Ap = Ap
         self.eta = eta
         self.epsilon = epsilon
         self.G = G
@@ -190,9 +186,9 @@ class NEATM(SurfaceEmission):
 
         """
         if self.phaseint is None:
-            A = self.pv * (0.290 + 0.684 * self.G)
+            A = self.Ap * (0.290 + 0.684 * self.G)
         else:
-            A = self.pv * self.phaseint
+            A = self.Ap * self.phaseint
         return A
 
     @property
@@ -337,12 +333,12 @@ class HG(SurfaceEmission):
         else:
             return fluxd
 
-    def D(self, pv, Msun=-26.75):
+    def D(self, Ap, Msun=-26.75):
         """Diameter.
 
         Parameters
         ----------
-        pv : float
+        Ap : float
           Geometric albedo.
         Msun : float, optional
           Absolute magnitude of the Sun.
@@ -353,21 +349,21 @@ class HG(SurfaceEmission):
           Diameter of the asteroid.
         
         """
-        D = 2 / np.sqrt(pv) * 10**(0.2 * (Msun - self.H)) * u.au
+        D = 2 / np.sqrt(Ap) * 10**(0.2 * (Msun - self.H)) * u.au
         return D.to(u.km)
 
     def R(self, *args, **kwargs):
         """Radius via D()."""
         return self.D(*args, **kwargs) / 2.0
 
-class Dpv(SurfaceEmission):
-    """Reflected light from asteroids given D, pv.
+class DAv(SurfaceEmission):
+    """Reflected light from asteroids given D, Ap.
 
     Parameters
     ----------
     D : Quantity
       Diameter.
-    pv : float
+    Ap : float
       Geometric albedo.
     G : float, optional
       If `phasef` is None, generate an IAU HG system phase function.
@@ -385,9 +381,9 @@ class Dpv(SurfaceEmission):
 
     """
 
-    def __init__(self, D, pv, G=0.15, phasef=None, **kwargs):
+    def __init__(self, D, Ap, G=0.15, phasef=None, **kwargs):
         self.D = D
-        self.pv = pv
+        self.Ap = Ap
 
         if phasef is None:
             def phi_g(phase):
@@ -427,8 +423,8 @@ class Dpv(SurfaceEmission):
         phase = geom['phase']
         fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
 
-        #fsca = fsun * pv * phasef(phase) * pi * R**2 / pi / delta**2
-        fsca = (fsun * self.pv * self.phasef(np.abs(phase.degree))
+        #fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
+        fsca = (fsun * self.Ap * self.phasef(np.abs(phase.degree))
                 * (self.R / delta).decompose()**2)
 
         if unit != fsca.unit:
@@ -450,7 +446,7 @@ class Dpv(SurfaceEmission):
 
         """
 
-        return 5 * np.log10(self.R.au * np.sqrt(self.pv)) - Msun
+        return 5 * np.log10(self.R.au * np.sqrt(self.Ap)) - Msun
 
     @property
     def R(self):
@@ -489,3 +485,26 @@ def hg_phi(phase, G):
     """
     phase = np.radians(phase)
     return ((1.0 - G) * _hg_phi_i(0, phase) + G * _hg_phi_i(1, phase))
+
+def lambertian(phase):
+    """Return the phase function from an Lambert disc computed at a
+    specific phase.
+
+    Parameters
+    ----------
+    phase : float or array
+      The phase or phases in question. [degrees]
+
+    Returns
+    -------
+    phi : float or array_like
+      The ratio of light observed at the requested phase to that
+      observed at phase = 0 degrees (full disc).
+
+    Notes
+    -----
+    Uses the analytic form found in Brown 2004, ApJ 610, 1079.
+
+    """
+    phase = np.radians(np.abs(phase))
+    return (np.sin(phase) + (pi - phase) * np.cos(phase)) / pi
