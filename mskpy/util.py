@@ -87,8 +87,8 @@ __all__ = [
     'cartesian',
     'davint',
     'deriv',
-    'Gaussian',
-    'Gaussian2d',
+    'gaussian',
+    'gaussian2d',
     'hav',
     'rotmat',
 
@@ -314,7 +314,7 @@ def gaussian(x, mu, sigma):
 
     """
     return (np.exp(-(x - mu)**2 / 2.0 / sigma**2) /
-            np.sqrt(2.0 * pi) / sigma)
+            np.sqrt(2.0 * np.pi) / sigma)
 
 def gaussian2d(shape, sigma, theta=0):
     """A normalized 2-D Gaussian function.
@@ -396,9 +396,9 @@ def rotmat(th):
     --------
     import numpy as np
     from mskpy import rotmat
-    print np.array([1, 0]) * rotmat(radians(90.0))
+    print np.array([1, 0]) * rotmat(np.radians(90.0))
     --> matrix([[  6.12323400e-17,   1.00000000e+00]])
-    print ap.array([0, 1]) * rotmat(pi)
+    print ap.array([0, 1]) * rotmat(np.pi)
     --> matrix([[ -1.00000000e+00,   6.12323400e-17]])
 
     """
@@ -570,7 +570,7 @@ def takefrom(arrays, indices):
 
     r = ()
     for a in arrays:
-        r += (a[indices],)
+        r += (type(a)(np.array(a)[indices]),)
     return r
 
 def whist(x, y, w, errors=True, **keywords):
