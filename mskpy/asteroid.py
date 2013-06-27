@@ -24,7 +24,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from .ephem import SolarSysObject, SpiceObject
-from .models import SurfaceEmission, DAv, NEATM
+from .models import SurfaceRaditation, DAv, NEATM
 
 class Asteroid(SolarSysObject):
     """An asteroid.
@@ -38,10 +38,10 @@ class Asteroid(SolarSysObject):
       Diameter.
     Ap : float
       Geometric albedo.
-    reflected : dict or SurfaceEmission, optional
+    reflected : dict or SurfaceRaditation, optional
       A model of the reflected light.  If `None` a `DAp` model will be
       initialized (including `**kwargs`).
-    thermal : dict or SurfaceEmission, optional
+    thermal : dict or SurfaceRaditation, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
     kernel : string, optional
@@ -67,7 +67,7 @@ class Asteroid(SolarSysObject):
         self.D = D
         self.Ap = Ap
 
-        if isinstance(reflected, SurfaceEmission):
+        if isinstance(reflected, SurfaceRaditation):
             self.reflected = reflected
         else:
             self.reflected = DAp(self.D, self.Ap, **reflected)
