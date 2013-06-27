@@ -14,9 +14,12 @@ models --- A model library
 """
 
 __all__ = [
-    'surfaces'
+    'surfaces',
+    'dust'
 ]
 
 from . import surfaces
+from . import dust
 
 from surfaces import *
+from dust import *

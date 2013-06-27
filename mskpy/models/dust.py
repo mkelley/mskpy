@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 class AfrhoRadiation(object):
-    """An abstract class for light from a coma in the Solar System.
+    """Light from a coma in the Solar System parameterized by Afrho.
 
     Methods
     -------
@@ -45,6 +45,8 @@ class AfrhoRadiation(object):
 
     Notes
     -----
+    Afrho should refer to the value at zero phase angle.
+
     Inheriting classes should override `fluxd`, and `__init__`
     functions.  `__init__` should take a single argument, `Afrho`, as
     a Quantity.
@@ -60,7 +62,7 @@ class AfrhoRadiation(object):
     def fluxd(self, geom, wave, unit=None):
         pass
 
-class AfrhoScattered(SurfaceEmission):
+class AfrhoScattered(AfrhoRadiation):
     """Scattered light from a coma parameterized by Afrho.
 
     If you use this model, please reference A'Hearn et al. (1984, AJ
@@ -72,27 +74,22 @@ class AfrhoScattered(SurfaceEmission):
       The product of albedo at zero phase, A, dust filling factor, f,
       and observer's aperture radius, rho.
     phasef : function, optional
-      The phase function of the coma.
-
-    Attributes
-    ----------
-    A : float
-      Bond albedo.
-    R : Quantity
-      Radius.
+      The phase function of the coma.  Set to `None` to use `phaseK`.
 
     Methods
     -------
-    T0 : Sub-solar point temperature.
-    fluxd : Total flux density from the asteroid.
+    fluxd : Total flux density from the coma.
 
     """
 
-    def __init__(self, Afrho, phasef=phaseK):
+    def __init__(self, Afrho, phasef=None):
         self.D = Afrho
-        self.phasef = phasef
+        if self.phasef is None:
+            self.phasef = phaseK
+        else:
+            self.phasef = phasef
 
-    def fluxd(self, geom, wave, rap, unit=u.unit('W / (m2 um)')):
+    def fluxd(self, geom, wave, rap, unit=u.Unit('W / (m2 um)')):
         """Flux density.
 
         Parameters
@@ -120,20 +117,110 @@ class AfrhoScattered(SurfaceEmission):
 
         """
 
-        from .calib import solar_flux
+        from ..calib import solar_flux
 
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = rap.radian * g['delta'].to(self.Afrho.unit)
+            rho = rap.radian * geom['delta'].to(self.Afrho.unit)
         else:
             raise ValueError("rap must have angular or length units.")
 
-        fsun = solar_flux(wave, unit=unit) / g['rh'].au**2
-        fluxd = (self.Afrho * phasef(np.abs(g['phase'].degree)) / 
-                 4.0 / g['delta'].to(self.Afrho.unit)**2 * rho * fsun)
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
+        fluxd = (self.Afrho * phasef(np.abs(geom['phase'].degree)) / 
+                 4.0 / geom['delta'].to(self.Afrho.unit)**2 * rho * fsun)
 
         return fluxd
+
+class AfrhoThermal(AfrhoRadiation):
+    """Thermal emisson from a coma parameterized by Afrho.
+
+    If you use this model, please reference Kelley and Wooden (2009,
+    Planetary and Space Science 57, 1133-1145) for the conversion from
+    `Afrho` to thermal emission.
+
+    Here, the `A` in `Afrho` can be thought of as the albedo in the
+    visual wavelength range, or the mean albedo weighted by the solar
+    spectrum.
+
+    Parameters
+    ----------
+    Afrho : Quantity
+      The product of albedo at zero phase, A, dust filling factor, f,
+      and observer's aperture radius, rho.
+    phasef : function, optional
+      The phase function of the coma.  Set to `None` to use `phaseK`.
+      The phase integral of this function will be computed.
+    A : float, optional
+      The mean bolometric albedo of the dust.  Gerhz and Ney (1992,
+      Icarus 100, 162-186) find ~0.32 for several Oort cloud comets.
+    Tscale : float, optional
+      The isothermal blackbody sphere temperature scale factor to
+      determine the spectral shape of the thermal emission.
+
+    Methods
+    -------
+    fluxd : Total flux density from the coma.
+
+    """
+
+    def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1):
+        self.D = Afrho
+        if self.phasef is None:
+            self.phasef = phaseK
+        else:
+            self.phasef = phasef
+        self.A = A
+        self.Tscale = Tscale
+
+    def fluxd(self, geom, wave, rap, unit=u.Unit('W / (m2 um)')):
+        """Flux density.
+
+        Parameters
+        ----------
+        geom : dict of Quantities
+          A dictionary-like object with the keys 'rh' (heliocentric
+          distance), 'delta' (observer-target distance), and 'phase'
+          (phase angle).
+        wave : Quantity
+          The wavelengths at which to compute the emission.
+        rap : Quantity
+          The aperture radius, angular or projected distance at the
+          comet.
+        unit : astropy Units, optional
+          The return units.  Must be spectral flux density.
+
+        Returns
+        -------
+        fluxd : Quantity
+          The flux density from the coma.
+
+        Raises
+        ------
+        ValueError : If `rap` has incorrect units.
+
+        """
+
+        from ..util import phase_integal, planck
+
+        if rap.unit.is_equivalent(u.cm):
+            rho = rap.to(self.Afrho.unit)
+        elif rap.unit.is_equivalent(u.arcsec):
+            rho = rap.radian * geom['delta'].to(self.Afrho.unit)
+        else:
+            raise ValueError("rap must have angular or length units.")
+
+        # A0 = A(phase=0)
+        q = phase_integral(phasef)
+        A0 = self.phasef(geom['phase'].degree) / q * self.A
+
+        T = self.Tscale * 278 / np.sqrt(g['rh'].au) * u.K
+        B = planck(wave, T, unit=unit / u.sr).value
+
+        fluxd = ((1 - self.A) / A0 * np.pi * B * rho.centimeter
+                 * self.Afrho.centimeter / geom['delta'].centimeter**2)
+
+        return fluxd * unit
 
 def phaseK(phase):
     """Phase function derived from Kolokolova et al. (2004, Comets II).
