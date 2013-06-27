@@ -16,7 +16,7 @@ surfaces --- Models for surfaces
 
    Phase functions
    ---------------
-   hg_phi - IAU H-G phase function
+   phaseHG - IAU H-G phase function
    lambertian - Lambertian sphere.
 
 """
@@ -32,7 +32,7 @@ __all__ = [
     'HG',
     'NEATM',
 
-    'hg_phi',
+    'phaseHG',
     'lambertian'
 ]
 
@@ -316,7 +316,7 @@ class HG(SurfaceRaditation):
         phase = geom['phase']
 
         mv = (self.H + 5.0 * np.log10(rhdelta)
-              - 2.5 * np.log10(hg_phi(np.abs(phase.degree), self.G)))
+              - 2.5 * np.log10(phaseHG(np.abs(phase.degree), self.G)))
 
         wave_v = np.linspace(0.5, 0.6) * u.um
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
@@ -383,7 +383,7 @@ class DAv(SurfaceRaditation):
 
         if phasef is None:
             def phi_g(phase):
-                return hg_phi(phase, G)
+                return phaseHG(phase, G)
             self.phasef = phi_g
         else:        
             self.phasef = phasef
@@ -450,8 +450,8 @@ class DAv(SurfaceRaditation):
         return self.D / 2.0
 
 
-def _hg_phi_i(i, phase):
-    """Helper function for hg_phi.
+def _phaseHG_i(i, phase):
+    """Helper function for phaseHG.
 
     i: integer
     phase : float, radians
@@ -466,7 +466,7 @@ def _hg_phi_i(i, phase):
     W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
     return W * Phi_S + (1.0 - W) * Phi_L
 
-def hg_phi(phase, G):
+def phaseHG(phase, G):
     """IAU HG system phase function.
 
     Parameters
@@ -480,7 +480,7 @@ def hg_phi(phase, G):
 
     """
     phase = np.radians(phase)
-    return ((1.0 - G) * _hg_phi_i(0, phase) + G * _hg_phi_i(1, phase))
+    return ((1.0 - G) * _phaseHG_i(0, phase) + G * _phaseHG_i(1, phase))
 
 def lambertian(phase):
     """Return the phase function from an Lambert disc computed at a
