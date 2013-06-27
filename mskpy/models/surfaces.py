@@ -1,7 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
-models --- MSK's model library
-==============================
+surfaces --- Models for surfaces
+================================
 
 .. autosummary::
    :toctree: generated/
