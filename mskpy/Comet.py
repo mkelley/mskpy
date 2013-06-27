@@ -37,12 +37,12 @@ class Coma(SolarSysObject):
       `SolarSysObject`.
     Afrho : Quantity
       Afrho of the coma.
-    reflected : dict or DustEmission, optional
+    reflected : dict or AfrhoEmission, optional
       A model for light scattered by dust or a dictionary of keywords
-      to pass to `ScatteredSun`.
-    thermal : dict or DustEmission, optional
+      to pass to `AfrhoScattered`.
+    thermal : dict or AfrhoEmission, optional
       A model for thermal emission from dust or a dictionary of
-      keywords to pass to `SingleBB`.
+      keywords to pass to `AfrhoThermal`.
     kernel : string, optional
       The name of an ephemeris kernel in which to find the ephemeris
       for `obj`.
@@ -57,15 +57,17 @@ class Coma(SolarSysObject):
 
         self.Afrho = Afrho
 
-        if isinstance(reflected, DustEmission):
+        if isinstance(reflected, AfrhoEmission):
             self.reflected = reflected
         else:
-            self.reflected = ScatteredSun(1 * u.m**2, **reflected)
+            self.reflected = AfrhoScattered(
+                1 * self.Afrho.unit, **reflected)
 
-        if isinstance(thermal, DustEmission):
+        if isinstance(thermal, AfrhoEmission):
             self.thermal = thermal
         else:
-            self.thermal = SingleBB(1 * u.m**2, **thermal)
+            self.thermal = AfrhoThermal(
+                1 * self.Afrho.unit, self.Afrho, **thermal)
 
     def r(self, date):
         return self.obj.r(date)
@@ -75,7 +77,7 @@ class Coma(SolarSysObject):
         return self.obj.v(date)
     v.__doc__ = self.obj.v.__doc__
 
-    def fluxd(self, observer, date, wave, reflected=True, thermal=True,
+    def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):
         """Total flux density as seen by an observer.
 
@@ -88,6 +90,9 @@ class Coma(SolarSysObject):
           `observer`.
         wave : Quantity
           The wavelengths to compute `fluxd`.
+        rap : Quantity
+          The aperture radius, angular or projected distance at the
+          comet.
         reflected : bool, optional
           If `True` include the reflected light model.
         thermal : bool, optional
@@ -102,15 +107,28 @@ class Coma(SolarSysObject):
         -------
         fluxd : Quantity
 
+        Raises
+        ------
+        ValueError : If `rap` has incorrect units.
+
         """
 
         g = observer.observe(self, date, ltt=ltt)
         fluxd = np.zeros(len(wave)) * unit
 
+        if rap.unit.is_equivalent(u.cm):
+            rho = rap.to(self.Afrho.unit)
+        elif rap.unit.is_equivalent(u.arcsec):
+            rho = rap.radian * g['delta'].to(self.Afrho.unit)
+        else:
+            raise ValueError("rap must have angular or length units.")
+
         if reflected:
-            fluxd += self.reflected.fluxd(g, wave, unit=unit) * self.cs
+            f = self.reflected.fluxd(g, wave, unit=unit)
+            fluxd += f * self.Afrho * self.rho
         if thermal:
-            fluxd += self.thermal.fluxd(g, wave, unit=unit) * self.cs
+            f = self.thermal.fluxd(g, wave, unit=unit)
+            fluxd += f * self.Afrho * self.rho
 
         return fluxd
 
@@ -193,7 +211,7 @@ class Comet(SolarSysObject):
         return self.obj.v(date)
     v.__doc__ = self.obj.v.__doc__
 
-    def fluxd(self, observer, date, wave, reflected=True, thermal=True,
+    def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
               nucleus=True, coma=True, ltt=False, unit=u.Unit('W / (m2 um)')):
         """Total flux density as seen by an observer.
 
@@ -206,6 +224,9 @@ class Comet(SolarSysObject):
           `observer`.
         wave : Quantity
           The wavelengths to compute `fluxd`.
+        rap : Quantity
+          The aperture radius, angular or projected distance at the
+          comet.
         reflected : bool, optional
           If `True` include the reflected light model.
         thermal : bool, optional
@@ -226,14 +247,15 @@ class Comet(SolarSysObject):
 
         """
 
-        g = observer.observe(self, date, ltt=ltt)
         fluxd = np.zeros(len(wave)) * unit
 
         if nucleus:
-            fluxd += self.nucleus.fluxd(g, wave, reflected=reflected,
+            fluxd += self.nucleus.fluxd(observer, date, wave,
+                                        reflected=reflected,
                                         thermal=thermal, unit=unit)
         if coma:
-            fluxd += self.coma.fluxd(g, wave, reflected=reflected,
+            fluxd += self.coma.fluxd(observer, date, wave, rap,
+                                     reflected=reflected,
                                      thermal=thermal, unit=unit)
 
         return fluxd
