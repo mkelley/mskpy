@@ -46,14 +46,15 @@ class AfrhoRadiation(object):
     Notes
     -----
     Inheriting classes should override `fluxd`, and `__init__`
-    functions.  `__init__` should take a single argument, `Afrho`.
+    functions.  `__init__` should take a single argument, `Afrho`, as
+    a Quantity.
 
     As much as possible, share the same keyword arguments between
     reflected and thermal models.
 
     """
 
-    def __init__(self):
+    def __init__(self, Afrho):
         pass
 
     def fluxd(self, geom, wave, unit=None):
