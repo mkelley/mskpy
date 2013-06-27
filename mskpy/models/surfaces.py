@@ -352,7 +352,7 @@ class HG(SurfaceRaditation):
         """Radius via D()."""
         return self.D(*args, **kwargs) / 2.0
 
-class DAv(SurfaceRaditation):
+class DAp(SurfaceRaditation):
     """Reflected light from asteroids given D, Ap.
 
     Parameters
