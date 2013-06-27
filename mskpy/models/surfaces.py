@@ -37,20 +37,17 @@ __all__ = [
 ]
 
 class SurfaceRaditation(object):
-    """An abstract class for surface emission in the Solar System.
+    """An abstract class for light from a surface in the Solar System.
 
     Methods
     -------
-    fluxd : Total fluxd from the object.
+    fluxd : Total flux density from the object.
 
     Notes
     -----
     Inheriting classes should override `fluxd`, and `__init__`
-    functions, if it makes sense, should only take D and Ap as
-    arguments, remaining parameters should be keywords.
-
-    Keyword parameters for `__init__` should be accepted via
-    `**kwargs` for compatibility with mskpy.asteroid.Asteroid.
+    functions, and should only take D and Ap as arguments (if
+    possible), remaining parameters should be keywords.
 
     As much as possible, share the same keyword arguments between
     reflected and thermal models.
@@ -107,7 +104,7 @@ class NEATM(SurfaceRaditation):
     """
 
     def __init__(self, D, Ap, eta=1.0, epsilon=0.95, G=0.15,
-                 phaseint=None, tol=1e-3, **kwargs):
+                 phaseint=None, tol=1e-3):
         self.D = D.to(u.km)
         self.Ap = Ap
         self.eta = eta
@@ -284,8 +281,7 @@ class HG(SurfaceRaditation):
 
     """
 
-    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)'),
-                 **kwargs):
+    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)')):
         self.H = H
         self.G = G
         self.mzp = mzp
@@ -381,7 +377,7 @@ class DAv(SurfaceRaditation):
 
     """
 
-    def __init__(self, D, Ap, G=0.15, phasef=None, **kwargs):
+    def __init__(self, D, Ap, G=0.15, phasef=None):
         self.D = D
         self.Ap = Ap
 
