@@ -12,11 +12,17 @@ mskpy --- MSK's personal library for astronomy and stuff
 from . import calib
 from . import util
 from . import models
-from . import asteroid
 
+# the following block depends on PySPICE
 try:
     from . import ephem
+    from . import asteroid
+    from . import comet
+
     from .ephem import Sun, Earth
+    from comet import *
+    from asteroid import *
+
 
     try:
         from .ephem import Spitzer
