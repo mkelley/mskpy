@@ -107,28 +107,17 @@ class Coma(SolarSysObject):
         -------
         fluxd : Quantity
 
-        Raises
-        ------
-        ValueError : If `rap` has incorrect units.
-
         """
 
         g = observer.observe(self, date, ltt=ltt)
         fluxd = np.zeros(len(wave)) * unit
 
-        if rap.unit.is_equivalent(u.cm):
-            rho = rap.to(self.Afrho.unit)
-        elif rap.unit.is_equivalent(u.arcsec):
-            rho = rap.radian * g['delta'].to(self.Afrho.unit)
-        else:
-            raise ValueError("rap must have angular or length units.")
-
         if reflected:
-            f = self.reflected.fluxd(g, wave, unit=unit)
-            fluxd += f * self.Afrho * self.rho
+            f = self.reflected.fluxd(g, wave, rap, unit=unit)
+            fluxd += f * self.Afrho
         if thermal:
-            f = self.thermal.fluxd(g, wave, unit=unit)
-            fluxd += f * self.Afrho * self.rho
+            f = self.thermal.fluxd(g, wave, rap, unit=unit)
+            fluxd += f * self.Afrho
 
         return fluxd
 
