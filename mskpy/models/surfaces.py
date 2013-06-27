@@ -16,7 +16,7 @@ surfaces --- Models for surfaces
 
    Phase functions
    ---------------
-   phaseHG - IAU H-G phase function
+   phaseHG - IAU H-G phase function.
    lambertian - Lambertian sphere.
 
 """
@@ -457,6 +457,7 @@ def _phaseHG_i(i, phase):
     phase : float, radians
 
     """
+
     A = [3.332, 1.862]
     B = [0.631, 1.218]
     C = [0.986, 0.238]

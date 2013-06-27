@@ -1492,8 +1492,9 @@ def phase_integral(phasef, range=[0, 180]):
 
     """
     from scipy.integrate import quad
-    pint = quad(lambda x: phasef(x) * np.sin(np.radians(x)),
-                min(range), max(range))[0] / (360 / np.pi)
+    range = np.radians(range)
+    pint = 2.0 * quad(lambda x: phasef(np.degrees(x)) * np.sin(x),
+                      min(range), max(range))[0]
     return pint
 
 def planck(wave, T, unit=None, deriv=None):

@@ -3,4 +3,5 @@
 This package contains utilities to run the test suite.
 """
 
-from test_mskpy import *
+from test_util import *
+from test_models import *
