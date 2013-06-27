@@ -81,9 +81,6 @@ util --- Short and sweet functions, generic algorithms
 """
 
 import numpy as np
-import astropy.units as u
-from astropy.units import Quantity
-import astropy.coordinates as coords
 
 __all__ = [
     'archav',
@@ -151,23 +148,23 @@ def archav(y):
 
     Parameters
     ----------
-    y : float or array like
-      The angle.
+    y : float or array
+      The value.
 
     Returns
     -------
-    th : Quantity
-      The inverse haversine.
+    th : float or ndarray
+      The inverse haversine. [radians]
 
     """
-    return 2.0 * np.arcsin(np.sqrt(y)) * u.rad
+    return 2.0 * np.arcsin(np.sqrt(y))
 
 def cartesian(*arrays):
     """Cartesian product of the input arrays.
 
     Parameters
     ----------
-    arrays : array-like
+    arrays : array
       The arrays on which to operate.
 
     Returns
@@ -369,17 +366,15 @@ def hav(th):
 
     Parameters
     ----------
-    th : float, Quantity, or array
+    th : float or array
       The angle. [radians]
 
     Returns
     -------
-    y : float or array like
+    y : float or ndarray
       The haversine.
 
     """
-
-    th = asQuantity(th, u.rad)
     return np.sin(th / 2.0)**2
 
 def rotmat(th):
@@ -389,7 +384,7 @@ def rotmat(th):
 
     Parameters
     ----------
-    th : float or Quantity
+    th : float
       The amount to rotate. [radians]
 
     Returns
@@ -407,7 +402,6 @@ def rotmat(th):
     --> matrix([[ -1.00000000e+00,   6.12323400e-17]])
 
     """
-    th = asQuantity(th, u.rad)
     c = np.cos(th)
     s = np.sin(th)
     return np.matrix([[c, s], [-s, c]])
@@ -802,16 +796,16 @@ def vector_rotate(r, n, th):
 
     Parameters
     ----------
-    r : array
+    r : array (3)
       The vector to rotate [x, y, z].
-    n : array
+    n : array (3)
       The vector to rotate about.
-    th : float, array, Angle, or Quantity
-      The CCW angle to rotate by. [float/array in degrees]
+    th : float or array
+      The CCW angle to rotate by. [radians]
 
     Returns
     -------
-    rp : array
+    rp : ndarray
       The rotated vector [x, y, z].
 
     Notes
@@ -821,15 +815,6 @@ def vector_rotate(r, n, th):
 
     """
 
-    from astropy.coordinates import Angle
-
-    if isinstance(th, Angle):
-        theta = Angle.radians
-    elif isinstance(th, Quantity):
-        theta = th.to(u.rad).value
-    else:
-        theta = np.radians(th)
-
     nhat = n / np.sqrt((n**2).sum())
 
     def rot(r, nhat, theta):
@@ -837,17 +822,17 @@ def vector_rotate(r, n, th):
                 nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
                 np.cross(r, nhat) * np.sin(-theta))
 
-    if theta.size == 1:
-        return rot(r, nhat, theta)
+    if th.size == 1:
+        return rot(r, nhat, th)
     else:
-        return np.array([rot(r, nhat, t) for t in theta])
+        return np.array([rot(r, nhat, t) for t in th])
 
 def kuiper(x, y):
     """Compute Kuiper's statistic and probablity.
 
     Parameters
     ----------
-    x, y : array-like
+    x, y : array
     The two distributions to compare.
 
     Returns
@@ -1526,6 +1511,9 @@ def planck(wave, T, unit=None, deriv=None):
 
     """
 
+    import astropy.units as u
+    from astropy.units import Quantity
+
     # prevent over/underflow warnings
     oldseterr = np.seterr(all='ignore')
 
@@ -1628,23 +1616,21 @@ def polcurve(th, p, a, b, th0):
 
     Parameters
     ----------
-    th : float, array, or Quantity
+    th : float or array
       The phase angle.  [degrees]
     p, a, b : float
       The parameters of the function.
-    th0 : float or Quantity
+    th0 : float
       The negative to positive branch turnover angle. [degrees]
 
     Returns
     -------
-    P : float or array
+    P : float or ndarray
       The polarization at phase angle `th`.
 
     """
-    th = asQuantity(th, u.deg).to(u.rad)
-    th0 = asQuantity(th0, u.deg).to(u.rad)
-    return (p * np.sin(th.value)**a * np.cos(th.value / 2.)**b *
-            np.sin(th.value - th0.value))
+    return (p * np.sin(np.radians(th))**a * np.cos(th.value / 2.)**b *
+            np.sin(np.radians(th - th0)))
 
 def savitzky_golay(x, kernel=11, order=4):
     """Smooth with the Savitzky-Golay filter.
@@ -1980,6 +1966,8 @@ def asAngle(x, unit=None):
     a : Angle
 
     """
+
+    from astropy.units import Quantity
     from astropy.coordinates import Angle
 
     if not isinstance(x, Angle):
@@ -2007,6 +1995,7 @@ def asQuantity(x, unit, **keywords):
 
     """
 
+    from astropy.units import Quantity
     if not isinstance(x, Quantity):
         q = x * unit
     else: 
@@ -2036,6 +2025,8 @@ def asValue(x, unit_in, unit_out):
 
     """
 
+    import astropy.units as u
+    from astropy.units import Quantity
     from astropy.coordinates import Angle
 
     if isinstance(x, Angle):
