@@ -54,6 +54,7 @@ util --- Short and sweet functions, generic algorithms
    -------------------
    bandpass
    deresolve
+   phase_integral
    planck
    redden
    pcurve
@@ -122,7 +123,8 @@ __all__ = [
 
     'bandpass',
     'deresolve',
-    'Planck',
+    'phase_integral',
+    'planck',
     'redden',
     'polcurve',
     'savitzky_golay',
@@ -1473,7 +1475,29 @@ def deresolve(func, wave, flux, err=None):
 
     return fluxout
 
+def phase_integral(phasef, range=[0, 180]):
+    """The phase integral of a phase function.
+
+    Parameters
+    ----------
+    phasef : function
+      The phase function, takes one parameter, `phase`, in units of
+      degrees.
+    range : array, optional
+      The integration limits.  [degrees]
+
+    Returns
+    -------
+    pint : float
+
+    """
+    from scipy.integrate import quad
+    pint = quad(lambda x: phasef(x) * np.sin(np.radians(x)),
+                min(range), max(range))[0] / (360 / np.pi)
+    return pint
+
 def planck(wave, T, unit=None, deriv=None):
+
     """The Planck function.
 
     Parameters
