@@ -4,11 +4,11 @@ This package contains utilities to run the test suite.
 """
 
 import numpy as np
-import astropy.units as u
 import mskpy
 
 class TestModels():
     def test_neatm(self):
+        import astropy.units as u
         from mskpy.models import NEATM
 
         # photometry of phaeton from Green et al. (1985, MNRaS 214,
