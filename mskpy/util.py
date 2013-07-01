@@ -827,7 +827,10 @@ def state2orbit(R, V):
 
     """
 
-    k = 1.32712440018e11  # km3/s2
+    import astropy.units as u
+
+    mu = 1.32712440018e11  # km3/s2
+    AU = (1 * u.au).kilometer
 
     # some usefull things
     r = np.sqrt((R**2).sum())  # heliocentric distance [km]
