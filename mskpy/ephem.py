@@ -673,6 +673,22 @@ class SolarSysObject(object):
         return g
 
     def orbit(self, date):
+        """Osculating orbital elements.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Strings are parsed with `util.cal2iso`.  Floats are assumed
+          to be Julian dates.  All dates except instances of `Time`
+          are assumed to be UTC.  Use `None` for now.
+
+        Returns
+        -------
+        orbit : dict
+          See `util.state2orbit`.
+
+        """
+
         from .util import state2orbit
         r = self.r(date)
         v = self.v(date)
