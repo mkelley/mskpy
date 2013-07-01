@@ -561,6 +561,7 @@ class SolarSysObject(object):
     Methods
     -------
     observe : Distance, phase angle, etc. to another object.
+    orbit : Osculating orbital parameters at date.
     r : Position vector
     v : Velocity vector
 
@@ -670,6 +671,13 @@ class SolarSysObject(object):
             g = self.observe(target, date, ltt=False)
 
         return g
+
+    def orbit(self, date):
+        from .util import state2orbit
+        r = self.r(date)
+        v = self.v(date)
+        jd = self._date2time(date).jd
+        return state2orbit(r, v)
 
 class SpiceObject(SolarSysObject):
     """A moving object saved in a SPICE planetary ephemeris kernel.
