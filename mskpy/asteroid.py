@@ -64,9 +64,6 @@ class Asteroid(SolarSysObject):
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
 
-        self.r.__doc__ = self.obj.r.__doc__
-        self.v.__doc__ = self.obj.v.__doc__
-
         self.D = D
         self.Ap = Ap
 
