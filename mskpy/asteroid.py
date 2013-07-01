@@ -69,11 +69,15 @@ class Asteroid(SolarSysObject):
 
         if isinstance(reflected, SurfaceRaditation):
             self.reflected = reflected
+        elif reflected is None:
+            self.reflected = DAp(self.D, self.Ap)
         else:
             self.reflected = DAp(self.D, self.Ap, **reflected)
 
-        if isinstance(thermal, SurfaceEmisssion):
+        if isinstance(thermal, SurfaceRadiation):
             self.thermal = thermal
+        elif thermal is None:
+            self.thermal = NEATM(self.D, self.Ap)
         else:
             self.thermal = NEATM(self.D, self.Ap, **thermal)
 
