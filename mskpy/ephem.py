@@ -380,7 +380,7 @@ class Geom(object):
             sangle = np.zeros(len(self))
             for i in range(len(self)):
                 sangle[i] = pva(-self._rt[i], self._rot[i], ra[i].degree,
-                                 dec[i].degree)
+                                dec[i].degree)
         else:
             sangle = pva(-self._rt, self._rot, ra.degree, dec.degree)
             
@@ -396,10 +396,10 @@ class Geom(object):
         if len(self) > 1:
             vangle = np.zeros(len(self))
             for i in range(len(self)):
-                vangle[i] = pva(-self._vt[i], self._rot[i], ra[i].degree,
-                                 dec[i].degree)
+                vangle[i] = pva(self._vt[i], self._rot[i], ra[i].degree,
+                                dec[i].degree)
         else:
-            vangle = pva(-self._vt, self._rot, ra.degree, dec.degree)
+            vangle = pva(self._vt, self._rot, ra.degree, dec.degree)
 
         return vangle * u.deg
 
@@ -754,8 +754,6 @@ class SolarSysObject(object):
 
         from astropy.time import TimeDelta
         import astropy.constants as const
-
-        from util import cal2time, jd2time, ec2eq, projected_vector_angle
 
         date = self._date2time(date)
 

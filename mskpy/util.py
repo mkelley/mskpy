@@ -699,18 +699,17 @@ def projected_vector_angle(r, rot, ra, dec):
       The position angle w.r.t. to equatorial north. [deg]
 
     """
-
-    rh = np.sqrt((r**2).sum())
-    dv = rot + rh / r / 1000.  # delta vector
+    r0 = np.sqrt((r**2).sum())  # magnitude of r
+    dv = rot + r / r0  # delta vector
 
     # find the projected vectors in RA, Dec
     lam2 = np.degrees(np.arctan2(dv[1], dv[0]))
-    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0]*dv[0] + dv[1]*dv[1])))
+    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0]**2 + dv[1]**2)))
 
     ra2, dec2 = ec2eq(lam2, bet2)
 
-    x2 = (ra2 - ra) * np.cos(np.radians(dec2)) * 3600.0
-    y2 = (dec2 - dec) * 3600.0
+    x2 = (ra2 - ra) * np.cos(np.radians(dec2))
+    y2 = (dec2 - dec)
 
     th = np.degrees(np.arctan2(y2, x2))
     pa = 90.0 - th
