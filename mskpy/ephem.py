@@ -416,7 +416,8 @@ class Geom(object):
         from .ephem import Moon
         if self.date is None:
             return None
-        rom = Moon.r(self.date)
+        rm = Moon.r(self.date)
+        rom = rm - self.ro
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
                            / deltam / self.delta.kilometer)
