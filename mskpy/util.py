@@ -32,6 +32,7 @@ util --- Short and sweet functions, generic algorithms
    ec2eq
    projected_vector_angle
    spherical_coord_rotate
+   state2orbit
    vector_rotate
 
    Statistics
@@ -102,6 +103,7 @@ __all__ = [
     'ec2eq',
     'projected_vector_angle',
     'spherical_coord_rotate',
+    'state2orbit',
     'vector_rotate',
 
     'kuiper',
@@ -790,6 +792,88 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
     lon_new = lon_new % 360.0
 
     return (lon_new, lat_new)
+
+def state2orbit(R, V):
+    """Convert a small body's state vector into osculating orbital elements.
+
+    CURRENTLY INCOMPLETE!  Only a, ec, q, Tp, P, f, E, and M are
+    computed, and even fewer are computed for near-parabolic orbits.
+
+    Two-body osculating solution. For details, see Murry and Dermott,
+    Solar System Dynamics, Chapter 2.
+
+    Parameters
+    ----------
+    R : array
+      The x, y, z heliocentric ecliptic coordinates. [km]
+    V : array
+      The vx, vy, vz heliocentric ecliptic speeds. [km/s]
+
+    Returns
+    -------
+    orbit : dict
+      A dictionary {a, ec, in, node, peri, Tp, P, f, E, M}, where:
+        a = semi-major axis [km]
+        ec = eccentricity
+        in = inclination [radians]
+        node = longitude of the acending node, Omega [radians]
+        peri = argument of pericenter [radians]
+        Tp = time of perihelion passage [days]
+        q = perihelion distance
+        P = orbital period [days]
+        f = true anomaly at date [radians]
+        E = eccentric anomaly at date [radians]
+        M = mean anomaly at date [radians]
+
+    """
+
+    k = 1.32712440018e11  # km3/s2
+
+    # some usefull things
+    r = np.sqrt((R**2).sum())  # heliocentric distance [km]
+    v = np.sqrt((V**2).sum())  # velocity [km/s]
+
+    H = np.cross(R, V)         # specific angular momentum vector [km2/s]
+    h = np.sqrt((H**2).sum())  # specific angular momentum [km2/s]
+
+    s = np.dot(R, V)
+    drdt = np.sign(s) * np.sqrt(v**2 - h**2 / r**2)
+
+    a = 1.0 / (2.0 / r - v**2 / mu)  # [km]
+    ec = np.sqrt(1.0 - h**2 / mu / a)  # eccentricity
+    q = a * (1.0 - ec) / AU  # perihelion distance [AU]
+
+    if ec < 0.98:
+        sinf = h / mu / ec * drdt
+        cosf = (h**2 / mu / r - 1.0) / ec
+        f = np.arctan2(sinf, cosf)  # true anomaly [radians]
+    elif ec < 1.1:
+        # punt!
+        return dict(a=a, ec=ec, q=q, Tp=None, P=None, f=None, E=None,
+                    H=None, M=None)
+    else:
+        raise ValueError("eccentricity is too high")
+
+    # eccentric anomaly [radians]
+    if ec < 1.0:
+        E = 2.0 * np.arctan2(np.sqrt(1.0 - ec) * np.sin(f / 2.0),
+                             np.sqrt(1.0 + ec) * np.cos(f / 2.0))
+        M = E - ec * np.sin(E)  # mean anomaly [radians]
+    else:
+        # hyperbolic eccentric anomaly [radians]
+        E = 2.0 * np.arccosh((ec + cosf) / (1 + ec + cosf))
+        M = -E + ec * np.sinh(E)  # mean anomaly [radians]
+
+    # date of perihelion [Julian date]
+    if a < 0:
+        n = np.sqrt(mu / -a**3) / 86400.0  # mean motion
+        Tp = -M * np.sqrt(-a**3 / mu) / 86400.0
+        P = None
+    else:
+        Tp = -M * np.sqrt(a**3 / mu) / 86400.0
+        P = 2.0 * pi * np.sqrt(a**3 / mu) / 86400.0  # orbital period [days]
+
+    return dict(a=a, ec=ec, q=q, Tp=Tp, P=P, f=f, E=E, M=M)
 
 def vector_rotate(r, n, th):
     """Rotate vector `r` an angle `th` CCW about `n`.
