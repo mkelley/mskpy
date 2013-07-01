@@ -38,10 +38,10 @@ class Asteroid(SolarSysObject):
       Diameter.
     Ap : float
       Geometric albedo.
-    reflected : dict or SurfaceRaditation, optional
+    reflected : dict or SurfaceRadiation, optional
       A model of the reflected light.  If `None` a `DAp` model will be
       initialized (including `**kwargs`).
-    thermal : dict or SurfaceRaditation, optional
+    thermal : dict or SurfaceRadiation, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
     kernel : string, optional
@@ -67,7 +67,7 @@ class Asteroid(SolarSysObject):
         self.D = D
         self.Ap = Ap
 
-        if isinstance(reflected, SurfaceRaditation):
+        if isinstance(reflected, SurfaceRadiation):
             self.reflected = reflected
         elif reflected is None:
             self.reflected = DAp(self.D, self.Ap)
