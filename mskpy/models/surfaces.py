@@ -9,7 +9,7 @@ surfaces --- Models for surfaces
    Surface Models
    --------------
 
-   SurfaceRaditation - Base class for all surfaces.
+   SurfaceRadiation - Base class for all surfaces.
    DAp - Reflected light based on diameter and geometric albedo.
    HG - Reflected light based on IAU H-G magnitude system.
    NEATM - Near-Earth asteroid thermal model.
@@ -27,7 +27,7 @@ import astropy.units as u
 from astropy.units import Quantity
 
 __all__ = [
-    'SurfaceRaditation',
+    'SurfaceRadiation',
     'DAp',
     'HG',
     'NEATM',
@@ -36,7 +36,7 @@ __all__ = [
     'lambertian'
 ]
 
-class SurfaceRaditation(object):
+class SurfaceRadiation(object):
     """An abstract class for light from a surface in the Solar System.
 
     Methods
@@ -60,7 +60,7 @@ class SurfaceRaditation(object):
     def fluxd(self, geom, wave, unit=None):
         pass
 
-class NEATM(SurfaceRaditation):
+class NEATM(SurfaceRadiation):
     """The Near Earth Asteroid Thermal Model.
 
     If you use this model, please reference Harris (1998, Icarus, 131,
@@ -258,7 +258,7 @@ class NEATM(SurfaceRaditation):
             fluxd[i] = 0.0
         return fluxd
 
-class HG(SurfaceRaditation):
+class HG(SurfaceRadiation):
     """The IAU HG system for reflected light from asteroids.
 
     Parameters
@@ -352,7 +352,7 @@ class HG(SurfaceRaditation):
         """Radius via D()."""
         return self.D(*args, **kwargs) / 2.0
 
-class DAp(SurfaceRaditation):
+class DAp(SurfaceRadiation):
     """Reflected light from asteroids given D, Ap.
 
     Parameters

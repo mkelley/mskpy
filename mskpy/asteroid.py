@@ -24,7 +24,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from .ephem import SolarSysObject, SpiceObject
-from .models import SurfaceRaditation, DAp, NEATM
+from .models import SurfaceRadiation, DAp, NEATM
 
 class Asteroid(SolarSysObject):
     """An asteroid.
