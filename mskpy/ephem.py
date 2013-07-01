@@ -554,6 +554,105 @@ class Geom(object):
         """
         return self.reduce(np.argmax)
 
+    def summary(self):
+        """A pretty summary of the object.
+
+        If `Geom` is an array, then mean values will be printed.
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
+        None
+
+        """
+
+        from astropy.coordinates import Angle
+        from util import jd2time
+
+        opts = dict(sep=':', precision=1, pad=True)
+
+        if len(self) > 1:
+            g = self.mean()
+            gmax = self.max()
+            gmin = self.min()
+
+            datemin, timemin = jd2time(gmin['date']).iso.split()
+            timemin = timemin.split('.')[0]
+
+            datemax, timemax = jd2time(gmax['date']).iso.split()
+            timemax = timemax.split('.')[0]
+
+            minmaxtime = '  [{:}, {:}]'.format(timemin, timemax)
+            minmaxdate = '  [{:}, {:}]'.format(datemin, datemax)
+
+            ramin = Angle(gmin['ra'].value, u.deg).format(
+                'hour', **opts)
+            decmin = Angle(gmin['dec'].value, u.deg).format(
+                'deg', alwayssign=True, **opts)
+            ramax = Angle(gmax['ra'].value, u.deg).format(
+                'hour', **opts)
+            decmax = Angle(gmax['dec'].value, u.deg).format(
+                'deg', alwayssign=True, **opts)
+
+            raminmax = '  [ {:},  {:}]'.format(ramin, ramax)
+            decminmax = '  [{:}, {:}]'.format(decmin, decmax)
+
+            jdminmax = '  [{:}, {:}]'.format(gmin['date'].jd, gmax['date'].jd)
+
+            def minmax(p, f):
+                return '  [{:{f}}, {:{f}}]'.format(
+                    gmin[p].value, gmax[p].value, f=f)
+        else:
+            g = self
+            gmax = self
+            gmin = self
+            minmaxdate = ''
+            minmaxtime = ''
+            raminmax = ''
+            decminmax = ''
+            jdminmax = ''
+            def minmax(p, f):
+                return ''
+
+        date, time = jd2time(g['date']).iso.split()
+        time = time.split('.')[0]
+
+        ra = Angle(g['ra'].value, u.deg).format('hour', **opts)
+        dec = Angle(g['dec'].value, u.deg).format('deg', alwayssign=True,
+                                                  **opts)
+
+        print ("""
+{:>34s} {:s}{:}
+{:>34s} {:s}{:}
+{:>34s} {:f}{:}
+
+{:>34s} {:8.3f}{:}
+{:>34s} {:8.3f}{:}
+{:>34s} {:8.3f}{:}
+
+{:>34s} {:8.3f}{:}
+{:>34s} {:8.3f}{:}
+
+{:>34s}  {:}{:}
+{:>34s} {:}{:}
+
+{:>34s} {:8.3f}{:}
+{:>34s} {:8.3f}{:}
+""".format("Date:", date, minmaxdate,
+           "Time (UT):", time, minmaxtime,
+           "Julian day:", g['date'].jd, jdminmax,
+           "Heliocentric distance (AU):", g['rh'].value, minmax('rh', '8.3f'),
+           "Target-Observer distance (AU):", g['delta'].value, minmax('delta', '8.3f'),
+           "Sun-Object-Observer angle (deg):", g['phase'].value, minmax('phase', '8.3f'),
+           "Sun-Observer-Target angle (deg):", g['selong'].value, minmax('selong', '8.3f'),
+           "Moon-Observer-Target angle (deg):", g['lelong'].value, minmax('lelong', '8.3f'),
+           "RA (hr):", ra, raminmax,
+           "Dec (deg):", dec, decminmax,
+           "Projected sun vector (deg):", g['sangle'].value, minmax('sangle', '8.3f'),
+           "Projected velocity vector (deg):", g['vangle'].value, minmax('vangle', '8.3f')))
 
 class SolarSysObject(object):
     """An abstract class for an object in the Solar System.
@@ -579,7 +678,7 @@ class SolarSysObject(object):
         from .util import cal2time, jd2time
 
         if date is None:
-            date = Time(datetime.now(), scale='utc')
+            date = Time(datetime.now(), scale='utc', format='datetime')
         elif isinstance(date, Time):
             pass
         elif isinstance(date, float):
