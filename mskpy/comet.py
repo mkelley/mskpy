@@ -25,7 +25,7 @@ from astropy.time import Time
 
 from .ephem import SolarSysObject, SpiceObject
 from .asteroid import Asteroid
-from .models import DustEmission, ScatteredSun, SingleBB
+from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
 
 class Coma(SolarSysObject):
     """A comet coma.
@@ -37,10 +37,10 @@ class Coma(SolarSysObject):
       `SolarSysObject`.
     Afrho : Quantity
       Afrho of the coma.
-    reflected : dict or AfrhoEmission, optional
+    reflected : dict or AfrhoRadiation, optional
       A model for light scattered by dust or a dictionary of keywords
       to pass to `AfrhoScattered`.
-    thermal : dict or AfrhoEmission, optional
+    thermal : dict or AfrhoRadiation, optional
       A model for thermal emission from dust or a dictionary of
       keywords to pass to `AfrhoThermal`.
     kernel : string, optional
@@ -55,15 +55,18 @@ class Coma(SolarSysObject):
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
 
+        self.r.__doc__ = self.obj.r.__doc__
+        self.v.__doc__ = self.obj.v.__doc__
+
         self.Afrho = Afrho
 
-        if isinstance(reflected, AfrhoEmission):
+        if isinstance(reflected, AfrhoRadiation):
             self.reflected = reflected
         else:
             self.reflected = AfrhoScattered(
                 1 * self.Afrho.unit, **reflected)
 
-        if isinstance(thermal, AfrhoEmission):
+        if isinstance(thermal, AfrhoRadiation):
             self.thermal = thermal
         else:
             self.thermal = AfrhoThermal(
@@ -71,11 +74,9 @@ class Coma(SolarSysObject):
 
     def r(self, date):
         return self.obj.r(date)
-    r.__doc__ = self.obj.r.__doc__
 
     def v(self, date):
         return self.obj.v(date)
-    v.__doc__ = self.obj.v.__doc__
 
     def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):
@@ -176,6 +177,9 @@ class Comet(SolarSysObject):
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
 
+        self.r.__doc__ = self.obj.r.__doc__
+        self.v.__doc__ = self.obj.v.__doc__
+
         if isinstance(nucleus, dict):
             try:
                 D = nucleus.pop('R') * 2
@@ -194,11 +198,9 @@ class Comet(SolarSysObject):
 
     def r(self, date):
         return self.obj.r(date)
-    r.__doc__ = self.obj.r.__doc__
 
     def v(self, date):
         return self.obj.v(date)
-    v.__doc__ = self.obj.v.__doc__
 
     def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
               nucleus=True, coma=True, ltt=False, unit=u.Unit('W / (m2 um)')):
