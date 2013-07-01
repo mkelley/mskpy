@@ -24,7 +24,7 @@ import astropy.units as u
 from astropy.time import Time
 
 from .ephem import SolarSysObject, SpiceObject
-from .models import SurfaceRaditation, DAv, NEATM
+from .models import SurfaceRaditation, DAp, NEATM
 
 class Asteroid(SolarSysObject):
     """An asteroid.
@@ -64,6 +64,9 @@ class Asteroid(SolarSysObject):
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
 
+        self.r.__doc__ = self.obj.r.__doc__
+        self.v.__doc__ = self.obj.v.__doc__
+
         self.D = D
         self.Ap = Ap
 
@@ -79,11 +82,9 @@ class Asteroid(SolarSysObject):
 
     def r(self, date):
         return self.obj.r(date)
-    r.__doc__ = self.obj.r.__doc__
 
     def v(self, date):
         return self.obj.v(date)
-    v.__doc__ = self.obj.v.__doc__
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):
