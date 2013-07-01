@@ -55,9 +55,6 @@ class Coma(SolarSysObject):
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
 
-        self.r.__doc__ = self.obj.r.__doc__
-        self.v.__doc__ = self.obj.v.__doc__
-
         self.Afrho = Afrho
 
         if isinstance(reflected, AfrhoRadiation):
@@ -176,9 +173,6 @@ class Comet(SolarSysObject):
             self.obj = obj
         else:
             self.obj = SpiceObject(obj, kernel=kernel)
-
-        self.r.__doc__ = self.obj.r.__doc__
-        self.v.__doc__ = self.obj.v.__doc__
 
         if isinstance(nucleus, dict):
             try:
