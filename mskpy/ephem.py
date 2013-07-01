@@ -580,6 +580,8 @@ class SolarSysObject(object):
 
         if date is None:
             date = Time(datetime.now(), scale='utc')
+        elif isinstance(date, Time):
+            pass
         elif isinstance(date, float):
             date = jd2time(date)
         elif isinstance(date, str):
@@ -590,7 +592,7 @@ class SolarSysObject(object):
             date = [self._date2time(d) for d in date]
             date = Time(date)
         else:
-            raise ValueError("Bad date: {}".format(date))
+            raise ValueError("Bad date: {} ({})".format(date, type(date)))
         return date
 
     def r(self, date):
