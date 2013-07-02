@@ -317,3 +317,34 @@ def centroid(im, guess=None, box=None, niter=1, shrink=True, silent=True):
         if not silent:
             print "x, y = {0:.1f}, {1:.1f}".format(cx, cy)
         return float(cx), float(cy)
+
+def imshift(im, xo, yo, sample=4):
+    """Shift an image, allowing for sub-pixel offsets (drizzle method).
+
+    Parameters
+    ----------
+    im : ndarray
+      The image to shift.
+    xo, yo : floats
+      x, y offsets. [unsampled pixels]
+    sample : int, optional
+      The subsampling factor.
+
+    Returns
+    -------
+    sim : ndarray
+      The shifted image (at the original pixel scale).
+
+    """
+
+    if sample <= 1:
+        raise ValueError("sample must be > 1.")
+
+    # convert xo, yo into whole sampled pixels
+    sxo = int(round(xo * sample))
+    syo = int(round(yo * sample))
+
+    sim = rebin(im, sample, flux=True)
+    sim = np.roll(sim, syo, 0)
+    sim = np.roll(sim, sxo, 1)
+    return rebin(sim, -sample, flux=True)
