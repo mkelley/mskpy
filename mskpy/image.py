@@ -21,7 +21,6 @@ image --- For working with images, maybe spectra.
    tarray
    xarray
    yarray
-   zarray
 
    Analysis
    --------
@@ -62,6 +61,76 @@ image --- For working with images, maybe spectra.
 #    ''
 #]
 
+import numpy as np
+
+def rebin(a, factor, flux=False, trim=False):
+    """Rebin a 1, 2, or 3 dimensional array by integer amounts.
+
+    Parameters
+    ----------
+    a : ndarray
+      Image to rebin.
+    factor : int
+      Rebin factor.  Set factor < 0 to shrink the image.  When
+      shrinking, all axes of a must be an integer multiple of factor
+      (see trim).
+    flux : bool
+      Set to True to preserve flux, otherwise, surface brightness is
+      preserved.
+    trim : bool
+      Set to True to automatically trim the shape of the input array
+      to be an integer multiple of factor.
+
+    Returns
+    -------
+    b : ndarray
+      The rebinned array.
+
+    Notes
+    -----
+    By default, the function preserves surface brightness, not flux.
+
+    """
+
+    def mini(a, factor):
+        b = a[::-factor]
+        for i in range(-factor - 1):
+            b += a[(i + 1)::-factor]
+        if not flux:
+            b /= float(-factor)
+        return b
+
+    def magni(a, factor):
+        s = np.array(a.shape)
+        s[0] *= factor
+        b = np.zeros(s)
+        for i in range(factor):
+            b[i::factor] = a
+        if flux:
+            b /= float(factor)
+        return b
+
+    _a = a.copy()
+    if factor < 0:
+        for i in range(_a.ndim):
+            if trim:
+                r = _a.shape[i] % abs(factor)
+                if r != 0:
+                    _a = np.rollaxis(np.rollaxis(_a, i)[:-r], 0, i + 1)
+
+            assert (_a.shape[i] % factor) == 0, (
+                "Axis {0} must be an integer multiple of "
+                "the minification factor.".format(i))
+        f = mini
+    else:
+        f = magni
+
+    b = f(_a, factor)
+    for i in range(len(_a.shape) - 1):
+        c = f(np.rollaxis(b, i + 1), factor)
+        b = np.rollaxis(c, 0, i + 2)
+
+    return b
 
 def rarray(shape, center=None, subsample=False, dtype=float):
     """Array of distances from a point.
@@ -116,3 +185,135 @@ def rarray(shape, center=None, subsample=False, dtype=float):
     y = yarray(shape, dtype=dtype) - c[-2]
     x = xarray(shape, dtype=dtype) - c[-1]
     return (np.sqrt(x**2 + y**2)).astype(dtype)
+
+def xarray(shape, cen=[0, 0], rot=0, dtype=int):
+    """Array of x values.
+
+    Parameters
+    ----------
+    shape : tuple of int
+      The shape of the resulting array, e.g., (y, x).
+    cen : tuple of float
+      Offset the array to align with this y, x center.
+    rot : float, optional
+      Rotate the array by rot, measured from the x-axis. [radians]
+    dtype : numpy.dtype, optional
+      The data type of the result.
+
+    Returns
+    -------
+    x : ndarray
+      An array of x values.
+
+    """
+
+    y, x = np.indices(shape, dtype)[-2:]
+    y -= cen[0]
+    x -= cen[1]
+    if rot == 0:
+        return x
+    R = math.rotmat(rot)
+    return x * R[0, 0] + y * R[0, 1]
+
+def yarray(shape, cen=[0, 0], rot=0, dtype=int):
+    """Array of y values.
+
+    Parameters
+    ----------
+    shape : tuple of int
+      The shape of the resulting array, e.g., (y, x).
+    cen : tuple of float
+      Offset the array to align with this y, x center.
+    rot : float, optional
+      Rotate the array by rot, measured from the x-axis. [radians]
+    dtype : numpy.dtype, optional
+      The data type of the result.
+
+    Returns
+    -------
+    y : ndarray
+      An array of y values.
+
+    """
+
+    y, x = np.indices(shape, dtype)[-2:]
+    y -= cen[0]
+    x -= cen[1]
+    if rot == 0:
+        return y
+    R = math.rotmat(rot)
+    return x * R[1, 0] + y * R[1, 1]
+
+def centroid(im, guess=None, box=None, niter=1, shrink=True, silent=True):
+    """Centroid (center of mass) of an image.
+
+    Parameters
+    ----------
+    im : ndarray
+      A 2D image on which to centroid.
+    guess : float array, optional
+      (x, y) guess for the centroid.  The default guess is the image
+      peak.
+    box : int array, optional
+      Specify the size of the box over which to compute the centroid.
+      This may be an integer, or an array (width, height).  The
+      default is to use the whole image.
+    niter : int, optional
+      When box is not None, iterate niter times.
+    shrink : bool, optional
+      When iterating, decrease the box size by sqrt(2) each time.
+    silent : bool, optional
+      Suppress any print commands.
+
+    Returns
+    -------
+    cx, cy : floats
+      The computed center of mass.  The lower-left corner of a pixel
+      is -0.5, -0.5.
+
+    """
+
+    if guess is None:
+        i = np.isfinite(im)
+        y, x = np.indices(im.shape)
+        peak = im[i].argmax()
+        guess = (x[i][peak], y[i][peak])
+
+    if box is None:
+        box = np.array((im.shape[1], im.shape[0]))
+        
+    if np.size(box) == 1:
+        box = np.array((box, box))
+
+    x0 = max(guess[0] - box[0] / 2, 0)
+    x1 = min(guess[0] + box[0] / 2 + 1, im.shape[1])
+    y0 = max(guess[1] - box[1] / 2, 0)
+    y1 = min(guess[1] + box[1] / 2 + 1, im.shape[0])
+    subim = im[y0:y1,x0:x1].copy()
+    subim -= subim.min()
+
+    y, x = np.indices(subim.shape)
+    cx = (subim * x).sum() / subim.sum() + x0
+    cy = (subim * y).sum() / subim.sum() + y0
+
+    if niter > 1:
+        if shrink:
+            box = (box / 1.414).astype(int)
+            # keep it odd
+            box = box + (box % 2 - 1)
+
+        if not silent:
+            print "x, y = {0:.1f}, {1:.1f}, next box size = {2}".format(
+                cx, cy, str(box))
+
+        if np.any(box < 2):
+            if not silent:
+                print " - Box size too small -"
+            return float(cx), float(cy)
+
+        return centroid(im, guess=[float(cx), float(cy)], box=box,
+                        niter=niter - 1, shrink=shrink, silent=silent)
+    else:
+        if not silent:
+            print "x, y = {0:.1f}, {1:.1f}".format(cx, cy)
+        return float(cx), float(cy)

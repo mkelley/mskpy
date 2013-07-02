@@ -10,8 +10,9 @@ mskpy --- MSK's personal library for astronomy and stuff
 """
 
 from . import calib
-from . import util
+from . import image
 from . import models
+from . import util
 
 # the following block depends on PySPICE
 try:
