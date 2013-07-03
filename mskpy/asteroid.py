@@ -116,8 +116,8 @@ class Asteroid(SolarSysObject):
 
         """
 
-        fluxd = np.zeros(len(wave)) * unit
-        if self.D <= 0:
+        fluxd = np.zeros(np.size(wave.value)) * unit
+        if self.D.value <= 0:
             return fluxd
 
         g = observer.observe(self.obj, date, ltt=ltt)

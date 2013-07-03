@@ -572,7 +572,10 @@ def takefrom(arrays, indices):
 
     r = ()
     for a in arrays:
-        r += (type(a)(np.array(a)[indices]),)
+        newa = np.array(a)[indices]
+        if not isinstance(newa, type(a)):
+            newa = type(a)(newa)
+        r += (newa,)
     return r
 
 def whist(x, y, w, errors=True, **keywords):

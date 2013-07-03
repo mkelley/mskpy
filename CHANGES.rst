@@ -56,6 +56,9 @@ Changes From mskpy v1.7.0
 
   - Added `projected_vector_angle` and `vector_rotate`.
 
+  - Rather than returning ndarrays, `takefrom` now returns lists,
+    tuples, etc., based on the input arrays' type.
+
 - `calib`:
 
   - `cohenstandard` renamed `cohen_standard`.
