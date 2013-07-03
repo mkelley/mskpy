@@ -4,16 +4,36 @@
 New Features
 ^^^^^^^^^^^^
 
-- Many functions are now `astropy` `Quantity` aware.  E.g.,
-  `util.Planck`, `calib.solar_flux`.
+- `ephem.SpiceObject` for your SPICE ephemeris needs, and a set of
+  default objects, e.g., `Sun`, `Earth`, `Spitzer` (if the kernels are
+  available).
 
-- `ephem.SpiceObject` for your SPICE ephemeris needs.
+- `Geom` is completely rewritten, and should be much more useful.
+
+- `models` module, including `surfaces` and `dust`.
+
+  - `NEATM` and `DAp` for thermal and reflected light from surfaces.
+
+  - `AfrhoScattered` and `AfrhoThermal` for comet comae described with
+    the Afrho parameter.
+
+  - Various phase functions for dust and surfaces: `phaseHG`,
+    `lambertian`, `phaseK`, `phaseH`, `phaseHM`.
+
+- `Asteroid`, `Coma`, and `Comet` objects for easy estimates of their
+  fluxes.  These objects package together `SpiceObject` and `models`.
+
+- A few key functions are now `astropy` `Quantity` aware.  E.g.,
+  `util.Planck`, `calib.solar_flux`.
 
 - New time functions in `util`:
 
   - `cal2iso` to ISO format your lazy calendar dates.
 
   - `cal2doy` and `jd2doy` for time to day of year conversions.
+
+  - `cal2time` and `jd2time` to lazily generate `astropy.time.Time`
+    objects.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -49,7 +69,7 @@ Changes From mskpy v1.7.0
   - Removed `get_observer_xyz`, `get_planet_xyz`, `get_spitzer_xyz`,
     `get_herschel_xyz`, `get_comet_xyz`.
 
-  - `getgeom` code incorporated into `MovingObject`.
+  - `getgeom` code incorporated into `Geom`.
 
   - `summarizegeom` code incorporated into `Geom`.
 
@@ -66,6 +86,21 @@ Changes From mskpy v1.7.0
   - `dms2dd` renamed `hms2dh`.  Accepts `format`.
 
   - `doy2md` now requires year.
+
+- `orbit.state2orbit` moved into `util`.
+
+- `image` reorganized.  FITS and WCS functions moved to `util`.
+
+  - `imshift` parameter sample renamed subsample for consistency with
+    other functions.
+
+  - Parameters named `center` renamed `yx` for clarity.
+
+  - New `refine_center` to handle refining `rarray` and `tarray`
+    subsampling.
+
+  - `rarray` and `tarray` subsample parameters changed from bool to
+    int so the exact subsampling factor can be specified.
 
 Bug fixes
 ^^^^^^^^^
