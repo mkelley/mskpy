@@ -20,17 +20,18 @@ image.core --- General image operations.
 
 import numpy as np
 
-def imshift(im, xo, yo, subsample=4):
+def imshift(im, yx, subsample=4):
     """Shift an image, allowing for sub-pixel offsets (drizzle method).
 
     Parameters
     ----------
     im : ndarray
       The image to shift.
-    xo, yo : floats
-      x, y offsets. [unsampled pixels]
+    yx : floats
+      `y, x` offsets.  Positive values move pixels to the
+      up/right. [unsampled pixels]
     subsample : int, optional
-      The subsampling factor.
+      The sub-sampling factor.
 
     Returns
     -------
@@ -39,17 +40,17 @@ def imshift(im, xo, yo, subsample=4):
 
     """
 
-    if sample <= 1:
+    if subsample <= 1:
         raise ValueError("sample must be > 1.")
 
-    # convert xo, yo into whole sampled pixels
-    sxo = int(round(xo * sample))
-    syo = int(round(yo * sample))
+    sy = int(round(yx[0] * subsample)) # whole sampled pixels
+    sx = int(round(yx[1] * subsample))
 
-    sim = rebin(im, sample, flux=True)
-    sim = np.roll(sim, syo, 0)
-    sim = np.roll(sim, sxo, 1)
-    return rebin(sim, -sample, flux=True)
+    sim = rebin(im, subsample, flux=True)
+    sim = np.roll(sim, sy, 0)
+    sim = np.roll(sim, sx, 1)
+
+    return rebin(sim, -subsample, flux=True)
 
 def rarray(shape, yx=None, subsample=0, dtype=float):
     """Array of distances from a point.
@@ -60,7 +61,7 @@ def rarray(shape, yx=None, subsample=0, dtype=float):
       The shape of the resulting array `(y, x)`.
     yx : array, optional
       The center of the array `(y, x)`.  If set to None, then the
-      center is `shape / 2.0 - 1.0` (floating point arithmetic).
+      center is `(shape - 1.0) / 2.0` (floating point arithmetic).
       Integer values refer to the center of the pixel.
     subsample : int, optional
       Set to `>1` to sub-pixel sample the core of the array.
@@ -75,32 +76,16 @@ def rarray(shape, yx=None, subsample=0, dtype=float):
     """
 
     if yx is None:
-        yx = (np.array(shape, dtype) - 1.0) / 2.0
+        yx = (np.array(shape) - 1.0) / 2.0
     else:
-        yx = np.array(yx, dtype)
+        yx = np.array(yx)
 
     y = yarray(shape, dtype=dtype) - yx[-2]
     x = xarray(shape, dtype=dtype) - yx[-1]
     r = (np.sqrt(x**2 + y**2)).astype(dtype)
 
-    if subsample == True:
-        # for pixels at >5. pixels from the center, subsamping will
-        # probably be a <1% effect
-        # c = c - np.rint(c) + np.array((5, 5)) * 10 - 5.5
-        cprime = (yx[-2:] - np.rint(yx[-2:])) * 10.0
-        cprime += np.array([54.5, 54.5])
-        y = yarray(np.array((11, 11), dtype=dtype) * 10) - cprime[0]
-        x = xarray(np.array((11, 11), dtype=dtype) * 10) - cprime[1]
-
-        # x0.1 for the subpixel sampling
-        rprime = rebin(np.sqrt(x**2 + y**2), -10, flux=False) * 0.1
-        rprime = rprime.astype(dtype)
-
-        yi, xi = np.indices((11, 11)) - 5
-        yi += np.rint(yx[-2]).astype(int)
-        xi += np.rint(yx[-1]).astype(int)
-        i = (yi >= 0) * (xi >= 0) * (yi < shape[0]) * (xi < shape[1])
-        r[yi[i], xi[i]] = rprime[i]
+    if subsample > 0:
+        r = refine_center(rarray, r, yx, 11, 10, scale=-1, dtype=dtype)
 
     return r
 
@@ -216,8 +201,7 @@ def tarray(shape, yx=None, subsample=0, dtype=float):
     subsample : int, optional
       Set to `>1` to sub-pixel sample the core of the array.
     dtype : object, optional
-      Set to the data type of the resulting array (all math will use
-      this dtype).
+      Set to the data type of the resulting array.
 
     Returns
     -------
@@ -263,11 +247,11 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     scale : float
       Scale the refined center by `subsample**scale`.  The refined
       area will be generated at high resolution, and rebinned
-      (averaging) to a resolution of 1 pixel.  When a function has
-      dimensions of length, the rebinned array needs to be scaled by
-      `subsample**-1`.
+      (averaging) to a resolution of 1 pixel.  When, for example, a
+      function has dimensions of length, the rebinned array needs to
+      be scaled by `subsample**-1`.
     **kwargs
-      Keyword arguments for `func`.
+      Additional keyword arguments for `func`.
 
     Returns
     -------
@@ -284,96 +268,156 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
 
     # subsample the NxN region, where is the center of that?
     shape_c = np.ones(2) * N * subsample
-    xy_c = (np.ones(2) * N * subsample - 1) / 2.0
-    xy_c += (xy_N - np.array([round(x) for x in xy_N])) * subsample
+    yx_c = (np.ones(2) * N * subsample - 1) / 2.0
+    yx_c += (yx_N - np.array([round(x) for x in yx_N])) * subsample
 
     # generate the subsampled center
     refined_c = func(shape_c, yx=yx_c, subsample=0, **kwargs)
-    refined_c = image.rebin(th_c, -subsample, flux=False)
+    refined_c = rebin(refined_c, -subsample, flux=False)
     refined_c *= subsample**scale
 
     # The region to be refined: xi, yi
     yi, xi = np.indices((N, N)) - N / 2
-    xi += int(round(xy[0]))
-    yi += int(round(xy[1]))
+    yi += int(round(yx[0]))
+    xi += int(round(yx[1]))
 
     # insert into the result
     i = (yi >= 0) * (xi >= 0) * (yi < im.shape[0]) * (xi < im.shape[1])
-    if any(i):
+    if np.any(i):
         refined[yi[i], xi[i]] = refined_c[i]
 
     return refined
 
-def unwrap(im, cyx, dtdr=0, scale=None, bins=100, range=None,
-           subsample=False, dtype=float):
-    """Transformation image from rectangular to cylindrical projection.
+def unwrap(im, yx, dtdr=0, scale=None, bins=100, range=None,
+           dtype=float):
+    """Transform image from rectangular to cylindrical projection.
 
     Parameters
     ----------
     im : array
       The image on which to operate.
-    cyx : array
-      The center of the array (y, x).
+    yx : array
+      The center of the array `(y, x)`.
     dtdr : float, optional
       The change of theta with radius.
     scale : int
-      Scale the image via rebin() before computing the radial profile.
-      The output r will use the original pixel size.
-    bins : int or tuple of ints, optional
-      The number of bins for the final image or a 2 element array:
-      (radial-bins, theta-bins).
-    range : array-like, shape(2, 2), optional
+      Scale the image via `rebin` before computing the radial profile.
+      The outputs will be in units of the original pixels.  Following
+      `rebin`, use negative scale factors for minification.
+    bins : int or tuple, optional
+      The number of bins for the final image or a 2-element array:
+      `(radial-bins, theta-bins)`.
+    range : array, optional
       The ranges in radius and theta to consdier:
-        [[rmin, rmax], [thmin, thmax]].  [pixels and radians]
-    subsample : bool, optional
-      Set to True to sub-pixel sample the array.
+        `[[rmin, rmax], [thmin, thmax]]`.  [pixels and radians]
     dtype : object, optional
-      Set to the data type of the resulting array (all math will use
-      this dtype).
+      Set to the data type of the resulting array.
 
     Returns
     -------
-
     rt : ndarray
-
       The image transformed to place radius along the first dimension,
       and theta along the second dimension.
-
     rbins : ndarray
-
-      The radial bins (from np.histogram2d). [pixels]
-
+      The radial bins (from `np.histogram2d`). [pixels]
     thbins : ndarray
+      The azimuthal bins (from `np.histogram2d`). [radians]
+    n : ndarray
+      The number of (sub)pixels that were placed into each bin.
 
-      The azimuthal bins (from np.histogram2d). [radians]
-
-    Notes
-    -----
-
-    v1.0.0 Written by Michael S. Kelley, UMD, July 2011
     """
+
     if scale is not None:
         image = rebin(im, scale)
         if scale < 0:
             scale = 1.0 / float(scale)
-        cen = np.array(center) * scale
+        yx = np.array(yx, float) * scale + (scale - 1) / 2.0
     else:
         image = im
-        scale = 1.0
-        cen = np.array(center)
+        scale = 1
+        yx = np.array(yx)
 
-    r = rarray(image.shape, center=cen, subsample=subsample,
-               dtype=dtype) / scale
-    th = tarray(image.shape, center=cen, subsample=subsample,
-                dtype=dtype) + np.pi
+    r = rarray(image.shape, yx=yx, subsample=10, dtype=dtype) / scale
+    th = tarray(image.shape, yx=yx, subsample=10, dtype=dtype) + np.pi
     th = (th + dtdr * r) % (2 * np.pi)
 
-    rt = np.histogram2d(r.flatten(), th.flatten(), bins=bins,
-                           range=range, weights=image.flatten())
-    rbin = np.histogram2d(r.flatten(), th.flatten(), bins=bins,
-                             range=range, weights=r.flatten())
-    thbin = np.histogram2d(r.flatten(), th.flatten(), bins=bins,
-                              range=range, weights=th.flatten())
-    n = np.histogram2d(r.flatten(), th.flatten(), bins=bins,
-                           range=range)[0].astype(float)
-    return rt[0] / n, rbin[0] / n, thbin[0] / n, n
+    r = r.flatten()
+    th = th.flatten()
+    image = image.flatten()
+
+    rt = np.histogram2d(r, th, bins=bins, range=range, weights=image)
+    rbin = np.histogram2d(r, th, bins=bins, range=range, weights=r)
+    thbin = np.histogram2d(r, th, bins=bins, range=range, weights=th)
+    n = np.histogram2d(r, th, bins=bins, range=range)[0]
+
+    nn = n.astype(float)
+    nn[n == 0] = 1
+    return rt[0] / nn, rbin[0] / nn, thbin[0] / nn, n
+
+def xarray(shape, yx=[0, 0], rot=0, dtype=int):
+    """Array of x values.
+
+    Parameters
+    ----------
+    shape : tuple of int
+      The shape of the resulting array, e.g., (y, x).
+    yx : tuple of float
+      Offset the array to align with this y, x center.
+    rot : float, optional
+      Place the x-axis along this position angle, measured
+      counterclockwise from the original x-axis. [radians]
+    dtype : numpy.dtype, optional
+      The data type of the result.
+
+    Returns
+    -------
+    x : ndarray
+      An array of x values.
+
+    """
+
+    from ..util import rotmat
+
+    y, x = np.indices(shape, dtype)[-2:]
+    y -= yx[0]
+    x -= yx[1]
+
+    if rot != 0:
+        R = rotmat(rot)
+        x = x * R[0, 0] + y * R[0, 1]
+
+    return x
+
+def yarray(shape, yx=[0, 0], rot=0, dtype=int):
+    """Array of y values.
+
+    Parameters
+    ----------
+    shape : tuple of int
+      The shape of the resulting array, e.g., (y, x).
+    yx : tuple of float
+      Offset the array to align with this y, x center.
+    rot : float, optional
+      Place the y-axis along this position angle, measured
+      counterclockwise from the original y-axis. [radians]
+    dtype : numpy.dtype, optional
+      The data type of the result.
+
+    Returns
+    -------
+    y : ndarray
+      An array of y values.
+
+    """
+
+    from ..util import rotmat
+
+    y, x = np.indices(shape, dtype)[-2:]
+    y -= yx[0]
+    x -= yx[1]
+
+    if rot != 0:
+        R = rotmat(rot)
+        y = x * R[1, 0] + y * R[1, 1]
+
+    return y

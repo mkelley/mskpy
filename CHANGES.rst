@@ -94,10 +94,10 @@ Changes From mskpy v1.7.0
 
 - `image` reorganized.  FITS and WCS functions moved to `util`.
 
-  - `imshift` parameter sample renamed subsample for consistency with
-    other functions.
-
-  - Parameters named `center` renamed `yx` for clarity.
+  - Argument names made more consistent between all functions.  For
+    example, `center` and `cen` renamed `yx`, `sample` renamed
+    `subsample`.  Functions that previously took two coordinates, `y`
+    and `x` now take one `yx`.
 
   - New `refine_center` to handle refining `rarray` and `tarray`
     subsampling.

@@ -62,63 +62,7 @@ image --- For working with images, maybe spectra.
 
 import numpy as np
 
-def xarray(shape, cen=[0, 0], rot=0, dtype=int):
-    """Array of x values.
-
-    Parameters
-    ----------
-    shape : tuple of int
-      The shape of the resulting array, e.g., (y, x).
-    cen : tuple of float
-      Offset the array to align with this y, x center.
-    rot : float, optional
-      Rotate the array by rot, measured from the x-axis. [radians]
-    dtype : numpy.dtype, optional
-      The data type of the result.
-
-    Returns
-    -------
-    x : ndarray
-      An array of x values.
-
-    """
-
-    y, x = np.indices(shape, dtype)[-2:]
-    y -= cen[0]
-    x -= cen[1]
-    if rot == 0:
-        return x
-    R = math.rotmat(rot)
-    return x * R[0, 0] + y * R[0, 1]
-
-def yarray(shape, cen=[0, 0], rot=0, dtype=int):
-    """Array of y values.
-
-    Parameters
-    ----------
-    shape : tuple of int
-      The shape of the resulting array, e.g., (y, x).
-    cen : tuple of float
-      Offset the array to align with this y, x center.
-    rot : float, optional
-      Rotate the array by rot, measured from the x-axis. [radians]
-    dtype : numpy.dtype, optional
-      The data type of the result.
-
-    Returns
-    -------
-    y : ndarray
-      An array of y values.
-
-    """
-
-    y, x = np.indices(shape, dtype)[-2:]
-    y -= cen[0]
-    x -= cen[1]
-    if rot == 0:
-        return y
-    R = math.rotmat(rot)
-    return x * R[1, 0] + y * R[1, 1]
+from .core import *
 
 def centroid(im, guess=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (center of mass) of an image.
