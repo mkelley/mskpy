@@ -1685,6 +1685,8 @@ def redden(wave, S, wave0=0.55):
 
     if not np.iterable(S):
         S = np.ones_like(wave) * S
+    elif len(S) == 1:
+        S = np.ones_like(wave) * S[0]
 
     slope = interp1d(np.r_[0, wave, np.inf], np.r_[S[0], S, S[-1]],
                      kind='linear')
