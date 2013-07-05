@@ -7,6 +7,17 @@ mskpy --- MSK's personal library for astronomy and stuff
 .. autosummary::
    :toctree: generated/
 
+   Modules
+   -------
+   asteroid - Defines an asteroid for observing, flux estimates.
+   calib    - Photometric calibration.
+   comet    - Defines a comet for observing, flux estimates.
+   ephem    - Solar System object ephemerides (requires PySPICE).
+   graphics - Helper functions for making plots.
+   image    - Image generators, analysis, and processing.
+   models   - Surface and dust models.
+   util     - Grab bag of utility functions.
+
 """
 
 from . import calib
@@ -35,5 +46,11 @@ try:
     except ImportError:
         pass
 
+except ImportError:
+    pass
+
+# depends on matplotlib
+try:
+    from . import graphics
 except ImportError:
     pass
