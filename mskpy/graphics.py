@@ -126,8 +126,8 @@ def harrows(header, xy, length, **kwargs):
     
     Parameters
     ----------
-    header : astropy.fits.Header
-      A FITS header object.
+    header : astropy.fits.Header or string
+      A FITS header object or name of a file.
     xy : array
       `(x, y)` location in data units for the base of the arrows.
     length : float or 2-element array
@@ -143,7 +143,9 @@ def harrows(header, xy, length, **kwargs):
 
     """
 
-    rot = np.radians(image.getrot(header)[1])
+    from .util import getrot
+
+    rot = np.radians(getrot(header)[1])
     return arrows(xy, length, rot=rot, **kwargs)
 
 def jdaxis2date(axis, fmt):
