@@ -1,4 +1,2 @@
-include NEWS
-include COPYING.txt
-include gpl.txt
+include NEWS AUTHORS README.rst
 recursive-include mskpy/data *.txt *.dat *.tbl
