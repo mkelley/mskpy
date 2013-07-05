@@ -126,7 +126,7 @@ def anphot(im, yx, rap, subsample=4):
     n /= float(subsample**2)
     return n, f
 
-def apphot(im, rap, yx, subsample=4):
+def apphot(im, yx, rap, subsample=4):
     """Simple aperture photometry.
 
     Pixels may be sub-sampled (drizzled).
@@ -242,8 +242,8 @@ def bgfit(im, unc=None, order=1, mask=True):
 
     Returns
     -------
-    bg : array
-      An image of the best-fit background
+    bg : ndarray
+      An image of the best-fit background.
 
     """
 
@@ -391,7 +391,7 @@ def linecut(im, yx, width, length, pa, subsample=4):
       An image, cube, or tuple of images from which to measure
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
-    xy : array-like
+    yx : array-like
       The y, x center of the extraction.
     width : float
     length: float or array
@@ -561,7 +561,7 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     r : ndarray
       The mean radius of each point in the surface brightness profile.
     sb : ndarray
-      The surface brightness at each r.
+      The surface brightness at each `r`.
     n : ndarray
       The number of pixels in each bin.
 

@@ -9,10 +9,10 @@ image.core --- General image operations, generators.
 
    imshift - Shift an image.
    rarray - Create an array of distances to a point.
-   rebin - Grow or shrink an array by an integer amount.
+   rebin - Scale an array by an integer amount.
    stack2grid - Tile a stack of images.
    tarray - Create an array of angles with the same vertex.
-   unwrap - Transform an array from a rectangular to azimuthal projection.
+   yx2rt - Cartesian to polar transformation.
    xarray - Create an array of distances along a line.
    yarray - Create an array of distances along a line.
 
@@ -24,7 +24,7 @@ __all__ = [
     'rebin',
     'stack2grid',
     'tarray',
-    'unwrap',
+    'yx2rt',
     'xarray',
     'yarray'
 ]
@@ -299,9 +299,9 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
 
     return refined
 
-def unwrap(im, yx, dtdr=0, scale=None, bins=100, range=None,
-           dtype=float):
-    """Transform image from rectangular to azimuthal projection.
+def yx2rt(im, yx, dtdr=0, scale=None, bins=100, range=None,
+          dtype=float):
+    """Cartesian to polar transformation.
 
     Parameters
     ----------
