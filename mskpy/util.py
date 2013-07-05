@@ -2038,8 +2038,7 @@ def jd2time(jd, jd2=None, scale='utc'):
 
     Returns
     -------
-    doy : astropy Time
-      Day of year.
+    t : astropy Time
 
     """
     from astropy.time import Time
