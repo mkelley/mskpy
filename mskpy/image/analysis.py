@@ -586,8 +586,9 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     r = core.rarray(im.shape, yx=yx, subsample=10)
     r = anphot(r, yx, rap, subsample=subsample)
 
-    i = n != 0)
-    return r, f[i] / n[i], n
+    i = n != 0
+    f[i] = f[i] / n[i]
+    return r, f, n
 
 def trace(im, err, guess):
     """Trace the peak pixels along the second axis of an image.
