@@ -58,7 +58,7 @@ util --- Short and sweet functions, generic algorithms
    phase_integral
    planck
    redden
-   pcurve
+   polcurve
    savitzky_golay
 
    Time
@@ -2198,7 +2198,7 @@ def spectral_density_sb(s):
         (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
     ]
 
-def autodoc(glbs, width=15):
+def autodoc(glbs, width=15, truncate=True):
     """Update a module's docstring with a summary of its functions.
 
     The docstring of the module is searched for the names of functions
@@ -2210,8 +2210,10 @@ def autodoc(glbs, width=15):
     glbs : dict
       The `globals` dictionary from a module.  __doc__ will be
       updated.
-    width : int
+    width : int, optional
       The width of the function table cell.
+    truncate : bool, optional
+      If `True`, truncate the newly generated lines at 80 characters.
 
     """
 
@@ -2231,6 +2233,8 @@ def autodoc(glbs, width=15):
                     summary = "{:{width}s} - {:}".format(
                         x, topline, width=width)
                     s = s.replace(x, summary)
+                    if truncate:
+                        s = s[:80]
                 except AttributeError:
                     pass
         newdoc += s + "\n"
