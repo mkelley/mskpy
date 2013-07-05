@@ -1,0 +1,19 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module davint ! in 
+    interface  ! in :davint
+        subroutine davint(x,y,n,xlo,xup,ans,ierr) ! in :davint:davint.f
+            double precision dimension(*) :: x
+            double precision dimension(*) :: y
+            integer :: n
+            double precision :: xlo
+            double precision :: xup
+            double precision,intent(out) :: ans
+            integer,intent(out) :: ierr
+        end subroutine davint
+    end interface 
+end python module davint
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
