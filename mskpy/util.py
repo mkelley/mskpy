@@ -565,8 +565,10 @@ def getrot(h):
 
     """
 
+    from astropy.io import fits
+
     if isinstance(h, str):
-        h = pyfits.getheader(h)
+        h = fits.getheader(h)
 
     # Does CDELTx exist?
     cdelt = np.zeros(2)
