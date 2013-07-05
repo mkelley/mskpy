@@ -17,6 +17,12 @@ util --- Short and sweet functions, generic algorithms
    hav
    rotmat
 
+   FITS images and WCS
+   -------------------
+   basicwcs
+   fitslog
+   getrot
+
    Searching, sorting
    ------------------
    between
@@ -28,7 +34,6 @@ util --- Short and sweet functions, generic algorithms
 
    Spherical/Celestial/vectorial geometry
    --------------------------------------
-
    ec2eq
    projected_vector_angle
    spherical_coord_rotate
@@ -93,6 +98,10 @@ __all__ = [
     'gaussian2d',
     'hav',
     'rotmat',
+
+    'basicwcs',
+    'fitslog',
+    'getrot',
 
     'between',
     'cmp_leading_num',
@@ -409,6 +418,216 @@ def rotmat(th):
     c = np.cos(th)
     s = np.sin(th)
     return np.matrix([[c, s], [-s, c]])
+
+def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
+    """A basic world coordinate system (WCS) object.
+
+    Parameters
+    ----------
+    crpix : array
+      The center of the WCS projection: [x, y].
+    crval : array
+      The coordinates at CRPIX: [ra, dec]. [degrees]
+    cdelt : double or array
+      The image scale in arcsecons per pixel.  If cdelt is a scalar
+      value then the WCS CDELT will be [-1, 1] * cdelt.
+    pa : double
+      The position angle of N from the y-axis. [degrees]
+
+    Returns
+    -------
+    wcs : astropy wcs
+      Your new WCS.
+
+    """
+
+    import astropy.wcs
+
+    wcs = astropy.wcs.wcs.WCS()
+    wcs.wcs.crpix = crpix
+    wcs.wcs.crval = crval
+    if np.iterable(cdelt):
+        wcs.wcs.cdelt = cdelt / 3600.0
+    else:
+        wcs.wcs.cdelt = np.array([-1, 1]) * cdelt / 3600.0
+    par = np.radians(pa)
+    wcs.wcs.pc = np.array([[-np.cos(par), -np.sin(par)],
+                            [-np.sin(par),  np.cos(par)]])
+    return wcs
+
+def fitslog(keywords, files=None, path='.', format=None, csv=True):
+    """One-line descriptions of a list of FITS files.
+
+    By default, `fitslog` will summarize *.fit{,s} files in the
+    current directory.
+
+    Parameters
+    ----------
+    keywords : array or str
+      A list of FITS keywords to extract from each header.  Keywords
+      may also be the name of a template: Bigdog, Guidedog, MIRSI.
+    files : array, optional
+      A list of files to summarize.  Overrides path.
+    path : str, optional
+      Summarize all FITS files in this location.
+    format : str, optional
+      The output format string.  A newline character will be appended.
+    csv : bool, optional
+      Set to `True` to separate output fields with commas.  Ignored
+      for user defined formats.
+
+    Returns
+    -------
+    log : str
+      The summary of the FITS files as a string.
+
+    """
+
+    from astropy.io import fits
+
+    if files is None:
+        files = glob("{0}/*.fit".format(path))
+        files.extend(glob("{0}/*.fits".format(path)))
+        files.sort()
+
+    if type(keywords) is str:
+        if keywords.lower() == 'bigdog':
+            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
+                        'AIRMASS', 'GRAT', 'OBJECT']
+            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
+                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
+        elif keywords.lower() == 'guidedog':
+            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
+                        'AIRMASS', 'GFLT', 'OBJECT']
+            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
+                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
+        elif keywords.lower() == 'mirsi':
+            keywords = ['UTC_TIME', 'OBS-MODE', 'EXPTIME', 'FRAME-T',
+                        'NCOADS', 'AIRMASS', 'WHEEL1', 'WHEEL2', 'WHEEL3',
+                        'OBJECT']
+            format = ['{0:12}', '{1:13}', '{2:7.3f}', '{3:>7}', '{4:3d}',
+                      '{5:>6}', '{6:>20}', '{7:>20}', '{8:>20}',
+                      '{9}']
+        else:
+            print "{0} not a recognized template".format(keywords)
+            return None
+
+        if csv:
+            format = ", ".join(format)
+        else:
+            format = " ".join(format)
+    else:
+        if format is None:
+            format = []
+            for i in range(len(keywords)):
+                format.append("{{{0}}}".format(i))
+            if csv:
+                format = ", ".join(format)
+            else:
+                format = " ".join(format)
+
+    log = ""
+    s = max([len(x.replace('.fits', '').replace('.fit', '').split('/')[-1])
+             for x in files])
+    for f in files:
+        log += '{0:{1}}'.format(
+            f.replace('.fits', '').replace('.fit', '').split('/')[-1], s)
+        if csv:
+            log += ','
+        log += ' '
+        h = fits.getheader(f)
+        values = ()
+        for k in keywords:
+            values += (h[k], )
+        log += format.format(*values)
+        log += "\n"
+    
+    return log
+
+def getrot(h):
+    """Image rotation and pixel scale from a FITS header.
+
+    Based on the IDL Astronomy routine getrot.pro (W. Landsman).
+
+    Parameters
+    ----------
+    h : astropy.io.fits header or string
+      A FITS header or the name of a file with a defined world
+      coordinate system.  The file name will be passed to
+      `fits.getheader`.
+
+    Returns
+    -------
+    cdelt : ndarray
+      Two-element array of the pixel scale (x, y).  [arcseconds/pixel]
+    rot : float
+      The image orientation (position angle of north).  [degrees]
+
+    """
+
+    if isinstance(h, str):
+        h = pyfits.getheader(h)
+
+    # Does CDELTx exist?
+    cdelt = np.zeros(2)
+    cdeltDefined = False
+    if (h.has_key('CDELT1') and h.has_key('CDELT2')):
+        # these keywords take precedence over the CD matrix
+        cdeltDefined = True
+        cdelt = np.array([h['CDELT1'], h['CDELT2']])
+
+    # Transformation matrix?
+    tmDefined = False
+    if (h.has_key('CD1_1') and h.has_key('CD1_2') and
+        h.has_key('CD2_1') and h.has_key('CD2_2')):
+        tmDefined = True
+        cd = np.array(((h['CD1_1'], h['CD1_2']), (h['CD2_1'], h['CD2_2'])))
+
+    if (h.has_key('PC1_1') and h.has_key('PC1_2') and
+        h.has_key('PC2_1') and h.has_key('PC2_2')):
+        tmDefined = True
+        cd = np.array(((h['PC1_1'], h['PC1_2']), (h['PC2_1'], h['PC2_2'])))
+
+    if not tmDefined:
+        # if CDELT is defined but the transformation matrix isn't,
+        # then CROT should be defined
+        if cdeltDefined and h.has_key('CROTA2'):
+            rot = h['CROTA2']
+            return cdelt, rot
+
+        raise ValueError("WCS has CDELTx but is missing CROTA2,"
+                         " and CDi_j or PCi_j")
+
+    if (h['CTYPE1'].find('DEC-') >= 0) or (h['CTYPE1'].find('LAT') >= 0):
+        newcd = cd.copy()
+        newcd[0,:] = cd[1,:]
+        newcd[1,:] = cd[0,:]
+        cd = newcd.copy()
+
+    if np.linalg.det(cd) < 0:
+        sgn = -1.0
+    else:
+        sgn = 1.0
+
+    if (cd[1, 0] == 0) and (cd[0, 1] == 0):
+        # unrotated coordinate system
+        rot1 = 0
+        rot2 = 0
+
+        if not cdeltDefined:
+            cdelt[0] = cd[0, 0]
+            cdelt[1] = cd[1, 1]
+    else:
+        rot1 = np.arctan2(sgn * np.radians(cd[0, 1]),
+                             sgn * np.radians(cd[0, 0]))
+        rot2 = np.arctan2(np.radians(-cd[1, 0]),
+                             np.radians(cd[1, 1]))
+
+        if not cdeltDefined:
+            cdelt[0] = sgn * np.sqrt(cd[0, 0]**2 + cd[0, 1]**2)
+            cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
+
+    return cdelt * 3600.0, np.degrees(rot1)
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
