@@ -53,12 +53,12 @@ import numpy as np
 from . import core
 from . import analysis
 from . import process
-from . import Image
 
 from .core import *
 from .analysis import *
 from .process import *
 
+__all__ = core.__all__ + analysis.__all__ + process.__all__ + ['Image']
 
 class Image(np.ndarray):
     """A simple Image class for astronomy.
