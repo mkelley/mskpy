@@ -129,3 +129,8 @@ class Asteroid(SolarSysObject):
 
         return fluxd
 
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc
+

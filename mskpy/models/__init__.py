@@ -1,15 +1,32 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 """
-models --- A model library
-==========================
+A model library
+===============
 
 .. autosummary::
    :toctree: generated/
 
-   Modules
-   -------
-   surfaces
+   Surface Models
+   --------------
+   SurfaceRadiation
+   DAp
+   HG
+   NEATM
+
+   Dust Models
+   -----------
+   AfrhoRadiation
+   AfrhoScattered
+   AfrhoThermal
+
+   Phase functions
+   ---------------
+   phaseK
+   phaseH
+   phaseHG
+   phaseHM
+   lambertian
 
 """
 
@@ -23,3 +40,9 @@ from . import dust
 
 from surfaces import *
 from dust import *
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
+

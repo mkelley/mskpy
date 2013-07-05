@@ -8,16 +8,15 @@ dust --- Models for dust
 
    Dust Models
    -----------
-
-   AfrhoRadiation - Base class for radiation from a comet based on Afrho.
-   AfrhoScattered - Scattered light from a comet.
-   AfrhoThermal - Thermal emission from a comet.
+   AfrhoRadiation
+   AfrhoScattered
+   AfrhoThermal
 
    Phase functions
    ---------------
-   phaseK - Phase function based on Kolokolova et al. (2004, Comets II).
-   phaseH - Halley phase function based on Schleicher et al. (1998).
-   phaseHM - (Halley-Marcus) phase function based on Schleicher et al. (2011).
+   phaseK
+   phaseH
+   phaseHM
 
 """
 
@@ -365,3 +364,9 @@ def phaseHM(phase):
 
     C = splrep(th, ph)
     return splev(np.abs(phase), C)
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
+

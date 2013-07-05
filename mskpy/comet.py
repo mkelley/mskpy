@@ -9,7 +9,8 @@ comet --- Comets!
 
    Classes
    -------
-   Comet - All(?) things comet.
+   Coma
+   Comet
 
 """
 
@@ -244,3 +245,9 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc
+

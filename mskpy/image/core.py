@@ -7,14 +7,14 @@ image.core --- General image operations, generators.
 .. autosummary::
    :toctree: generated/
 
-   imshift - Shift an image.
-   rarray - Create an array of distances to a point.
-   rebin - Scale an array by an integer amount.
-   stack2grid - Tile a stack of images.
-   tarray - Create an array of angles with the same vertex.
-   yx2rt - Cartesian to polar transformation.
-   xarray - Create an array of distances along a line.
-   yarray - Create an array of distances along a line.
+   imshift
+   rarray
+   rebin
+   stack2grid
+   tarray
+   yx2rt
+   xarray
+   yarray
 
 """
 
@@ -432,3 +432,8 @@ def yarray(shape, yx=[0, 0], rot=0, dtype=int):
         y = x * R[1, 0] + y * R[1, 1]
 
     return y
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc

@@ -4,47 +4,47 @@
 image --- For working with images, maybe spectra.
 =================================================
 
-
 .. autosummary::
    :toctree: generated/
 
    Classes
    -------
-   Image - An ndarray with builtin analysis functions.
+   Image
 
    Core
    ----
-   imshift - Shift an image.
-   rarray - Create an array of distances to a point.
-   rebin - Scale an array by an integer amount.
-   stack2grid - Tile a stack of images.
-   tarray - Create an array of angles with the same vertex.
-   yx2rt - Cartesian to polar transformation.
-   xarray - Create an array of distances along a line.
-   yarray - Create an array of distances along a line.
+   imshift
+   rarray
+   rebin
+   stack2grid
+   tarray
+   yx2rt
+   xarray
+   yarray
 
    Analysis
    --------
-   anphot - Annular photometry.
-   apphot - Aperture photometry.
-   azavg - Azimuthal averaging.
-   bgfit - 2D background fitting.
-   centroid - Image centroid (center of mass).
-   imstat - A suite of array statistics.
-   linecut - Linear photometry.
-   polyfit2d - 2D polynomial fitting.
-   radprof - Radial profiling.
-   trace - Peak fitting along an axis.
+   anphot
+   apphot
+   azavg
+   bgfit
+   centroid
+   imstat
+   linecut
+   polyfit2d
+   radprof
+   trace
+
 
    Processing
    ----------
-   columnpull - Define a column pull detector artifact.
-   crclean - Clean cosmic rays (LACOSMIC).
-   fixpix - Replace masked pixels.
-   fwhmfit - Measure the FWHM of a image.
-   mkflat - Create a flat field.
-   psfmatch - Generate a PSF matching kernel.
-   stripes - Define jailbar/stripe artifacts.
+   columnpull
+   crclean
+   fixpix
+   fwhmfit
+   mkflat
+   psfmatch
+   stripes
 
 """
 
@@ -345,3 +345,9 @@ class Image(np.ndarray):
         """
         yx = self.yx if yx is None else yx
         return yx2rt(self, yx, **kwargs)
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
+

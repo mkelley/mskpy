@@ -7,16 +7,16 @@ image.analysis --- Analyze (astronomical) images.
 .. autosummary::
    :toctree: generated/
 
-   anphot - Annular photometry.
-   apphot - Aperture photometry.
-   azavg - Azimuthal averaging.
-   bgfit - 2D background fitting.
-   centroid - Image centroid (center of mass).
-   imstat - A suite of array statistics.
-   linecut - Linear photometry.
-   polyfit2d - 2D polynomial fitting.
-   radprof - Radial profiling.
-   trace - Peak fitting along an axis.
+   anphot
+   apphot
+   azavg
+   bgfit
+   centroid
+   imstat
+   linecut
+   polyfit2d
+   radprof
+   trace
 
 .. todo:: Re-write anphot to generate pixel weights via rarray, rather
    than sub-sampling the images.  Update apphot and azavg, if needed.
@@ -636,4 +636,9 @@ def trace(im, err, guess):
         last = fit
 
     return y
-            
+
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc

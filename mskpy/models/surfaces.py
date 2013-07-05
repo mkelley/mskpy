@@ -8,16 +8,15 @@ surfaces --- Models for surfaces
 
    Surface Models
    --------------
-
-   SurfaceRadiation - Base class for all surfaces.
-   DAp - Reflected light based on diameter and geometric albedo.
-   HG - Reflected light based on IAU H-G magnitude system.
-   NEATM - Near-Earth asteroid thermal model.
+   SurfaceRadiation
+   DAp
+   HG
+   NEATM
 
    Phase functions
    ---------------
-   phaseHG - IAU H-G phase function.
-   lambertian - Lambertian sphere.
+   phaseHG
+   lambertian
 
 """
 
@@ -505,3 +504,9 @@ def lambertian(phase):
     """
     phase = np.radians(np.abs(phase))
     return (np.sin(phase) + (pi - phase) * np.cos(phase)) / pi
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
+

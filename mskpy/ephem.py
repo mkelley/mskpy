@@ -32,7 +32,7 @@ There are three optional kernels:
 About dates
 -----------
 
-Most functions accept multiple kinds of dates: calendar strings,
+Most functions accept multiple types of dates: calendar strings,
 Julian dates, `Time`, or `datetime`.  If the scale is not defined (as
 it is for `Time` instances), we assume the scale is UTC.
 
@@ -58,21 +58,9 @@ it is for `Time` instances), we assume the scale is UTC.
    summarizegeom
 
    Built-in SolarSysObjects
-   ----------------------
-   Sun
-   Mercury
-   Venus
-   Mars
-   Earth
-   Moon
-   Mars
-   Jupiter
-   Saturn
-   Uranus
-   Neptune
-   Pluto
-   Spitzer (optional)
-   DeepImpact (optional)
+   ------------------------
+   Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
+   Neptune, Pluto, Spitzer (optional), DeepImpact (optional)
 
    Exceptions
    ----------
@@ -1337,3 +1325,8 @@ try:
 except OSError:
     pass
     
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc
+

@@ -7,13 +7,13 @@ image.process --- Process (astronomical) images.
 .. autosummary::
    :toctree: generated/
 
-   columnpull - Define a column pull detector artifact.
-   crclean - Clean cosmic rays (LACOSMIC).
-   fixpix - Replace masked pixels.
-   fwhmfit - Measure the FWHM of a image.
-   mkflat - Create a flat field.
-   psfmatch - Generate a PSF matching kernel.
-   stripes - Define jailbar/stripe artifacts.
+   columnpull
+   crclean
+   fixpix
+   fwhmfit
+   mkflat
+   psfmatch
+   stripes
 
 .. todo:: Re-write anphot to generate pixel weights via rarray, rather
    than sub-sampling the images.  Update apphot and azavg, if needed.
@@ -388,3 +388,9 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     s = stat(_im, axis=axis)
     
     return s
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
+
