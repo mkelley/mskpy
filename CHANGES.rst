@@ -94,9 +94,11 @@ Changes From mskpy v1.7.0
 
 - `image` reorganized.  FITS and WCS functions moved to `util`.
 
+  - `combine`, `imcombine`, `jailbar`, `phot`, `zarray` didn't make it.
+
   - Argument names made more consistent between all functions.  For
     example, `center` and `cen` renamed `yx`, `sample` renamed
-    `subsample`.  Functions that previously took two coordinates, `y`
+    `subsample`.  Functions which previously took two coordinates, `y`
     and `x` now take one `yx`.
 
   - New `refine_center` to handle refining `rarray` and `tarray`
@@ -104,6 +106,12 @@ Changes From mskpy v1.7.0
 
   - `rarray` and `tarray` subsample parameters changed from bool to
     int so the exact subsampling factor can be specified.
+
+  - Re-write `azavg` and `radprof` to use `anphot`.
+
+  - `bgfit` arguments renamed.  Only 2D uncertainty maps are allowed.
+
+  - `mkflat` re-written since `imcombine` was removed.
 
 Bug fixes
 ^^^^^^^^^
