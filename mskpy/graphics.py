@@ -448,3 +448,7 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
     ax.axis('equal')
     plt.setp(plt.gca(), ylim=(-0.1, 1), xlim=(-0.01, 1.01))
 
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc
