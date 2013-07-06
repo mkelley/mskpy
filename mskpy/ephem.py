@@ -14,19 +14,19 @@ kernel file names from object names.
 
 Three SPICE kernels are required:
 
-- naif.tls : a leap seconds kernel,
+  - naif.tls : a leap seconds kernel,
 
-- pck.tpc : a planetary constants kernel,
+  - pck.tpc : a planetary constants kernel,
 
-- planets.bsp : a planetary ephemeris kernel, e.g., de421.
+  - planets.bsp : a planetary ephemeris kernel, e.g., de421.
 
 There are three optional kernels:
 
-- spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope,
+  - spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope,
 
-- deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby,
+  - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby,
 
-- naif-names.txt : your own body to ID code mappings.
+  - naif-names.txt : your own body to ID code mappings.
 
 
 About dates
@@ -97,7 +97,6 @@ from datetime import datetime
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
-from astropy.coordinates import Angle
 import spice
 
 _kernel_path = '/home/msk/data/kernels'
@@ -163,7 +162,13 @@ class Geom(object):
 
     Methods
     -------
-    mean : Return the average geometry as a `FrozenGeom`.
+    argmax : Index of the maximum of each parameter as a `dict`.
+    argmin : Index of the minimum of each parameter as a `dict`.
+    max : Maximum of each parameter as a `dict`.
+    mean : Average geometry as a `dict`.
+    min : Minimum of each parameter as a `dict`.
+    reduce : Apply a function to each vector.
+    summary : Return a pretty summary of the geometry.
 
     """
 
@@ -412,7 +417,7 @@ class Geom(object):
         return np.degrees(lelong) * u.deg
 
     def reduce(self, func, units=False):
-        """Apply `func` to each vector.
+        """Apply a function to each vector.
 
         Parameters
         ----------
@@ -648,6 +653,7 @@ class SolarSysObject(object):
 
     Methods
     -------
+    ephemeris : Ephemeris for a target.
     observe : Distance, phase angle, etc. to another object.
     orbit : Osculating orbital parameters at date.
     r : Position vector
@@ -718,6 +724,103 @@ class SolarSysObject(object):
        
         """
         pass
+
+    def ephemeris(self, target, dates, num=None, columns=None,
+                  cformats=None, date_format=None, ltt=False):
+        """Ephemeris for a target.
+
+        Parameters
+        ----------
+        target : SolarSysObject
+          The target to observe.
+        dates : array
+          If `num` is `None`, set `dates` to a list of exact times for
+          the ephemeris, otherwise, let `dates` be a start and stop
+          time, and `num` be the number of dates to generate.  `dates`
+          may be in any format that `observe` accepts.
+        num : int, optional
+          If not `None`, generate this many time steps between
+          `min(dates)` and `max(dates)`.
+        columns : array, optional
+          A list of `Geom` keywords to use as table columns, or `None`
+          for the default list.
+        cformats : dict or list, optional
+          A list of format strings or functions with which to convert
+          the columns into strings, or a dictionary of formats with
+          keys corresponding with `columns`.
+        date_format : function
+          A function to format the `date` column before creating the
+          table.
+        ltt : bool, optional
+          Set to `True` to account for light travel time.
+
+        Returns
+        -------
+        eph : astropy Table
+
+        Notes
+        -----
+        `date_format` should be removed when astropy `Table` can
+        handle Time objects.
+
+        """
+
+        from astropy.table import Table, Column
+        from astropy.units import Quantity
+        from .util import dh2hms
+
+        dates = self._date2time(dates)
+        if num is not None:
+            if num <= 0:
+                time = []
+            elif num == 1:
+                time = [dates[0], dates[-1]]
+            else:
+                step = (dates[-1] - dates[0]) / float(num - 1)
+                time = []
+                for i in xrange(num):
+                    time += [dates[0] + step * i]
+
+        g = self.observe(target, time, ltt=ltt)
+
+        if columns is None:
+            columns = ['date', 'ra', 'dec', 'rh', 'delta', 'phase', 'selong']
+
+        if cformats is None:
+            cformats = dict(
+                date = '{:s}',
+                ra = lambda x: dh2hms(x / 15.0)[:-7],
+                dec = lambda x: dh2hms(x)[:-7],
+                lam = '{:.0f}',
+                bet = '{:+.0f}',
+                rh = '{:.3f}',
+                delta = '{:.3f}',
+                phase = '{:.0f}',
+                selong = '{:.0f}',
+                lelong = '{:.0f}')
+
+        if date_format is None:
+            date_format = lambda d: d.iso[:-7]
+
+        eph = Table()
+        eph.meta['ltt'] = ltt
+        #eph.meta['observer'] = str(self)
+        #eph.meta['target'] = str(target)
+
+        for c in columns:
+            if c == 'date':
+                data = [date_format(d) for d in g[c]]
+            else:
+                data = g[c].value
+
+            if c in cformats:
+                cf = cformats[c]
+            else:
+                cf = None
+
+            eph.add_column(Column(data=data, name=c, format=cf))
+
+        return eph
 
     def observe(self, target, date, ltt=False):
         """Distance, phase angle, etc. to another object.
