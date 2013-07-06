@@ -35,7 +35,6 @@ try:
     from comet import *
     from asteroid import *
 
-
     try:
         from .ephem import Spitzer
     except ImportError:
