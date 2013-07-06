@@ -83,7 +83,7 @@ class AfrhoScattered(AfrhoRadiation):
 
     def __init__(self, Afrho, phasef=None):
         self.D = Afrho
-        if self.phasef is None:
+        if phasef is None:
             self.phasef = phaseK
         else:
             self.phasef = phasef
@@ -165,7 +165,7 @@ class AfrhoThermal(AfrhoRadiation):
 
     def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1):
         self.D = Afrho
-        if self.phasef is None:
+        if phasef is None:
             self.phasef = phaseK
         else:
             self.phasef = phasef

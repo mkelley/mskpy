@@ -1055,6 +1055,59 @@ class FixedObject(SolarSysObject):
 
         return np.zeros(shape)
 
+class SolarSysObservable(SolarSysObject):
+    """A SolarSysObject that emits light.
+
+    Parameters
+    ----------
+    obj : SolarSysObject
+      The object's location.
+
+    Methods
+    -------
+    fluxd : Total flux density as seen by an observer.
+
+    Notes
+    -----
+    Inheriting classes should override `fluxd`.
+
+    """
+
+    def __init__(self, obj):
+        self.obj = obj
+
+    def r(self, date):
+        return self.obj.r(date)
+
+    def v(self, date):
+        return self.obj.v(date)
+
+    def fluxd(self, observer, date, wave, ltt=False,
+              unit=u.Unit('W / (m2 um)')):
+        """Total flux density as seen by an observer.
+
+        Parameters
+        ----------
+        observer : SolarSysObject
+          The observer.
+        date : string, float, astropy Time, datetime
+          The time of the observation in any format acceptable to
+          `observer`.
+        wave : Quantity
+          The wavelengths to compute `fluxd`.
+        ltt : bool, optional
+          Set to `True` to correct the object's position for light
+          travel time.
+        unit : astropy Unit
+          The return unit, must be flux density.
+        
+        Returns
+        -------
+        fluxd : Quantity
+
+        """
+        return np.zeros_like(wave.value) * unit
+
 def _load_kernel(filename):
     """Load the named kernel into memory.
 

@@ -19,23 +19,21 @@ __all__ = [
     'Comet'
 ]
 
-
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObject, SpiceObject
+from .ephem import SolarSysObservable
 from .asteroid import Asteroid
 from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
 
-class Coma(SolarSysObject):
+class Coma(SolarSysObservable):
     """A comet coma.
 
     Parameters
     ----------
-    obj : string, int, or SolarSysObject
-      The name, NAIF ID, or integer designation of the object, or a
-      `SolarSysObject`.
+    obj : SolarSysObject
+      The location of the coma as a `SolarSysObject`.
     Afrho : Quantity
       Afrho of the coma.
     reflected : dict or AfrhoRadiation, optional
@@ -51,11 +49,7 @@ class Coma(SolarSysObject):
     """
     def __init__(self, obj, Afrho, reflected=dict(), thermal=dict(),
                  kernel=None):
-        if isinstance(obj, SolarSysObject):
-            self.obj = obj
-        else:
-            self.obj = SpiceObject(obj, kernel=kernel)
-
+        self.obj = obj
         self.Afrho = Afrho
 
         if isinstance(reflected, AfrhoRadiation):
@@ -120,14 +114,13 @@ class Coma(SolarSysObject):
 
         return fluxd
 
-class Comet(SolarSysObject):
+class Comet(SolarSysObservable):
     """A comet.
 
     Parameters
     ----------
-    obj : string, int, or SolarSysObject
-      The name, NAIF ID, or integer designation of the object, or a
-      `SolarSysObject`.
+    obj : SolarSysObject
+      The location of the comet as a `SolarSysObject`.
     nucleus : dict or Asteroid
       The nucleus of the comet as an `Asteroid` instance, or a
       dictionary of keywords to initialize a new `Asteroid`, including
@@ -170,10 +163,7 @@ class Comet(SolarSysObject):
     """
 
     def __init__(self, obj, nucleus=dict(), coma=dict(), kernel=None):
-        if isinstance(obj, SolarSysObject):
-            self.obj = obj
-        else:
-            self.obj = SpiceObject(obj, kernel=kernel)
+        self.obj = obj
 
         if isinstance(nucleus, dict):
             try:
