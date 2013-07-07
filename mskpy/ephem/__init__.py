@@ -54,40 +54,42 @@ it is for `Time` instances), we assume the scale is UTC.
 
 from . import core
 from . import geom
+from . import state
 from . import ssobj
 
 from .geom import *
+from .state import *
 from .ssobj import *
 
-__all__ = geom.__all__ + ssobj.__all__
+__all__ = geom.__all__ + state.__all__ + ssobj.__all__
 
 # load up a few objects
-Sun = SpiceObject('sun', kernel='planets.bsp')
-Mercury = SpiceObject('mercury', kernel='planets.bsp')
-Venus = SpiceObject('venus', kernel='planets.bsp')
-Earth = SpiceObject('earth', kernel='planets.bsp')
-Moon = SpiceObject('moon', kernel='planets.bsp')
-Mars = SpiceObject('mars', kernel='planets.bsp')
-Jupiter = SpiceObject('jupiter', kernel='planets.bsp')
-Saturn = SpiceObject('saturn', kernel='planets.bsp')
-Uranus = SpiceObject('uranus', kernel='planets.bsp')
-Neptune = SpiceObject('neptune', kernel='planets.bsp')
-Pluto = SpiceObject('pluto', kernel='planets.bsp')
+Sun = SolarSysObject(SpiceState('sun', kernel='planets.bsp'))
+Mercury = SolarSysObject(SpiceState('mercury', kernel='planets.bsp'))
+Venus = SolarSysObject(SpiceState('venus', kernel='planets.bsp'))
+Earth = SolarSysObject(SpiceState('earth', kernel='planets.bsp'))
+Moon = SolarSysObject(SpiceState('moon', kernel='planets.bsp'))
+Mars = SolarSysObject(SpiceState('mars', kernel='planets.bsp'))
+Jupiter = SolarSysObject(SpiceState('jupiter', kernel='planets.bsp'))
+Saturn = SolarSysObject(SpiceState('saturn', kernel='planets.bsp'))
+Uranus = SolarSysObject(SpiceState('uranus', kernel='planets.bsp'))
+Neptune = SolarSysObject(SpiceState('neptune', kernel='planets.bsp'))
+Pluto = SolarSysObject(SpiceState('pluto', kernel='planets.bsp'))
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
                        uranus=Uranus, neptune=Neptune, pluto=Pluto)
-__all__.extend(_loaded_objects.keys())
+__all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em
 try:
-    Spitzer = SpiceObject('-79', kernel='spitzer.bsp')
+    Spitzer = SolarSysObject(SpiceState('-79', kernel='spitzer.bsp'))
     _loaded_objects['spitzer'] = Spitzer
     __all__.append('Spitzer')
 except OSError:
     pass
 
 try:
-    DeepImpact = SpiceObject('-140', kernel='deepimpact.txt')
+    DeepImpact = SolarSysObject(SpiceState('-140', kernel='deepimpact.txt'))
     _loaded_objects['deepimpact'] = DeepImpact
     __all__.append('DeepImpact')
 except OSError:

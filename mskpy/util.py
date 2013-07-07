@@ -71,6 +71,7 @@ util --- Short and sweet functions, generic algorithms
    cal2doy
    cal2iso
    cal2time
+   date2time
    dh2hms
    doy2md
    hms2dh
@@ -141,6 +142,7 @@ __all__ = [
     'cal2doy',
     'cal2iso',
     'cal2time',
+    'date2time',
     'dh2hms',
     'doy2md',
     'hms2dh',
@@ -2108,6 +2110,41 @@ def cal2time(cal, scale='utc'):
     """
     from astropy.time import Time
     return Time(cal2iso(cal), format='isot', scale=scale)
+
+def date2time(date, scale='utc'):
+    """Lazy date to astropy `Time`.
+
+    Parameters
+    ----------
+    date : string, float, astropy Time, datetime, or array
+      Some time-like thingy, or `None` to return the current date.
+    scale : string, optional
+      See `astropy.time.Time`.
+
+    Returns
+    -------
+    date : astropy Time
+
+    """
+    from datetime import datetime
+    from astropy.time import Time
+
+    if date is None:
+        date = Time(datetime.now(), scale=scale, format='datetime')
+    elif isinstance(date, Time):
+        pass
+    elif isinstance(date, float):
+        date = jd2time(date, scale=scale)
+    elif isinstance(date, str):
+        date = cal2time(date, scale=scale)
+    elif isinstance(date, datetime):
+        date = Time(date, scale=scale)
+    elif isinstance(date, (list, tuple, np.ndarray)):
+        date = [date2time(d, scale=scale) for d in date]
+        date = Time(date)
+    else:
+        raise ValueError("Bad date: {} ({})".format(date, type(date)))
+    return date
 
 def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
