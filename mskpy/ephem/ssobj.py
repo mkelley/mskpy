@@ -250,11 +250,14 @@ class SolarSysObject(object):
         """
 
         from astropy.table import Column
-
+        
         lc = observer.ephemeris(self, dates, **kwargs)
         if 'date' not in lc.columns:
             raise KeyError("Ephemeris must return a date column."
                            "  Update columns.")
+
+        if not np.iterable(wave):
+            wave = [wave.value] * wave.unit
 
         fluxd = np.zeros((len(lc), np.size(wave)))
         for i, d in enumerate(lc['date']):
