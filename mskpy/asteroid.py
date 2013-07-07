@@ -18,12 +18,11 @@ __all__ = [
     'Asteroid'
 ]
 
-
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObject, SpiceObject
+from .ephem import SolarSysObject
 from .models import SurfaceRadiation, DAp, NEATM
 
 class Asteroid(SolarSysObject):
@@ -31,9 +30,8 @@ class Asteroid(SolarSysObject):
 
     Parameters
     ----------
-    obj : string, int, or SolarSysObject
-      The name, NAIF ID, or integer designation of the object, or a
-      `SolarSysObject`.
+    obj : SolarSysObject
+      The location of the asteroid as a `SolarSysObject`.
     D : Quantity
       Diameter.
     Ap : float
@@ -59,11 +57,7 @@ class Asteroid(SolarSysObject):
 
     def __init__(self, obj, D, Ap, reflected=None, thermal=None,
                  kernel=None, **kwargs):
-        if isinstance(obj, SolarSysObject):
-            self.obj = obj
-        else:
-            self.obj = SpiceObject(obj, kernel=kernel)
-
+        self.obj = obj
         self.D = D
         self.Ap = Ap
 
