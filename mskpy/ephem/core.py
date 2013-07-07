@@ -23,38 +23,6 @@ import spice
 _kernel_path = '/home/msk/data/kernels'
 _spice_setup = False
 
-def load_kernel(filename):
-    """Load the named kernel into memory.
-
-    The kernel must be in the current directory, or in `_kernel_path`.
-
-    No-op if the kernel is already loaded.
-
-    Parameters
-    ----------
-    filename : string
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    `OSError` if the file is not found.
-
-    """
-
-    import os.path
-    global _kernel_path
-
-    if not os.path.exists(filename):
-        filename = os.path.join(_kernel_path, filename)
-        if not os.path.exists(filename):
-            raise OSError("{} not found".format(filename))
-
-    if spice.kinfo(filename) is None:
-        spice.furnsh(filename)
-
 def _setup_spice():
     """Load some kernels into memory.
 
@@ -268,6 +236,38 @@ def find_kernel(obj):
             return find_kernel(obj + 2000000)
 
     raise ValueError("Cannot find kernel (" + kernel + ")")
+
+def load_kernel(filename):
+    """Load the named kernel into memory.
+
+    The kernel must be in the current directory, or in `_kernel_path`.
+
+    No-op if the kernel is already loaded.
+
+    Parameters
+    ----------
+    filename : string
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    `OSError` if the file is not found.
+
+    """
+
+    import os.path
+    global _kernel_path
+
+    if not os.path.exists(filename):
+        filename = os.path.join(_kernel_path, filename)
+        if not os.path.exists(filename):
+            raise OSError("{} not found".format(filename))
+
+    if spice.kinfo(filename) is None:
+        spice.furnsh(filename)
 
 # update module docstring
 from ..util import autodoc
