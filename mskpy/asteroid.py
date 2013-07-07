@@ -36,10 +36,10 @@ class Asteroid(SolarSysObject):
       Diameter.
     Ap : float
       Geometric albedo.
-    reflected : dict or SurfaceRadiation, optional
+    reflected : SurfaceRadiation, optional
       A model of the reflected light.  If `None` a `DAp` model will be
       initialized (including `**kwargs`).
-    thermal : dict or SurfaceRadiation, optional
+    thermal : SurfaceRadiation, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
     **kwargs
@@ -52,26 +52,49 @@ class Asteroid(SolarSysObject):
 
     """
 
+    _D = None
+    _Ap = None
+
     def __init__(self, state, D, Ap, reflected=None, thermal=None, **kwargs):
         assert isinstance(state, State), "state must be a State."
         assert isinstance(D, u.Quantity), "D must be a Quantity."
         self.state = state
+
+        if reflected is None:
+            self.reflected = DAp(D, Ap, **kwargs)
+        else:
+            self.reflected = reflected
+        assert isinstance(self.reflected, SurfaceRadiation)
+
+        if thermal is None:
+            self.thermal = NEATM(D, Ap, **kwargs)
+        else:
+            self.thermal = thermal
+        assert isinstance(self.thermal, SurfaceRadiation)
+
         self.D = D
         self.Ap = Ap
 
-        if isinstance(reflected, SurfaceRadiation):
-            self.reflected = reflected
-        elif reflected is None:
-            self.reflected = DAp(self.D, self.Ap)
-        else:
-            self.reflected = DAp(self.D, self.Ap, **reflected)
+    @property
+    def Ap(self):
+        return self._Ap
 
-        if isinstance(thermal, SurfaceRadiation):
-            self.thermal = thermal
-        elif thermal is None:
-            self.thermal = NEATM(self.D, self.Ap)
-        else:
-            self.thermal = NEATM(self.D, self.Ap, **thermal)
+    @Ap.setter
+    def Ap(self, p):
+        self._Ap = p
+        self.reflected.Ap = p
+        self.thermal.Ap = p
+
+    @property
+    def D(self):
+        return self._D
+
+    @D.setter
+    def D(self, d):
+        assert isinstance(d, u.Quantity)
+        self._D = d
+        self.reflected.D = d
+        self.thermal.D = d
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):

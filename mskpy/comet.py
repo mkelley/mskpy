@@ -39,35 +39,52 @@ class Coma(SolarSysObject):
     k : float, optional
       The logarithmic slope of the dust production rate's dependence
       on rh.
-    reflected : dict or AfrhoRadiation, optional
-      A model for light scattered by dust or a dictionary of keywords
-      to pass to `AfrhoScattered`.
-    thermal : dict or AfrhoRadiation, optional
-      A model for thermal emission from dust or a dictionary of
-      keywords to pass to `AfrhoThermal`.
+    reflected : AfrhoRadiation, optional
+      A model for light scattered by dust or `None` to pass `kwargs`
+      to `AfrhoScattered`.
+    thermal : AfrhoRadiation, optional
+      A model for thermal emission from dust or `None` to pass
+      `kwargs` `AfrhoThermal`.
+    **kwargs
+      Keywords for `AfrhoRadiation` and/or `AfrhoThermal`, when
+      `reflected` and/or `thermal` are `None`, respectively.
 
     """
-    def __init__(self, state, Afrho1, k=-2, reflected=dict(), thermal=dict()):
+    _Afrho1 = None
+
+    def __init__(self, state, Afrho1, k=-2, reflected=None, thermal=None,
+                 **kwargs):
         assert isinstance(state, State), "state must be a State"
         assert isinstance(Afrho1, u.Quantity), "Afrho1 must be a Quantity"
 
         self.state = state
-        self.Afrho1 = Afrho1
         self.k = k
 
-        if isinstance(reflected, AfrhoRadiation):
+        if reflected is None:
+            self.reflected = AfrhoScattered(1 * Afrho1.unit, **kwargs)
+        else:
             self.reflected = reflected
-            self.reflected.Afrho = self.Afrho1
-        else:
-            self.reflected = AfrhoScattered(
-                1 * self.Afrho1.unit, **reflected)
+        assert isinstance(self.reflected, AfrhoRadiation)
 
-        if isinstance(thermal, AfrhoRadiation):
-            self.thermal = thermal
-            self.thermal.Afrho = self.Afrho1
+        if thermal is None:
+            self.thermal = AfrhoThermal(1 * Afrho1.unit, **kwargs)
         else:
-            self.thermal = AfrhoThermal(
-                1 * self.Afrho1.unit, **thermal)
+            self.thermal = thermal
+        assert isinstance(self.thermal, AfrhoRadiation)
+
+        # Afrho1 property will also update self.thermal, self.scattered
+        self.Afrho1 = Afrho1
+
+    @property
+    def Afrho1(self):
+        return self._Afrho1
+
+    @Afrho1.setter
+    def Afrho1(self, a):
+        assert isinstance(a, u.Quantity)
+        self._Afrho1 = a
+        self.thermal.Afrho = 1 * a.unit
+        self.reflected.Afrho = 1 * a.unit
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, ltt=False,
@@ -102,8 +119,8 @@ class Coma(SolarSysObject):
 
         """
 
-        assert isinstance(observer, SolarSysObject), "observer must be a SolarSysObject"
-        assert isinstance(wave, u.Quantity), "wave must be a Quantity"
+        assert isinstance(observer, SolarSysObject)
+        assert isinstance(wave, u.Quantity)
 
         fluxd = np.zeros(np.size(wave.value)) * unit
         if self.Afrho1.value <= 0:
@@ -127,14 +144,18 @@ class Comet(SolarSysObject):
     ----------
     state : State
       The location of the comet.
+    Afrho1 : Quantity
+      Afrho at 1 AU.
+    R : Quantity
+      Nucleus radius.
+    Ap : float, optional
+      Geometric albedo of the nucleus.
     nucleus : dict or Asteroid
       The nucleus of the comet as an `Asteroid` instance, or a
-      dictionary of keywords to initialize a new `Asteroid`, including
-      `R` or `D` and `Ap`.  Yes, `R` is allowed, this is a comet
-      nucleus, afterall.
+      dictionary of keywords to initialize a new `Asteroid`.
     coma : dict or Coma
       The coma of the comet as a `Coma` instance or a dictionary of
-      keywords to initialize a new `Coma`, including `Afrho1`.
+      keywords to initialize a new `Coma`.
 
     Attributes
     ----------
@@ -152,39 +173,67 @@ class Comet(SolarSysObject):
     >>> import astropy.units as u
     >>> from mskpy import Asteroid, Coma, Comet, SpiceState
     >>> state = SpiceState('hartley 2')
-    >>> nucleus = Asteroid(state, 0.6 * u.km, 0.04, eta=1.0, epsilon=0.95)
-    >>> coma = Coma(state, 302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-    >>> comet = Comet(state, nucleus=nucleus, coma=coma)
+    >>> Afrho1 = 302 * u.cm
+    >>> R = 0.6 * u.km
+    >>> Ap = 0.04
+    >>> nucleus = Asteroid(state, R * 2, Ap, eta=1.0, epsilon=0.95)
+    >>> coma = Coma(state, Afrho1, S=0.0, A=0.37, Tscale=1.18)
+    >>> comet = Comet(state, Afrho1, R, Ap, nucleus=nucleus, coma=coma)
 
     Create a comet with keyword arguments.
 
     >>> import astropy.units as u
     >>> from mskpy import Comet, SpiceState
-    >>> nucleus = dict(R=0.6 * u.km, Ap=0.04, eta=1.0, epsilon=0.95)
-    >>> coma = dict(Afrho1=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-    >>> comet = Comet(SpiceState('hartley 2'), nucleus=nucleus, coma=coma)
+    >>> Afrho1 = 302 * u.cm
+    >>> R = 0.6 * u.km
+    >>> nucleus = dict(eta=1.0, epsilon=0.95)
+    >>> coma = dict(S=0.0, A=0.37, Tscale=1.18)
+    >>> comet = Comet(SpiceState('hartley 2'), Afrho1, R, nucleus=nucleus, coma=coma)
 
     """
 
-    def __init__(self, state, nucleus=dict(), coma=dict()):
-        assert isinstance(state, State), "state must be a State."
+    def __init__(self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict()):
+        assert isinstance(state, State)
         self.state = state
 
         if isinstance(nucleus, dict):
-            try:
-                D = nucleus.pop('R') * 2
-            except KeyError:
-                D = nucleus.pop('D')
-            Ap = nucleus.pop(Ap)
-            self.nucleus = Asteroid(self, D, Ap, **nucleus)
+            self.nucleus = Asteroid(self.state, 2 * R, Ap, **nucleus)
         else:
             self.nucleus = nucleus
 
         if isinstance(coma, dict):
-            Afrho1 = nucleus.pop('Afrho1')
-            self.coma = Coma(self, Afrho1, **coma)
+            self.coma = Coma(self.state, Afrho1, **coma)
         else:
             self.coma = coma
+
+        # these properties will update nucleus and coma
+        self.Afrho1 = Afrho1
+        self.R = R
+        self.Ap = Ap
+
+    @property
+    def R(self):
+        return self.nucleus.D / 2.0
+
+    @R.setter
+    def R(self, r):
+        self.nucleus.D = 2 * r
+
+    @property
+    def Ap(self):
+        return self.nucleus.Ap
+
+    @Ap.setter
+    def Ap(self, p):
+        self.nucleus.Ap = p
+
+    @property
+    def Afrho1(self):
+        return self.coma.Afrho1
+
+    @Afrho1.setter
+    def Afrho1(self, a):
+        self.coma.Afrho1 = a
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, nucleus=True, coma=True,

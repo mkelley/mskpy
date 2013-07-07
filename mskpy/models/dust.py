@@ -55,7 +55,7 @@ class AfrhoRadiation(object):
 
     """
 
-    def __init__(self, Afrho):
+    def __init__(self, Afrho, **kwargs):
         pass
 
     def fluxd(self, geom, wave, unit=None):
@@ -81,7 +81,7 @@ class AfrhoScattered(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, phasef=None):
+    def __init__(self, Afrho, phasef=None, **kwargs):
         self.Afrho = Afrho
         if phasef is None:
             self.phasef = phaseK
@@ -163,7 +163,7 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1):
+    def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1, **kwargs):
         self.Afrho = Afrho
         if phasef is None:
             self.phasef = phaseK

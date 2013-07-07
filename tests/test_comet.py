@@ -16,11 +16,8 @@ class TestComet():
         mars = SpiceState('mars', kernel='planets.bsp')
         c = Coma(mars, 1 * u.cm, k=-2)
 
-        r = dict(phasef=dust.phaseH)
-        t = dict(phasef=dust.phaseH, A=0.25, Tscale=1.05)
-        c = Coma(mars, 1 * u.cm, reflected=r)
-        c = Coma(mars, 1 * u.cm, thermal=t)
-        c = Coma(mars, 1 * u.cm, reflected=r, thermal=t)
+        c = Coma(mars, 1 * u.cm, phasef=dust.phaseH)
+        c = Coma(mars, 1 * u.cm, phasef=dust.phaseH, A=0.25, Tscale=1.05)
 
         r = dust.AfrhoScattered(1 * u.cm)
         t = dust.AfrhoThermal(1 * u.cm)
@@ -32,10 +29,14 @@ class TestComet():
         from mskpy import Asteroid
 
         mars = SpiceState('mars', kernel='planets.bsp')
-        nucleus = Asteroid(mars, 0.6 * u.km, 0.04, eta=1.0, epsilon=0.95)
-        coma = Coma(mars, 302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-        comet = Comet(mars, nucleus=nucleus, coma=coma)
+        R = 0.6 * u.km
+        Ap = 0.04
+        Afrho1 = 300 * u.cm
 
-        nucleus = dict(R=0.6 * u.km, Ap=0.04, eta=1.0, epsilon=0.95)
-        coma = dict(Afrho1=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-        comet = Comet(mars, nucleus=nucleus, coma=coma)
+        nucleus = Asteroid(mars, 2 * R, Ap, eta=1.0, epsilon=0.95)
+        coma = Coma(mars, Afrho1, S=0.0, A=0.37, Tscale=1.18)
+        comet = Comet(mars, Afrho1, R, Ap=Ap, nucleus=nucleus, coma=coma)
+
+        nucleus = dict(eta=1.0, epsilon=0.95)
+        coma = dict(S=0.0, A=0.37, Tscale=1.18)
+        comet = Comet(mars, Afrho1, R, Ap=Ap, nucleus=nucleus, coma=coma)

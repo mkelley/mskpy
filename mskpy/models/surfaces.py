@@ -53,7 +53,7 @@ class SurfaceRadiation(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         pass
 
     def fluxd(self, geom, wave, unit=None):
@@ -103,7 +103,7 @@ class NEATM(SurfaceRadiation):
     """
 
     def __init__(self, D, Ap, eta=1.0, epsilon=0.95, G=0.15,
-                 phaseint=None, tol=1e-3):
+                 phaseint=None, tol=1e-3, **kwargs):
         self.D = D.to(u.km)
         self.Ap = Ap
         self.eta = eta
@@ -280,7 +280,7 @@ class HG(SurfaceRadiation):
 
     """
 
-    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)')):
+    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)'), **kwargs):
         self.H = H
         self.G = G
         self.mzp = mzp
@@ -376,7 +376,7 @@ class DAp(SurfaceRadiation):
 
     """
 
-    def __init__(self, D, Ap, G=0.15, phasef=None):
+    def __init__(self, D, Ap, G=0.15, phasef=None, **kwargs):
         self.D = D
         self.Ap = Ap
 
