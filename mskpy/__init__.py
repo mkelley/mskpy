@@ -45,9 +45,7 @@ try:
     except ImportError:
         pass
 
-#except ImportError:
-#    pass
-finally:
+except ImportError:
     pass
 
 # depends on matplotlib
