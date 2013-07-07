@@ -5,9 +5,7 @@ ssobj --- Solar System objects.
 
    Classes
    -------
-   FixedObject
    SolarSysObject
-   SpiceObject
 
    Functions
    ---------
@@ -15,36 +13,29 @@ ssobj --- Solar System objects.
    getxyz
    summarizegeom
 
-   Exceptions
-   ----------
-   ObjectError
-
 """
 
 __all__ = [
-    'FixedObject',
     'SolarSysObject',
-    'SpiceObject',
     'getgeom',
     'getxyz',
     'summarizegeom',
-    'ObjectError'
 ]
-
-from datetime import datetime
 
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
-import spice
 
-from .core import date2et, find_kernel, load_kernel
-
-class ObjectError(Exception):
-    pass
+from . import core
+from .state import State
 
 class SolarSysObject(object):
-    """An abstract class for an object in the Solar System.
+    """A star, planet, comet, etc. in the Solar System.
+
+    Parameters
+    ----------
+    state : State
+      The object from which to retrieve positions and velocities.
 
     Methods
     -------
@@ -56,33 +47,13 @@ class SolarSysObject(object):
 
     Notes
     -----
-    Inheriting classes should override `r`, `v`.
+    Inheriting classes should override ...
 
     """
 
-    def __init__(self):
-        pass
-
-    def _date2time(self, date):
-        # reformat date as a Time object
-        from ..util import cal2time, jd2time
-
-        if date is None:
-            date = Time(datetime.now(), scale='utc', format='datetime')
-        elif isinstance(date, Time):
-            pass
-        elif isinstance(date, float):
-            date = jd2time(date)
-        elif isinstance(date, str):
-            date = cal2time(date)
-        elif isinstance(date, datetime):
-            date = Time(date, scale='utc')
-        elif isinstance(date, (list, tuple, np.ndarray)):
-            date = [self._date2time(d) for d in date]
-            date = Time(date)
-        else:
-            raise ValueError("Bad date: {} ({})".format(date, type(date)))
-        return date
+    def __init__(self, state):
+        assert isinstance(state, State)
+        self.state = state
 
     def r(self, date):
         """Position vector.
@@ -90,9 +61,7 @@ class SolarSysObject(object):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -100,7 +69,7 @@ class SolarSysObject(object):
           Position vector (3-element or Nx3 element array). [km]
        
         """
-        pass
+        return self.state.r(date)
 
     def v(self, date):
         """Velocity vector.
@@ -108,9 +77,7 @@ class SolarSysObject(object):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -118,7 +85,7 @@ class SolarSysObject(object):
           Velocity vector (3-element or Nx3 element array). [km/s]
        
         """
-        pass
+        return self.state.v(date)
 
     def ephemeris(self, target, dates, num=None, columns=None,
                   cformats=None, date_format=None, ltt=False):
@@ -162,9 +129,9 @@ class SolarSysObject(object):
 
         from astropy.table import Table, Column
         from astropy.units import Quantity
-        from ..util import dh2hms
+        from ..util import dh2hms, date2time
 
-        dates = self._date2time(dates)
+        dates = date2time(dates)
         if num is not None:
             if num <= 0:
                 time = []
@@ -225,9 +192,7 @@ class SolarSysObject(object):
         target : SolarSysObject
           The target to observe.
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.  Use `None` for now.
+          Processed via `util.date2time`.
         ltt : bool, optional
           Account for light travel time when `True`.
 
@@ -238,11 +203,12 @@ class SolarSysObject(object):
 
         """
 
-        from . import Geom
         from astropy.time import TimeDelta
         import astropy.constants as const
+        from . import Geom
+        from ..util import date2time
 
-        date = self._date2time(date)
+        date = date2time(date)
 
         rt = target.r(date) # target postion
         ro = self.r(date)   # observer position
@@ -265,9 +231,7 @@ class SolarSysObject(object):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.  Use `None` for now.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -276,180 +240,11 @@ class SolarSysObject(object):
 
         """
 
-        from ..util import state2orbit
+        from ..util import state2orbit, date2time
         r = self.r(date)
         v = self.v(date)
-        jd = self._date2time(date).jd
+        jd = date2time(date).jd
         return state2orbit(r, v)
-
-class SpiceObject(SolarSysObject):
-    """A moving object saved in a SPICE planetary ephemeris kernel.
-
-    Parameters
-    ----------
-    obj : string or int
-      The object's name or NAIF ID, as found in the relevant SPICE
-      kernel.
-    kernel : string, optional
-      The name of a specific SPICE planetary ephemeris kernel (SPK) to
-      use for this object, or `None` to automatically search for a
-      kernel through `find_kernel`.
-
-    Methods
-    -------
-    observe : Distance, phase angle, etc. to another object.
-    r : Position vector
-    v : Velocity vector
-
-    """
-
-    def __init__(self, obj, kernel=None):
-        from . import core
-
-        if not core._spice_setup:
-            core._setup_spice()
-
-        if kernel is None:
-            kernel = find_kernel(obj)
-        load_kernel(kernel)
-        self.kernel = kernel
-
-        if isinstance(obj, int):
-            obj = str(obj)
-        naifid = spice.bods2c(obj)
-        if naifid is None:
-            raise ObjectError(("NAIF ID of {} cannot be found"
-                               " in kernel {}.").format(obj, kernel))
-        self.obj = obj
-        self.naifid = naifid
-
-    def r(self, date):
-        """Position vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
-
-        Returns
-        -------
-        r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
-       
-        """
-
-        if isinstance(date, (list, tuple, np.ndarray)):
-            return np.array([self.r(d) for d in date])
-        if isinstance(date, Time) and len(date) > 1:
-            return np.array([self.r(d) for d in date])
-
-        et = date2et(date)
-
-        # no light corrections, sun = 10
-        state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[:3])
-
-    def v(self, date):
-        """Velocity vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
-
-        Returns
-        -------
-        v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
-       
-        """
-        if isinstance(date, (list, tuple, np.ndarray)):
-            return np.array([self.v(d) for d in date])
-        if isinstance(date, Time) and len(date) > 1:
-            return np.array([self.v(d) for d in date])
-
-        et = date2et(date)
-
-        # no light corrections, sun = 10
-        state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[3:])
-
-class FixedObject(SolarSysObject):
-    """A fixed point in space.
-
-    Parameters
-    ----------
-    xyz : 3-element array
-      The heliocentric rectangular ecliptic coordinates of the
-      point. [km]
-
-    Methods
-    -------
-    observe : Distance, phase angle, etc. to another object.
-    r : Position vector
-    v : Velocity vector
-
-    Raises
-    ------
-    ValueError if xyz.shape != (3,).
-
-    """
-
-    def __init__(self, xyz):
-        self.xyz = np.array(xyz)
-        if self.xyz.shape != (3,):
-            raise ValueError("xyz must be a 3-element vector.")
-
-    def r(self, date=None):
-        """Position vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array, optional
-          Mosty ignored, since the position is fixed, but if an array,
-          then r will be an array of positions.
-
-        Returns
-        -------
-        r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
-       
-        """
-
-        if (isinstance(date, (list, tuple, np.ndarray))
-            or (isinstance(date, Time) and len(date) > 1)):
-            N = len(date)
-            return np.tile(self.xyz, N).reshape(N, 3)
-        else:
-            return self.xyz
-
-    def v(self, date=None):
-        """Velocity vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array, optional
-          Mosty ignored, since the position is fixed, but if an array,
-          then r will be an array of positions.
-
-        Returns
-        -------
-        v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
-       
-        """
-
-        if (isinstance(date, (list, tuple, np.ndarray))
-            or (isinstance(date, Time) and len(date) > 1)):
-            shape = (len(date), 3)
-        else:
-            shape = (3,)
-
-        return np.zeros(shape)
 
 def getgeom(target, observer, date=None, ltt=False, kernel=None):
     """Moving target geometry parameters for an observer and date.
@@ -514,8 +309,7 @@ def getxyz(obj, date=None, kernel=None):
       The object's name or NAIF ID, as found in the relevant SPICE
       kernel.
     date : string, float, astropy Time, datetime, or array, optional
-      Strings are parsed with `util.cal2iso`.  Floats are assumed to
-      be Julian dates.
+      Processed via `util.date2time`.
     kernel : string, optional
       The name of a specific SPICE planetary ephemeris kernel (SPK) to
       use for this object, or `None` to automatically search for a
