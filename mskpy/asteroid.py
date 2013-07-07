@@ -97,7 +97,7 @@ class Asteroid(SolarSysObject):
         self.thermal.D = d
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
-              ltt=False, unit=u.Unit('W / (m2 um)')):
+              ltt=False, unit=u.Unit('W / (m2 um)'), **kwargs):
         """Total flux density as seen by an observer.
 
         Parameters

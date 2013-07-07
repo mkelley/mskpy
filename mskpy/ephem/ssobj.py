@@ -193,7 +193,7 @@ class SolarSysObject(object):
         return eph
 
     def fluxd(self, observer, date, wave, ltt=False,
-              unit=u.Unit('W / (m2 um)')):
+              unit=u.Unit('W / (m2 um)'), **kwargs):
         """Total flux density as seen by an observer.
 
         Parameters

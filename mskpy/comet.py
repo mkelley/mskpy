@@ -88,7 +88,7 @@ class Coma(SolarSysObject):
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, ltt=False,
-              unit=u.Unit('W / (m2 um)')):
+              unit=u.Unit('W / (m2 um)'), **kwargs):
         """Total flux density as seen by an observer.
 
         Parameters
@@ -237,7 +237,7 @@ class Comet(SolarSysObject):
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, nucleus=True, coma=True,
-              ltt=False, unit=u.Unit('W / (m2 um)')):
+              ltt=False, unit=u.Unit('W / (m2 um)'), **kwargs):
         """Total flux density as seen by an observer.
 
         Parameters
