@@ -119,10 +119,10 @@ class Coma(SolarSysObject):
 
         """
 
-        assert isinstance(observer, SolarSysObject)
-        assert isinstance(wave, u.Quantity)
+        if not np.iterable(wave):
+            wave = [wave.value] * wave.unit
 
-        fluxd = np.zeros(np.size(wave.value)) * unit
+        fluxd = np.zeros(len(wave)) * unit
         if self.Afrho1.value <= 0:
             return fluxd
 
@@ -131,6 +131,7 @@ class Coma(SolarSysObject):
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
             fluxd += f * self.Afrho1.value * g['rh'].au**self.k
+
         if thermal:
             f = self.thermal.fluxd(g, wave, rap, unit=unit)
             fluxd += f * self.Afrho1.value * g['rh'].au**self.k
@@ -272,7 +273,6 @@ class Comet(SolarSysObject):
 
         """
 
-        assert isinstance(wave, u.Quantity)
         fluxd = np.zeros(np.size(wave.value)) * unit
 
         if nucleus:

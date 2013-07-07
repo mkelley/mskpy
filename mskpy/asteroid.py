@@ -125,9 +125,6 @@ class Asteroid(SolarSysObject):
 
         """
 
-        assert isinstance(observer, SolarSysObject), "observer must be a SolarSysObject"
-        assert isinstance(wave, u.Quantity), "wave must be a Quantity"
-
         fluxd = np.zeros(np.size(wave.value)) * unit
         if self.D.value <= 0:
             return fluxd

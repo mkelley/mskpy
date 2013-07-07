@@ -15,12 +15,7 @@ ssobj --- Solar System objects.
 
 """
 
-__all__ = [
-    'SolarSysObject',
-    'getgeom',
-    'getxyz',
-    'summarizegeom',
-]
+from __future__ import print_function
 
 import numpy as np
 import astropy.units as u
@@ -28,6 +23,13 @@ from astropy.time import Time
 
 from . import core
 from .state import State
+
+__all__ = [
+    'SolarSysObject',
+    'getgeom',
+    'getxyz',
+    'summarizegeom',
+]
 
 class SolarSysObject(object):
     """A star, planet, comet, etc. in the Solar System.
@@ -250,7 +252,7 @@ class SolarSysObject(object):
         """
 
         from astropy.table import Column
-        
+
         lc = observer.ephemeris(self, dates, **kwargs)
         if 'date' not in lc.columns:
             raise KeyError("Ephemeris must return a date column."
@@ -261,9 +263,13 @@ class SolarSysObject(object):
 
         fluxd = np.zeros((len(lc), np.size(wave)))
         for i, d in enumerate(lc['date']):
+            print('3.1')
             f = self.fluxd(observer, d, wave, **kwargs)
+            print('3.2')
             fluxd[i] = f.value
+            print('3.3')
             units = f.unit
+            print('3.4')
 
         cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
         units = str(units)
@@ -271,7 +277,6 @@ class SolarSysObject(object):
             lc.add_column(Column(data=fluxd[:, i],
                                  name="f{:.1f}".format(wave.value[i]),
                                  format=cf, units=units))
-
         return lc
 
     def observe(self, target, date, ltt=False):

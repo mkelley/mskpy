@@ -213,7 +213,7 @@ class AfrhoThermal(AfrhoRadiation):
         q = phase_integral(self.phasef)
         A0 = self.phasef(geom['phase'].degree) / q * self.A
 
-        T = self.Tscale * 278 / np.sqrt(geom['rh'].au) * u.K
+        T = self.Tscale * 278 / np.sqrt(geom['rh'].au)
         B = planck(wave, T, unit=unit / u.sr).value
 
         fluxd = ((1 - self.A) / A0 * np.pi * B * rho.centimeter
