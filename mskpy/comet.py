@@ -272,14 +272,15 @@ class Comet(SolarSysObject):
 
         """
 
-        fluxd = np.zeros(len(wave)) * unit
+        assert isinstance(wave, u.Quantity)
+        fluxd = np.zeros(np.size(wave.value)) * unit
 
         if nucleus:
             fluxd += self.nucleus.fluxd(observer, date, wave,
                                         reflected=reflected,
                                         thermal=thermal, unit=unit)
         if coma:
-            fluxd += self.coma.fluxd(observer, date, wave, rap,
+            fluxd += self.coma.fluxd(observer, date, wave, rap=rap,
                                      reflected=reflected,
                                      thermal=thermal, unit=unit)
 
