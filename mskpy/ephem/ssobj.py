@@ -220,7 +220,7 @@ class SolarSysObject(object):
         """
         raise NotImplemented('This class has not implemented fluxd.')
 
-    def lightcurve(self, observer, dates, wave, **kwargs):
+    def lightcurve(self, observer, dates, wave, verbose=True, **kwargs):
         """An ephemeris table with fluxes.
 
         Parameters
@@ -232,6 +232,8 @@ class SolarSysObject(object):
           `SolarSysObservable.ephemeris`.
         wave : Quantity
           The wavelengths at which to compute `fluxd`.
+        verbose : bool, optional
+          If `True`, give some visual feedback.
         **kwargs
           Additional `fluxd` and `ephemeris` keywords.
 
@@ -261,11 +263,19 @@ class SolarSysObject(object):
         if not np.iterable(wave):
             wave = [wave.value] * wave.unit
 
-        fluxd = np.zeros((len(lc), np.size(wave)))
+        if verbose:
+            print('Computing date:')
+
+        fluxd = np.zeros((len(lc), len(wave)))
         for i, d in enumerate(lc['date']):
+            if verbose:
+                print(d)
             f = self.fluxd(observer, d, wave, **kwargs)
             fluxd[i] = f.value
             units = f.unit
+
+        if verbose:
+            print()
 
         cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
         units = str(units)
