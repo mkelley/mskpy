@@ -70,3 +70,13 @@ class TestEphemSolarSysObject():
 
     def test_orbit(self):
         print(ephem.Earth.orbit('2000-1-1'))
+
+class TestGeom():
+    def test_geom_summary(self):
+        g = ephem.Earth.observe(ephem.Mars, '2000-1-1')
+        g.summary()
+
+    def test_geom_reduce(self):
+        dates =  ['2000-1-1', '2005-1-1', '2010-1-1']
+        g = ephem.Earth.observe(ephem.Mars, dates)
+        g.summary()
