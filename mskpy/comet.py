@@ -57,12 +57,14 @@ class Coma(SolarSysObject):
 
         if isinstance(reflected, AfrhoRadiation):
             self.reflected = reflected
+            self.reflected.Afrho = self.Afrho1
         else:
             self.reflected = AfrhoScattered(
                 1 * self.Afrho1.unit, **reflected)
 
         if isinstance(thermal, AfrhoRadiation):
             self.thermal = thermal
+            self.thermal.Afrho = self.Afrho1
         else:
             self.thermal = AfrhoThermal(
                 1 * self.Afrho1.unit, **thermal)
@@ -132,7 +134,7 @@ class Comet(SolarSysObject):
       nucleus, afterall.
     coma : dict or Coma
       The coma of the comet as a `Coma` instance or a dictionary of
-      keywords to initialize a new `Coma`, including `Afrho`.
+      keywords to initialize a new `Coma`, including `Afrho1`.
 
     Attributes
     ----------
