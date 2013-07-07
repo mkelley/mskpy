@@ -263,13 +263,9 @@ class SolarSysObject(object):
 
         fluxd = np.zeros((len(lc), np.size(wave)))
         for i, d in enumerate(lc['date']):
-            print('3.1')
             f = self.fluxd(observer, d, wave, **kwargs)
-            print('3.2')
             fluxd[i] = f.value
-            print('3.3')
             units = f.unit
-            print('3.4')
 
         cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
         units = str(units)
