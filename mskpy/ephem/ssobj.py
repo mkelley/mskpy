@@ -40,6 +40,8 @@ class SolarSysObject(object):
     Methods
     -------
     ephemeris : Ephemeris for a target.
+    fluxd : Total flux density as seen by an observer.
+    lightcurve : An ephemeris table with fluxes.
     observe : Distance, phase angle, etc. to another object.
     orbit : Osculating orbital parameters at date.
     r : Position vector
@@ -47,7 +49,7 @@ class SolarSysObject(object):
 
     Notes
     -----
-    Inheriting classes should override ...
+    Inheriting classes should override `fluxd`.
 
     """
 
@@ -88,7 +90,7 @@ class SolarSysObject(object):
         return self.state.v(date)
 
     def ephemeris(self, target, dates, num=None, columns=None,
-                  cformats=None, date_format=None, ltt=False):
+                  cformats=None, date_format=None, ltt=False, **kwargs):
         """Ephemeris for a target.
 
         Parameters
@@ -107,9 +109,8 @@ class SolarSysObject(object):
           A list of `Geom` keywords to use as table columns, or `None`
           for the default list.
         cformats : dict or list, optional
-          A list of format strings or functions with which to convert
-          the columns into strings, or a dictionary of formats with
-          keys corresponding with `columns`.
+          A dictionary of formats with keys corresponding to
+          `columns`.
         date_format : function
           A function to format the `date` column before creating the
           table.
@@ -142,6 +143,8 @@ class SolarSysObject(object):
                 time = []
                 for i in xrange(num):
                     time += [dates[0] + step * i]
+        else:
+            time = dates
 
         g = self.observe(target, time, ltt=ltt)
 
@@ -149,17 +152,22 @@ class SolarSysObject(object):
             columns = ['date', 'ra', 'dec', 'rh', 'delta', 'phase', 'selong']
 
         if cformats is None:
-            cformats = dict(
-                date = '{:s}',
-                ra = lambda x: dh2hms(x / 15.0)[:-7],
-                dec = lambda x: dh2hms(x)[:-7],
-                lam = '{:.0f}',
-                bet = '{:+.0f}',
-                rh = '{:.3f}',
-                delta = '{:.3f}',
-                phase = '{:.0f}',
-                selong = '{:.0f}',
-                lelong = '{:.0f}')
+            cformats = dict()
+
+        _cformats = dict(
+            date = '{:s}',
+            ra = lambda x: dh2hms(x / 15.0)[:-7],
+            dec = lambda x: dh2hms(x)[:-7],
+            lam = '{:.0f}',
+            bet = '{:+.0f}',
+            rh = '{:.3f}',
+            delta = '{:.3f}',
+            phase = '{:.0f}',
+            selong = '{:.0f}',
+            lelong = '{:.0f}')
+
+        for k, v in cformats:
+            _cformats[k] = v
 
         if date_format is None:
             date_format = lambda d: d.iso[:-7]
@@ -175,14 +183,93 @@ class SolarSysObject(object):
             else:
                 data = g[c].value
 
-            if c in cformats:
-                cf = cformats[c]
+            if c in _cformats:
+                cf = _cformats[c]
             else:
                 cf = None
 
             eph.add_column(Column(data=data, name=c, format=cf))
 
         return eph
+
+    def fluxd(self, observer, date, wave, ltt=False,
+              unit=u.Unit('W / (m2 um)')):
+        """Total flux density as seen by an observer.
+
+        Parameters
+        ----------
+        observer : SolarSysObject
+          The observer.
+        date : string, float, astropy Time, datetime
+          The time of the observation in any format acceptable to
+          `observer`.
+        wave : Quantity
+          The wavelengths at which to compute `fluxd`.
+        ltt : bool, optional
+          Set to `True` to correct the object's position for light
+          travel time.
+        unit : astropy Unit
+          The return unit, must be flux density.
+        
+        Returns
+        -------
+        fluxd : Quantity
+
+        """
+        raise NotImplemented('This class has not implemented fluxd.')
+
+    def lightcurve(self, observer, dates, wave, **kwargs):
+        """An ephemeris table with fluxes.
+
+        Parameters
+        ----------
+        observer : SolarSysObject
+          The observer.
+        dates : string, float, astropy Time, datetime
+          The dates of the observation in any format acceptable to
+          `SolarSysObservable.ephemeris`.
+        wave : Quantity
+          The wavelengths at which to compute `fluxd`.
+        **kwargs
+          Additional `fluxd` and `ephemeris` keywords.
+
+        Returns
+        -------
+        lc : astropy Table
+
+        Notes
+        -----
+        `date` must be in the table returned by `ephemeris`.
+
+        The flux density columns will be labeled with their
+        wavelengths using a precision of 1, e.g., 'f3.6'.
+
+        The `cformat` keyword `fluxd` will be used to format all flux
+        density columns.
+
+        """
+
+        from astropy.table import Column
+
+        lc = observer.ephemeris(self, dates, **kwargs)
+        if 'date' not in lc.columns:
+            raise KeyError("Ephemeris must return a date column."
+                           "  Update columns.")
+
+        fluxd = np.zeros((len(lc), np.size(wave)))
+        for i, d in enumerate(lc['date']):
+            f = self.fluxd(observer, d, wave, **kwargs)
+            fluxd[i] = f.value
+            units = f.unit
+
+        cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
+        units = str(units)
+        for i in range(fluxd.shape[1]):
+            lc.add_column(Column(data=fluxd[:, i],
+                                 name="f{:.1f}".format(wave.value[i]),
+                                 format=cf, units=units))
+
+        return lc
 
     def observe(self, target, date, ltt=False):
         """Distance, phase angle, etc. to another object.
