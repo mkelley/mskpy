@@ -2380,6 +2380,7 @@ def spectral_density_sb(s):
     """
 
     import astropy.constants as const
+    import astropy.units as u
 
     c_Aps = const.c.si.value * 10**10
 
