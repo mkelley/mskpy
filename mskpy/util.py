@@ -2394,6 +2394,48 @@ def asValue(x, unit_in, unit_out):
 
     return y
 
+def autodoc(glbs, width=15, truncate=True):
+    """Update a module's docstring with a summary of its functions.
+
+    The docstring of the module is searched for the names of functions
+    and classes (one per line), which are appended with their one-line
+    summaries.
+
+    Parameters
+    ----------
+    glbs : dict
+      The `globals` dictionary from a module.  __doc__ will be
+      updated.
+    width : int, optional
+      The width of the function table cell.
+    truncate : bool, optional
+      If `True`, truncate the newly generated lines at 80 characters.
+
+    """
+
+    try:
+        docstring = glbs['__doc__'].splitlines()
+    except AttributeError:
+        return
+
+    newdoc = ""
+    for i in xrange(len(docstring)):
+        s = docstring[i]
+        x = s.strip()
+        if x in glbs:
+            if callable(glbs[x]):
+                try:
+                    topline = glbs[x].__doc__.splitlines()[0].strip()
+                    summary = "{:{width}s} - {:}".format(
+                        x, topline, width=width)
+                    s = s.replace(x, summary)
+                    if truncate:
+                        s = s[:80]
+                except AttributeError:
+                    pass
+        newdoc += s + "\n"
+
+    glbs['__doc__'] = newdoc
 
 def spectral_density_sb(s):
     """Equivalence pairs for spectra density surface brightness.
@@ -2455,49 +2497,6 @@ def spectral_density_sb(s):
         (fnu, nufnu, converter_fnu_nufnu, iconverter_fnu_nufnu),
         (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
     ]
-
-def autodoc(glbs, width=15, truncate=True):
-    """Update a module's docstring with a summary of its functions.
-
-    The docstring of the module is searched for the names of functions
-    and classes (one per line), which are appended with their one-line
-    summaries.
-
-    Parameters
-    ----------
-    glbs : dict
-      The `globals` dictionary from a module.  __doc__ will be
-      updated.
-    width : int, optional
-      The width of the function table cell.
-    truncate : bool, optional
-      If `True`, truncate the newly generated lines at 80 characters.
-
-    """
-
-    try:
-        docstring = glbs['__doc__'].splitlines()
-    except AttributeError:
-        return
-
-    newdoc = ""
-    for i in xrange(len(docstring)):
-        s = docstring[i]
-        x = s.strip()
-        if x in glbs:
-            if callable(glbs[x]):
-                try:
-                    topline = glbs[x].__doc__.splitlines()[0].strip()
-                    summary = "{:{width}s} - {:}".format(
-                        x, topline, width=width)
-                    s = s.replace(x, summary)
-                    if truncate:
-                        s = s[:80]
-                except AttributeError:
-                    pass
-        newdoc += s + "\n"
-
-    glbs['__doc__'] = newdoc
 
 # summarize the module
 autodoc(globals())
