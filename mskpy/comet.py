@@ -23,7 +23,7 @@ import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObject
+from .ephem import SolarSysObject, State
 from .asteroid import Asteroid
 from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
 
@@ -32,8 +32,8 @@ class Coma(SolarSysObject):
 
     Parameters
     ----------
-    obj : SolarSysObject
-      The location of the coma as a `SolarSysObject`.
+    state : State
+      The location of the coma.
     Afrho1 : Quantity
       Afrho of the coma at 1 AU.
     k : float, optional
@@ -45,17 +45,13 @@ class Coma(SolarSysObject):
     thermal : dict or AfrhoRadiation, optional
       A model for thermal emission from dust or a dictionary of
       keywords to pass to `AfrhoThermal`.
-    kernel : string, optional
-      The name of an ephemeris kernel in which to find the ephemeris
-      for `obj`.
 
     """
-    def __init__(self, obj, Afrho1, k=-2, reflected=dict(), thermal=dict(),
-                 kernel=None):
-        assert isinstance(obj, SolarSysObject), "obj must be a SolarSysObject"
+    def __init__(self, state, Afrho1, k=-2, reflected=dict(), thermal=dict()):
+        assert isinstance(state, State), "state must be a State"
         assert isinstance(Afrho1, u.Quantity), "Afrho1 must be a Quantity"
 
-        self.obj = obj
+        self.state = state
         self.Afrho1 = Afrho1
         self.k = k
 
@@ -70,12 +66,6 @@ class Coma(SolarSysObject):
         else:
             self.thermal = AfrhoThermal(
                 1 * self.Afrho1.unit, **thermal)
-
-    def r(self, date):
-        return self.obj.r(date)
-
-    def v(self, date):
-        return self.obj.v(date)
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, ltt=False,
@@ -130,8 +120,8 @@ class Comet(SolarSysObject):
 
     Parameters
     ----------
-    obj : SolarSysObject
-      The location of the comet as a `SolarSysObject`.
+    state : State
+      The location of the comet.
     nucleus : dict or Asteroid
       The nucleus of the comet as an `Asteroid` instance, or a
       dictionary of keywords to initialize a new `Asteroid`, including
@@ -140,9 +130,6 @@ class Comet(SolarSysObject):
     coma : dict or Coma
       The coma of the comet as a `Coma` instance or a dictionary of
       keywords to initialize a new `Coma`, including `Afrho`.
-    kernel : string, optional
-      The name of an ephemeris kernel in which to find the ephemeris
-      for `obj`.
 
     Attributes
     ----------
@@ -158,10 +145,10 @@ class Comet(SolarSysObject):
     Create a comet with `Asteroid` and `Coma` objects.
 
     >>> import astropy.units as u
-    >>> from mskpy import Asteroid, Coma, Comet
+    >>> from mskpy import Asteroid, Coma, Comet, SpiceState
     >>> nucleus = Asteroid(0.6 * u.km, 0.04, eta=1.0, epsilon=0.95)
     >>> coma = Coma(302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-    >>> comet = Comet('hartley 2', nucleus=nucleus, coma=coma)
+    >>> comet = Comet(SpiceState('hartley 2'), nucleus=nucleus, coma=coma)
 
     Create a comet with keyword arguments.
 
@@ -169,13 +156,13 @@ class Comet(SolarSysObject):
     >>> from mskpy import Comet
     >>> nucleus = dict(R=0.6 * u.km, Ap=0.04, eta=1.0, epsilon=0.95)
     >>> coma = dict(Afrho1=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-    >>> comet = Comet('hartley 2', nucleus=nucleus, coma=coma)
+    >>> comet = Comet(SpiceState('hartley 2'), nucleus=nucleus, coma=coma)
 
     """
 
-    def __init__(self, obj, nucleus=dict(), coma=dict(), kernel=None):
-        assert isinstance(obj, SolarSysObject), "obj must be a SolarSysObject"
-        self.obj = obj
+    def __init__(self, state, nucleus=dict(), coma=dict()):
+        assert isinstance(state, State), "state must be a State."
+        self.state = state
 
         if isinstance(nucleus, dict):
             try:
@@ -192,12 +179,6 @@ class Comet(SolarSysObject):
             self.coma = Coma(self, Afrho1, **coma)
         else:
             self.coma = coma
-
-    def r(self, date):
-        return self.obj.r(date)
-
-    def v(self, date):
-        return self.obj.v(date)
 
     def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
               reflected=True, thermal=True, nucleus=True, coma=True,
