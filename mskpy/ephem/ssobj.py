@@ -5,19 +5,13 @@ ssobj --- Solar System objects.
 
    Classes
    -------
-   FixedObject
    SolarSysObject
-   SpiceObject
 
    Functions
    ---------
    getgeom
    getxyz
    summarizegeom
-
-   Exceptions
-   ----------
-   ObjectError
 
 """
 
@@ -31,14 +25,11 @@ __all__ = [
     'ObjectError'
 ]
 
-from datetime import datetime
-
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
-import spice
 
-from .core import date2et, find_kernel, load_kernel
+from . import core
 
 class ObjectError(Exception):
     pass
@@ -63,36 +54,13 @@ class SolarSysObject(object):
     def __init__(self):
         pass
 
-    def _date2time(self, date):
-        # reformat date as a Time object
-        from ..util import cal2time, jd2time
-
-        if date is None:
-            date = Time(datetime.now(), scale='utc', format='datetime')
-        elif isinstance(date, Time):
-            pass
-        elif isinstance(date, float):
-            date = jd2time(date)
-        elif isinstance(date, str):
-            date = cal2time(date)
-        elif isinstance(date, datetime):
-            date = Time(date, scale='utc')
-        elif isinstance(date, (list, tuple, np.ndarray)):
-            date = [self._date2time(d) for d in date]
-            date = Time(date)
-        else:
-            raise ValueError("Bad date: {} ({})".format(date, type(date)))
-        return date
-
     def r(self, date):
         """Position vector.
 
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -108,9 +76,7 @@ class SolarSysObject(object):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -162,9 +128,9 @@ class SolarSysObject(object):
 
         from astropy.table import Table, Column
         from astropy.units import Quantity
-        from ..util import dh2hms
+        from ..util import dh2hms, date2time
 
-        dates = self._date2time(dates)
+        dates = date2time(dates)
         if num is not None:
             if num <= 0:
                 time = []
@@ -225,9 +191,7 @@ class SolarSysObject(object):
         target : SolarSysObject
           The target to observe.
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.  Use `None` for now.
+          Processed via `util.date2time`.
         ltt : bool, optional
           Account for light travel time when `True`.
 
@@ -238,11 +202,12 @@ class SolarSysObject(object):
 
         """
 
-        from . import Geom
         from astropy.time import TimeDelta
         import astropy.constants as const
+        from . import Geom
+        from ..util import date2time
 
-        date = self._date2time(date)
+        date = date2time(date)
 
         rt = target.r(date) # target postion
         ro = self.r(date)   # observer position
@@ -265,9 +230,7 @@ class SolarSysObject(object):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.  Use `None` for now.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -276,10 +239,10 @@ class SolarSysObject(object):
 
         """
 
-        from ..util import state2orbit
+        from ..util import state2orbit, date2time
         r = self.r(date)
         v = self.v(date)
-        jd = self._date2time(date).jd
+        jd = date2time(date).jd
         return state2orbit(r, v)
 
 class SpiceObject(SolarSysObject):
@@ -304,14 +267,14 @@ class SpiceObject(SolarSysObject):
     """
 
     def __init__(self, obj, kernel=None):
-        from . import core
+        import spice
 
         if not core._spice_setup:
             core._setup_spice()
 
         if kernel is None:
-            kernel = find_kernel(obj)
-        load_kernel(kernel)
+            kernel = core.find_kernel(obj)
+        core.load_kernel(kernel)
         self.kernel = kernel
 
         if isinstance(obj, int):
@@ -329,9 +292,7 @@ class SpiceObject(SolarSysObject):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -340,12 +301,14 @@ class SpiceObject(SolarSysObject):
        
         """
 
+        import spice
+
         if isinstance(date, (list, tuple, np.ndarray)):
             return np.array([self.r(d) for d in date])
         if isinstance(date, Time) and len(date) > 1:
             return np.array([self.r(d) for d in date])
 
-        et = date2et(date)
+        et = core.date2et(date)
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
@@ -357,9 +320,7 @@ class SpiceObject(SolarSysObject):
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
-          Strings are parsed with `util.cal2iso`.  Floats are assumed
-          to be Julian dates.  All dates except instances of `Time`
-          are assumed to be UTC.
+          Processed via `util.date2time`.
 
         Returns
         -------
@@ -367,12 +328,15 @@ class SpiceObject(SolarSysObject):
           Velocity vector (3-element or Nx3 element array). [km/s]
        
         """
+
+        import spice
+
         if isinstance(date, (list, tuple, np.ndarray)):
             return np.array([self.v(d) for d in date])
         if isinstance(date, Time) and len(date) > 1:
             return np.array([self.v(d) for d in date])
 
-        et = date2et(date)
+        et = core.date2et(date)
 
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
@@ -514,8 +478,7 @@ def getxyz(obj, date=None, kernel=None):
       The object's name or NAIF ID, as found in the relevant SPICE
       kernel.
     date : string, float, astropy Time, datetime, or array, optional
-      Strings are parsed with `util.cal2iso`.  Floats are assumed to
-      be Julian dates.
+      Processed via `util.date2time`.
     kernel : string, optional
       The name of a specific SPICE planetary ephemeris kernel (SPK) to
       use for this object, or `None` to automatically search for a
