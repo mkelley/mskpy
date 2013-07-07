@@ -18,7 +18,6 @@ __all__ = [
     'Asteroid'
 ]
 
-
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
