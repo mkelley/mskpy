@@ -1099,7 +1099,7 @@ def state2orbit(R, V):
         P = None
     else:
         Tp = -M * np.sqrt(a**3 / mu) / 86400.0
-        P = 2.0 * pi * np.sqrt(a**3 / mu) / 86400.0  # orbital period [days]
+        P = 2.0 * np.pi * np.sqrt(a**3 / mu) / 86400.0  # orbital period [days]
 
     return dict(a=a, ec=ec, q=q, Tp=Tp, P=P, f=f, E=E, M=M)
 
