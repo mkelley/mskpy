@@ -22,7 +22,7 @@ import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObject
+from .ephem import SolarSysObject, State
 from .models import SurfaceRadiation, DAp, NEATM
 
 class Asteroid(SolarSysObject):
@@ -30,8 +30,8 @@ class Asteroid(SolarSysObject):
 
     Parameters
     ----------
-    obj : SolarSysObject
-      The location of the asteroid as a `SolarSysObject`.
+    state : State
+      The location of the asteroid.
     D : Quantity
       Diameter.
     Ap : float
@@ -42,9 +42,6 @@ class Asteroid(SolarSysObject):
     thermal : dict or SurfaceRadiation, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
-    kernel : string, optional
-      The name of an ephemeris kernel in which to find the ephemeris
-      for `obj`.
     **kwargs
       Additional keywords for the default `reflected` and `thermal`
       models.
@@ -55,9 +52,10 @@ class Asteroid(SolarSysObject):
 
     """
 
-    def __init__(self, obj, D, Ap, reflected=None, thermal=None,
-                 kernel=None, **kwargs):
-        self.obj = obj
+    def __init__(self, state, D, Ap, reflected=None, thermal=None, **kwargs):
+        assert isinstance(state, State), "state must be a State."
+        assert isinstance(D, u.Quantity), "D must be a Quantity."
+        self.state = state
         self.D = D
         self.Ap = Ap
 
@@ -74,12 +72,6 @@ class Asteroid(SolarSysObject):
             self.thermal = NEATM(self.D, self.Ap)
         else:
             self.thermal = NEATM(self.D, self.Ap, **thermal)
-
-    def r(self, date):
-        return self.obj.r(date)
-
-    def v(self, date):
-        return self.obj.v(date)
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)')):
@@ -110,11 +102,14 @@ class Asteroid(SolarSysObject):
 
         """
 
+        assert isinstance(observer, SolarSysObject), "observer must be a SolarSysObject"
+        assert isinstance(wave, u.Quantity), "wave must be a Quantity"
+
         fluxd = np.zeros(np.size(wave.value)) * unit
         if self.D.value <= 0:
             return fluxd
 
-        g = observer.observe(self.obj, date, ltt=ltt)
+        g = observer.observe(self, date, ltt=ltt)
 
         if reflected:
             fluxd += self.reflected.fluxd(g, wave, unit=unit)

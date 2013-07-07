@@ -103,8 +103,11 @@ class Coma(SolarSysObject):
         assert isinstance(observer, SolarSysObject), "observer must be a SolarSysObject"
         assert isinstance(wave, u.Quantity), "wave must be a Quantity"
 
+        fluxd = np.zeros(np.size(wave.value)) * unit
+        if self.Afrho1.value <= 0:
+            return fluxd
+
         g = observer.observe(self, date, ltt=ltt)
-        fluxd = np.zeros(np.size(wave)) * unit
 
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
@@ -146,14 +149,15 @@ class Comet(SolarSysObject):
 
     >>> import astropy.units as u
     >>> from mskpy import Asteroid, Coma, Comet, SpiceState
-    >>> nucleus = Asteroid(0.6 * u.km, 0.04, eta=1.0, epsilon=0.95)
-    >>> coma = Coma(302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
-    >>> comet = Comet(SpiceState('hartley 2'), nucleus=nucleus, coma=coma)
+    >>> state = SpiceState('hartley 2')
+    >>> nucleus = Asteroid(state, 0.6 * u.km, 0.04, eta=1.0, epsilon=0.95)
+    >>> coma = Coma(state, 302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
+    >>> comet = Comet(state, nucleus=nucleus, coma=coma)
 
     Create a comet with keyword arguments.
 
     >>> import astropy.units as u
-    >>> from mskpy import Comet
+    >>> from mskpy import Comet, SpiceState
     >>> nucleus = dict(R=0.6 * u.km, Ap=0.04, eta=1.0, epsilon=0.95)
     >>> coma = dict(Afrho1=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
     >>> comet = Comet(SpiceState('hartley 2'), nucleus=nucleus, coma=coma)

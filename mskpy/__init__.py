@@ -27,26 +27,18 @@ from . import util
 
 # the following block depends on PySPICE
 try:
+    import spice
+except ImportError:
+    spice = None
+
+if spice is not None:
     from . import ephem
     from . import asteroid
     from . import comet
 
-    from .ephem import Sun, Earth
+    from .ephem import *
     from comet import *
     from asteroid import *
-
-    try:
-        from .ephem import Spitzer
-    except ImportError:
-        pass
-
-    try:
-        from .ephem import DeepImpact
-    except ImportError:
-        pass
-
-except ImportError:
-    pass
 
 # depends on matplotlib
 try:

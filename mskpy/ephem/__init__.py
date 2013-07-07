@@ -78,7 +78,7 @@ Pluto = SolarSysObject(SpiceState('pluto', kernel='planets.bsp'))
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
                        uranus=Uranus, neptune=Neptune, pluto=Pluto)
-__all__.extend(_loaded_objects.keys())
+__all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em
 try:
