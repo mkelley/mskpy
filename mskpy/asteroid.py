@@ -23,10 +23,10 @@ import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObservable
+from .ephem import SolarSysObject
 from .models import SurfaceRadiation, DAp, NEATM
 
-class Asteroid(SolarSysObservable):
+class Asteroid(SolarSysObject):
     """An asteroid.
 
     Parameters

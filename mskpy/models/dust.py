@@ -82,7 +82,7 @@ class AfrhoScattered(AfrhoRadiation):
     """
 
     def __init__(self, Afrho, phasef=None):
-        self.D = Afrho
+        self.Afrho = Afrho
         if phasef is None:
             self.phasef = phaseK
         else:
@@ -126,7 +126,7 @@ class AfrhoScattered(AfrhoRadiation):
             raise ValueError("rap must have angular or length units.")
 
         fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
-        fluxd = (self.Afrho * phasef(np.abs(geom['phase'].degree)) / 
+        fluxd = (self.Afrho * self.phasef(np.abs(geom['phase'].degree)) / 
                  4.0 / geom['delta'].to(self.Afrho.unit)**2 * rho * fsun)
 
         return fluxd
@@ -164,7 +164,7 @@ class AfrhoThermal(AfrhoRadiation):
     """
 
     def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1):
-        self.D = Afrho
+        self.Afrho = Afrho
         if phasef is None:
             self.phasef = phaseK
         else:
@@ -200,7 +200,7 @@ class AfrhoThermal(AfrhoRadiation):
 
         """
 
-        from ..util import phase_integal, planck
+        from ..util import phase_integral, planck
 
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
@@ -210,10 +210,10 @@ class AfrhoThermal(AfrhoRadiation):
             raise ValueError("rap must have angular or length units.")
 
         # A0 = A(phase=0)
-        q = phase_integral(phasef)
+        q = phase_integral(self.phasef)
         A0 = self.phasef(geom['phase'].degree) / q * self.A
 
-        T = self.Tscale * 278 / np.sqrt(g['rh'].au) * u.K
+        T = self.Tscale * 278 / np.sqrt(geom['rh'].au) * u.K
         B = planck(wave, T, unit=unit / u.sr).value
 
         fluxd = ((1 - self.A) / A0 * np.pi * B * rho.centimeter

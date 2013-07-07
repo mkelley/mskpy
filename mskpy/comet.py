@@ -23,19 +23,22 @@ import numpy as np
 import astropy.units as u
 from astropy.time import Time
 
-from .ephem import SolarSysObservable
+from .ephem import SolarSysObject
 from .asteroid import Asteroid
 from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
 
-class Coma(SolarSysObservable):
+class Coma(SolarSysObject):
     """A comet coma.
 
     Parameters
     ----------
     obj : SolarSysObject
       The location of the coma as a `SolarSysObject`.
-    Afrho : Quantity
-      Afrho of the coma.
+    Afrho1 : Quantity
+      Afrho of the coma at 1 AU.
+    k : float, optional
+      The logarithmic slope of the dust production rate's dependence
+      on rh.
     reflected : dict or AfrhoRadiation, optional
       A model for light scattered by dust or a dictionary of keywords
       to pass to `AfrhoScattered`.
@@ -47,22 +50,26 @@ class Coma(SolarSysObservable):
       for `obj`.
 
     """
-    def __init__(self, obj, Afrho, reflected=dict(), thermal=dict(),
+    def __init__(self, obj, Afrho1, k=-2, reflected=dict(), thermal=dict(),
                  kernel=None):
+        assert isinstance(obj, SolarSysObject), "obj must be a SolarSysObject"
+        assert isinstance(Afrho1, u.Quantity), "Afrho1 must be a Quantity"
+
         self.obj = obj
-        self.Afrho = Afrho
+        self.Afrho1 = Afrho1
+        self.k = k
 
         if isinstance(reflected, AfrhoRadiation):
             self.reflected = reflected
         else:
             self.reflected = AfrhoScattered(
-                1 * self.Afrho.unit, **reflected)
+                1 * self.Afrho1.unit, **reflected)
 
         if isinstance(thermal, AfrhoRadiation):
             self.thermal = thermal
         else:
             self.thermal = AfrhoThermal(
-                1 * self.Afrho.unit, self.Afrho, **thermal)
+                1 * self.Afrho1.unit, **thermal)
 
     def r(self, date):
         return self.obj.r(date)
@@ -70,8 +77,9 @@ class Coma(SolarSysObservable):
     def v(self, date):
         return self.obj.v(date)
 
-    def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
-              ltt=False, unit=u.Unit('W / (m2 um)')):
+    def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
+              reflected=True, thermal=True, ltt=False,
+              unit=u.Unit('W / (m2 um)')):
         """Total flux density as seen by an observer.
 
         Parameters
@@ -83,7 +91,7 @@ class Coma(SolarSysObservable):
           `observer`.
         wave : Quantity
           The wavelengths to compute `fluxd`.
-        rap : Quantity
+        rap : Quantity, optional
           The aperture radius, angular or projected distance at the
           comet.
         reflected : bool, optional
@@ -102,19 +110,22 @@ class Coma(SolarSysObservable):
 
         """
 
+        assert isinstance(observer, SolarSysObject), "observer must be a SolarSysObject"
+        assert isinstance(wave, u.Quantity), "wave must be a Quantity"
+
         g = observer.observe(self, date, ltt=ltt)
-        fluxd = np.zeros(len(wave)) * unit
+        fluxd = np.zeros(np.size(wave)) * unit
 
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho
+            fluxd += f * self.Afrho1.value * g['rh'].au**self.k
         if thermal:
             f = self.thermal.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho
+            fluxd += f * self.Afrho1.value * g['rh'].au**self.k
 
         return fluxd
 
-class Comet(SolarSysObservable):
+class Comet(SolarSysObject):
     """A comet.
 
     Parameters
@@ -157,12 +168,13 @@ class Comet(SolarSysObservable):
     >>> import astropy.units as u
     >>> from mskpy import Comet
     >>> nucleus = dict(R=0.6 * u.km, Ap=0.04, eta=1.0, epsilon=0.95)
-    >>> coma = dict(Afrho=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
+    >>> coma = dict(Afrho1=302 * u.cm, S=0.0, A=0.37, Tscale=1.18)
     >>> comet = Comet('hartley 2', nucleus=nucleus, coma=coma)
 
     """
 
     def __init__(self, obj, nucleus=dict(), coma=dict(), kernel=None):
+        assert isinstance(obj, SolarSysObject), "obj must be a SolarSysObject"
         self.obj = obj
 
         if isinstance(nucleus, dict):
@@ -176,8 +188,8 @@ class Comet(SolarSysObservable):
             self.nucleus = nucleus
 
         if isinstance(coma, dict):
-            Afrho = nucleus.pop('Afrho')
-            self.coma = Coma(self, Afrho, **coma)
+            Afrho1 = nucleus.pop('Afrho1')
+            self.coma = Coma(self, Afrho1, **coma)
         else:
             self.coma = coma
 
@@ -187,8 +199,9 @@ class Comet(SolarSysObservable):
     def v(self, date):
         return self.obj.v(date)
 
-    def fluxd(self, observer, date, wave, rap, reflected=True, thermal=True,
-              nucleus=True, coma=True, ltt=False, unit=u.Unit('W / (m2 um)')):
+    def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
+              reflected=True, thermal=True, nucleus=True, coma=True,
+              ltt=False, unit=u.Unit('W / (m2 um)')):
         """Total flux density as seen by an observer.
 
         Parameters
@@ -200,7 +213,7 @@ class Comet(SolarSysObservable):
           `observer`.
         wave : Quantity
           The wavelengths to compute `fluxd`.
-        rap : Quantity
+        rap : Quantity, optional
           The aperture radius, angular or projected distance at the
           comet.
         reflected : bool, optional
