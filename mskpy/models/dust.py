@@ -50,8 +50,8 @@ class AfrhoRadiation(object):
     functions.  `__init__` should take a single argument, `Afrho`, as
     a Quantity.
 
-    As much as possible, share the same keyword arguments between
-    reflected and thermal models.
+    As much as possible, keyword arguments must have the same meaning
+    in all derived models.
 
     """
 
