@@ -584,10 +584,11 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     n, f = anphot(im, yx, rap, subsample=subsample)
     r = core.rarray(im.shape, yx=yx, subsample=10)
-    r = anphot(r, yx, rap, subsample=subsample)[0]
+    r = anphot(r, yx, rap, subsample=subsample)[1]
 
     i = n != 0
     f[i] = f[i] / n[i]
+    r[i] = r[i] / n[i]
     return r, f, n
 
 def trace(im, err, guess):
