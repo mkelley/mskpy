@@ -584,7 +584,7 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     n, f = anphot(im, yx, rap, subsample=subsample)
     r = core.rarray(im.shape, yx=yx, subsample=10)
-    r = anphot(r, yx, rap, subsample=subsample)
+    r = anphot(r, yx, rap, subsample=subsample)[0]
 
     i = n != 0
     f[i] = f[i] / n[i]
