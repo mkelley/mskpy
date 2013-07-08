@@ -121,7 +121,7 @@ class AfrhoScattered(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = rap.radian * geom['delta'].to(self.Afrho.unit)
+            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
         else:
             raise ValueError("rap must have angular or length units.")
 
@@ -205,7 +205,7 @@ class AfrhoThermal(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = rap.radian * geom['delta'].to(self.Afrho.unit)
+            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
         else:
             raise ValueError("rap must have angular or length units.")
 
