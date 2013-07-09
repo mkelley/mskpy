@@ -28,7 +28,7 @@ if __name__ == "__main__":
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/mskpy",
           packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
-                    'mskpy.ephem'],
+                    'mskpy.ephem', 'mskpy.instruments'],
           data_files=files,
           requires=['numpy', 'scipy', 'astropy'],
           install_requires=['numpy'],
