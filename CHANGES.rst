@@ -4,15 +4,25 @@
 New Features
 ^^^^^^^^^^^^
 
-- `ephem.SpiceObject` for your SPICE ephemeris needs, and a set of
-  default objects, e.g., `Sun`, `Earth`, `Spitzer` (if the kernels are
-  available).
+- New `ephem` module.
+
+  - `SolarSysObject` for object ephemerides and, possibly, flux
+    estimates.
+
+  - `SpiceState` to retrieve positions and velocities from SPICE
+  kernels.  `ephem` includes a set of default `SolarSysObject`s, e.g.,
+  `Sun`, `Earth`, `Spitzer` (if the kernels are available).
+
+- `comet` and `asteroid` modules define the `Asteroid`, `Coma`, and
+  `Comet` `SolarSysObject`s for flux estimates of comets and
+  asteroids.
 
 - `Geom` is completely rewritten, and should be much more useful.
 
 - `models` module, including `surfaces` and `dust`.
 
-  - `NEATM` and `DAp` for thermal and reflected light from surfaces.
+  - `NEATM`, `DAp`, and `HG` for thermal and reflected light from
+    surfaces.
 
   - `AfrhoScattered` and `AfrhoThermal` for comet comae described with
     the Afrho parameter.
@@ -34,6 +44,10 @@ New Features
 
   - `cal2time` and `jd2time` to lazily generate `astropy.time.Time`
     objects.
+
+- New `instruments` module.  It can currently be used to estimate
+  fluxes from comets and asteroids, but may have other uses in the
+  future.  Includes `midir` sub-module with `MIRSI`.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -59,6 +73,11 @@ Changes From mskpy v1.7.0
   - Rather than returning ndarrays, `takefrom` now returns lists,
     tuples, etc., based on the input arrays' type.
 
+  - `spectral_density_sb` for `astropy.unit` surface brightness
+    conversions.
+
+  - `autodoc` to automatically update a module's docstring.
+
 - `calib`:
 
   - `cohenstandard` renamed `cohen_standard`.
@@ -82,7 +101,7 @@ Changes From mskpy v1.7.0
 - `time` functions moved into `util`:
 
   - `date2X`, `jd2dt`, `s2dt`, `s2jd` removed in favor of `cal2time`,
-    or `jd2time`.
+    `jd2time`, or `date2time`.
 
   - `jd2dt` removed in favor of `jd2time`.
 
@@ -108,6 +127,8 @@ Changes From mskpy v1.7.0
     int so the exact subsampling factor can be specified.
 
   - Re-write `azavg` and `radprof` to use `anphot`.
+
+  - New `gcentroid`.
 
   - `bgfit` arguments renamed.  Only 2D uncertainty maps are allowed.
 
