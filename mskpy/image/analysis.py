@@ -12,6 +12,7 @@ image.analysis --- Analyze (astronomical) images.
    azavg
    bgfit
    centroid
+   gcentroid
    imstat
    linecut
    polyfit2d
@@ -35,6 +36,7 @@ __all__ = [
     'azavg',
     'bgfit',
     'centroid',
+    'gcentroid',
     'imstat',
     'linecut',
     'polyfit2d',
@@ -339,6 +341,99 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     return cyx
 
+def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
+    """Centroid (x-/y-cut Gaussian fit) of an image.
+
+    Parameters
+    ----------
+    im : ndarray
+      A 2D image on which to centroid.
+    yx : float array, optional
+      `(y, x)` guess for the centroid.  The default guess is the image
+      peak.
+    box : array, optional
+      Specify the size of the box over which to compute the centroid.
+      This may be an integer, or an array (width, height).  The
+      default is to use the whole image.
+    niter : int, optional
+      When box is not None, iterate niter times.
+    shrink : bool, optional
+      When iterating, decrease the box size by sqrt(2) each time.
+    silent : bool, optional
+      Suppress any print commands.
+
+    Returns
+    -------
+    cyx : ndarray
+      The computed center.  The lower-left corner of a pixel is -0.5,
+      -0.5.
+
+    """
+
+    from astropy.modeling import models, fitting
+
+    if yx is None:
+        yx = np.unravel_index(np.nanargmax(im), im.shape)
+
+    # the array index location of yx
+    iyx = np.round(yx).astype(int)
+
+    if box is None:
+        box = np.array((im.shape[0], im.shape[1]))
+    elif np.size(box) == 1:
+        box = np.array((box, box)).reshape((2,))
+    else:
+        box = np.array(box)
+
+    halfbox = np.round(box / 2).astype(int)
+
+    g = models.Gaussian1DModel(1, stddev=3, mean=yx[0])
+    gfit = fitting.NonLinearLSQFitter(g)
+    cyx = np.zeros(2)  # return variable
+    
+    if halfbox[0] > 0:
+        yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
+        xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
+        ap = (slice(*yr), slice(*xr))
+        y = np.arange(*yr)
+        f = np.sum(im[ap], 1)
+        gfit(y, f)
+
+    cyx[0] = g.mean[0]
+
+    g.mean = yx[1]
+    if halfbox[1] > 0:
+        yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
+        xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
+        ap = (slice(*yr), slice(*xr))
+        x = np.arange(*xr)
+        f = np.sum(im[ap], 0)
+        gfit(x, f)
+
+    cyx[1] = g.mean[0]
+
+    if niter > 1:
+        if shrink:
+            box = (halfbox * 2 / np.sqrt(2)).round().astype(int)
+            box = box + (box % 2 - 1)  # keep it odd
+
+        if not silent:
+            print("y, x = {0[0]:.1f}, {0[1]:.1f}, next box size = {1}".format(
+                cyx, str(box)))
+
+        if max(box) < 2:
+            if not silent:
+                print(" - Box size too small -")
+            return cyx
+
+        return gcentroid(im, yx=cyx, box=box, niter=niter-1, shrink=shrink,
+                         silent=silent)
+    else:
+        if not silent:
+            print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
+
+    return cyx
+
 def imstat(im, **kwargs):
     """Get some basic statistics from an array.
 
@@ -584,10 +679,11 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     n, f = anphot(im, yx, rap, subsample=subsample)
     r = core.rarray(im.shape, yx=yx, subsample=10)
-    r = anphot(r, yx, rap, subsample=subsample)
+    r = anphot(r, yx, rap, subsample=subsample)[1]
 
     i = n != 0
     f[i] = f[i] / n[i]
+    r[i] = r[i] / n[i]
     return r, f, n
 
 def trace(im, err, guess):

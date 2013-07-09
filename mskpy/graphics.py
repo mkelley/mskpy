@@ -212,6 +212,8 @@ def nicelegend(*args, **kwargs):
 
     """
 
+    from matplotlib.font_manager import FontProperties
+
     axis = kwargs.pop('axis', None)
     numpoints = kwargs.pop('numpoints', 1)
     fontsize = kwargs.pop('fontsize', 'medium')
@@ -270,7 +272,7 @@ def niceplot(ax=None, axfs='large', lfs='x-large', tightlayout=True,
     # the frame
     plt.setp(ax.patch, lw=2.0)
 
-    if hasattr(mpl, "tight_layout") and tightlayout:
+    if hasattr(plt, "tight_layout") and tightlayout:
         plt.sca(ax)
         plt.tight_layout()
 

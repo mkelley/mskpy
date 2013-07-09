@@ -29,6 +29,7 @@ image --- For working with images, maybe spectra.
    azavg
    bgfit
    centroid
+   gcentroid
    imstat
    linecut
    polyfit2d
@@ -86,6 +87,7 @@ class Image(np.ndarray):
     azavg - Create an azimuthally averaged image.
     bgfit - 2D polynomial fit to the background.
     centroid - Simple center of mass centroiding.
+    gcentroid - Simple centroiding by Gaussian fits.
     linecut - Photometry along a line.
     radprof - Radial profiling.
     rebin - Image scaling.
@@ -217,6 +219,26 @@ class Image(np.ndarray):
         yx = self.yx if yx is None else yx
         return centroid(self, yx=yx, **kwargs)
 
+    def gcentroid(self, yx=None, **kwargs):
+        """Simple centroiding by Gaussian fits.
+
+        Parameters
+        ----------
+        yx : array, optional
+          The initial guess, or `None` to use `self.yx`.
+        **kwargs
+          Any `analysis.gcentroid` keywords.
+
+        Returns
+        -------
+        cyx : ndarray
+          The computed center.  The lower-left corner of a pixel is
+          -0.5, -0.5.
+
+        """
+        yx = self.yx if yx is None else yx
+        return gcentroid(self, yx=yx, **kwargs)
+
     def linecut(self, width, length, pa, yx=None, subsample=4):
         """Photometry along a line.
 
@@ -295,8 +317,6 @@ class Image(np.ndarray):
 
         Parameters
         ----------
-        im : ndarray
-          The image to shift.
         yx : floats
           `y, x` offsets.  Positive values move pixels to the
           up/right. [unsampled pixels]
