@@ -93,3 +93,9 @@ class MIRSI(Instrument):
 
         """
         return self.mode.lightcurve(*args, **kwargs)
+
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc

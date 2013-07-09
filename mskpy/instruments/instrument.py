@@ -234,3 +234,8 @@ class LongSlitSpectrometer(Instrument):
         wavelengths of the spectrum.
 
         """
+
+# update module docstring
+from ..util import autodoc
+autodoc(globals())
+del autodoc
