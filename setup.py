@@ -10,7 +10,7 @@ def find_data_files():
                 if f.endswith(suffix):
                     dirlist.append(os.path.join(root, f))
         if len(dirlist) > 0:
-            filelist.append((os.path.join('mskpy', root), dirlist))
+            filelist.append((root, dirlist))
     return filelist
 
 if __name__ == "__main__":
