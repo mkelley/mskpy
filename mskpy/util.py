@@ -776,7 +776,7 @@ def nearest(array, v):
       The index.
 
     """
-    return np.abs(np.array(a) - v).argmin()
+    return np.abs(np.array(array) - v).argmin()
 
 def takefrom(arrays, indices):
     """Return elements from each array at the given indices.

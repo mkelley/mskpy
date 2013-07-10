@@ -179,8 +179,8 @@ def fixpix(im, mask):
 
     # loop through each domain, replace bad pixels with the average
     # from nearest neigboors
-    x = xarray(im.shape)
-    y = yarray(im.shape)
+    x = core.xarray(im.shape)
+    y = core.yarray(im.shape)
     cleaned = im.copy()
     for d in (np.arange(n) + 1):
         i = (domains == d)  # find the current domain
