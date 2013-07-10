@@ -9,8 +9,8 @@ python module davint ! in
             integer :: n
             double precision :: xlo
             double precision :: xup
-            double precision,intent(out) :: ans
-            integer,intent(out) :: ierr
+            double precision intent(out) :: ans
+            integer intent(out) :: ierr
         end subroutine davint
     end interface 
 end python module davint

@@ -19,7 +19,6 @@ if __name__ == "__main__":
 
     ext1 = Extension('mskpy.lib.davint', glob('src/davint/*.f'))
     files = find_data_files()
-    print files
 
     setup(name='mskpy',
           version='2.0.dev',

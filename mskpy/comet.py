@@ -12,11 +12,18 @@ comet --- Comets!
    Coma
    Comet
 
+   Functions
+   ---------
+   fluxd2afrho
+   fluxd2efrho
+   m2afrho
+
 """
 
 __all__ = [
     'Coma',
-    'Comet'
+    'Comet',
+    'fluxd2afrho'
 ]
 
 import numpy as np
@@ -285,6 +292,67 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
+    """Convert flux density to A(th)frho.
+
+    See A'Hearn et al. (1984) for the definition of Afrho.
+
+    Parameters
+    ----------
+    wave : float or array
+      The wavelength of flux.  [micron]
+    fluxd : float or array
+      The flux density of the comet.  [W/m2/um, or same units as sun
+      keyword]
+    rho : float
+      The aperture radius.  [arcsec]
+    geom : dictionary or ephem.Geom
+      The observing geometry as keywords rh, delta.  [AU, AU]
+    sun : float, optional
+      Use this value for the solar flux density at 1 AU, or None to
+      use calib.solar_flux().  [same units as flux parameter]
+    bandpass : dict, optional
+      Instead of using `sun`, set to a dictionary of keywords to pass,
+      along with the solar spectrum, to `util.bandpass`.
+
+    Returns
+    -------
+    afrho : float or ndarray
+      The Afrho parameter.  [cm]
+
+    Notes
+    -----
+    Farnham, Schleicher, and A'Hearn (2000), Hale-Bopp
+    filter set:
+
+      UC = 0.3449 um, qUC = 2.716e17 -> 908.9 W/m2/um
+      BC = 0.4453 um, qBC = 1.276e17 -> 1934 W/m2/um
+      GC = 0.5259 um, qGC = 1.341e17 -> 1841 W/m2/um
+      RC = 0.7133 um, qRC = 1.975e17 -> 1250 W/m2/um
+
+    """
+
+    from . import util
+    from . import calib
+    import astropy.constants as const
+
+    try:
+        deltacm = geom['delta'].centimeter
+        rh = geom['rh'].au
+    except AttributeError:
+        deltacm = geom['delta'] * const.au.centimeter
+        rh = geom['rh']
+
+    if sun is None:
+        if bandpass is None:
+            sun = calib.solar_flux(wave * u.um, unit=u.Unit('W/(m2 um)')).value
+        else:
+            sw, sf = calib.e490(smooth=True, unit=u.Unit('W/(m2 um)'))
+            sun = util.bandpass(sw.micrometer, sf.value, **bandpass)[1]
+
+    afrho = 4 * deltacm * 206265. / rho * fluxd * rh**2 / sun
+    return afrho
 
 # update module docstring
 from .util import autodoc
