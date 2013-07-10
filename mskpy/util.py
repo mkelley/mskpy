@@ -1611,7 +1611,7 @@ def wmean(x, w, errors=True, axis=None):
     else:
         return m
 
-def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
+def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
              s=None):
     """Filters a spectrum given a transimission function.
 
@@ -1628,14 +1628,15 @@ def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
       Spectrum wavelengths.
     sf : array
       Spectrum flux per unit wavelength.
-    se : array
-      Error in `sf`.
+    se : array, optional
+      Weight the fluxes with these uncertainties.
     fw : array, optional
       Filter transmission profile wavelengths, same units as `sw`.
     ft : array, optional
       Filter transmission profile.
     filter : string, optional
-      The name of a filter (see `calib.filter_trans`).
+      The name of a filter (see `calib.filter_trans`).  The wavelength
+      units will be micrometers.
     filterdir : string, optional
       The directory containing the filter transmission files
       (see `calib.filter_trans`).
@@ -1644,23 +1645,31 @@ def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
 
     Returns
     -------
-    wave, flux, err : ndarray
-      The effective wavelength, flux density, and error of the
-      filtered spectrum.
+    wave, flux : ndarray
+      The effective wavelength and flux density of the filtered spectrum.
+    err : ndarray, optional
+      The uncertaintiy on the filtered spectrum.  Returned if `se` is
+      not `None`.
 
     """
+
+    from scipy import interpolate
     from . import calib
 
     # local copies
     _sw = sw.copy()
     _sf = sf.copy()
-    _se = se.copy()
+    if se is None:
+        _se = np.ones_like(_sf)
+    else:
+        _se = se.copy()
 
     if (fw is not None) and (ft != None):
         _fw = fw.copy()
         _ft = ft.copy()
     elif filter is not None:
         _fw, _ft = calib.filter_trans(filter)
+        _fw = _fw.micrometer
     else:
         raise ValueError("Neither fw+ft nor filter was supplied.")
 
@@ -1700,16 +1709,15 @@ def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
         _se2 = _se**2
 
     # weighted mean to get the effective wavelength
-    wave = integrate.trapz(_w * _ft * _sf, _w) / \
-        integrate.trapz(_ft * _sf, _w)
+    wrange = minmax(_w)
+    weights = _ft * _sf / _se2
+    wave = (davint(_w, _w * weights, *wrange) / davint(_w, weights, *wrange))
 
-    # flux is the weighted average using the transmission and
-    # errorbars as weights
+    # weighted mean for the flux
     weights = _ft / _se2
-    flux = integrate.trapz(_sf * weights, _w) / integrate.trapz(weights, _w)
-    err = np.sqrt(integrate.trapz(weights, _w) /
-                     integrate.trapz(1.0 / _se2, _w))
-    err *= errscale
+    flux = davint(_w, _sf * weights, *wrange) / davint(_w, weights, *wrange)
+    err = davint(_w, weights, *wrange) / davint(_w, 1.0 / _se2, *wrange)
+    err = np.sqrt(err) * errscale
 
     return wave, flux, err
 
