@@ -206,6 +206,10 @@ def filter_trans(name):
     tr : ndarray
         Filter transmission.
 
+    Raises
+    ------
+    KeyError when the requested filter is invalid.
+
     """
 
     from astropy.io import ascii
@@ -215,22 +219,22 @@ def filter_trans(name):
         '2mass j': ('/2mass/jrsr.tbl', [1, 2], u.um),
         '2mass h': ('/2mass/hrsr.tbl', [1, 2], u.um),
         '2mass ks': ('/2mass/krsr.tbl', [1, 2], u.um),
-        'mko j': ('/mko/nsfcam_jmk_trans.dat', None, u.um),
-        'mko h': ('/mko/nsfcam_hmk_trans.dat', None, u.um),
-        'mko ks': ('/mko/nsfcam_ksmk_trans.dat', None, u.um),
-        'mko k': ('/mko/nsfcam_kmk_trans.dat', None, u.um),
-        'mko kp': ('/mko/nsfcam_kpmk_trans.dat', None, u.um),
-        'mko lp': ('/mko/nsfcam_lpmk_trans.dat', None, u.um),
-        'mko mp': ('/mko/nsfcam_mpmk_trans.dat', None, u.um),
-        'irac ch1': ('/spitzer/080924ch1trans_full.txt', None, u.um),
-        'irac ch2': ('/spitzer/080924ch2trans_full.txt', None, u.um),
-        'irac ch3': ('/spitzer/080924ch3trans_full.txt', None, u.um),
-        'irac ch4': ('/spitzer/080924ch4trans_full.txt', None, u.um),
-        'mips 24': ('/spitzer/mips24.txt', None, u.um),
-        'mips 70': ('/spitzer/mips70.txt', None, u.um),
-        'mips 160': ('/spitzer/mips160.txt', None, u.um),
-        'irs red': ('/spitzer/redPUtrans.txt', None, u.um),
-        'irs blue': ('/spitzer/bluePUtrans.txt', None, u.um),
+        'mko j': ('/mko/nsfcam_jmk_trans.dat', [0, 1], u.um),
+        'mko h': ('/mko/nsfcam_hmk_trans.dat', [0, 1], u.um),
+        'mko ks': ('/mko/nsfcam_ksmk_trans.dat', [0, 1], u.um),
+        'mko k': ('/mko/nsfcam_kmk_trans.dat', [0, 1], u.um),
+        'mko kp': ('/mko/nsfcam_kpmk_trans.dat', [0, 1], u.um),
+        'mko lp': ('/mko/nsfcam_lpmk_trans.dat', [0, 1], u.um),
+        'mko mp': ('/mko/nsfcam_mpmk_trans.dat', [0, 1], u.um),
+        'irac ch1': ('/spitzer/080924ch1trans_full.txt', [0, 1], u.um),
+        'irac ch2': ('/spitzer/080924ch2trans_full.txt', [0, 1], u.um),
+        'irac ch3': ('/spitzer/080924ch3trans_full.txt', [0, 1], u.um),
+        'irac ch4': ('/spitzer/080924ch4trans_full.txt', [0, 1], u.um),
+        'mips 24': ('/spitzer/mips24.txt', [0, 1], u.um),
+        'mips 70': ('/spitzer/mips70.txt', [0, 1], u.um),
+        'mips 160': ('/spitzer/mips160.txt', [0, 1], u.um),
+        'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um),
+        'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um),
 	'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um),
 	'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um),
 	'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um),
@@ -250,9 +254,10 @@ def filter_trans(name):
         'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um)
         }
 
-    fil = filters.get(name.lower(), None)
-    if fil is None:
-        raise ValueError("filter {} cannot be found.".format(name.lower()))
+    try:
+        fil = filters[name.lower()]
+    except KeyError:
+        raise KeyError("filter {} cannot be found.".format(name.lower()))
 
     table = ascii.read(_filterdir + '/' + fil[0])
     cols = fil[1]

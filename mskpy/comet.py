@@ -12,11 +12,20 @@ comet --- Comets!
    Coma
    Comet
 
+   Functions
+   ---------
+   fluxd2afrho
+   fluxd2efrho
+   m2afrho1
+
 """
 
 __all__ = [
     'Coma',
-    'Comet'
+    'Comet',
+    'fluxd2afrho',
+    'fluxd2efrho',
+    'm2afrho1'
 ]
 
 import numpy as np
@@ -285,6 +294,131 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
+    """Convert flux density to A(th)frho.
+
+    See A'Hearn et al. (1984) for the definition of Afrho.
+
+    Parameters
+    ----------
+    wave : float or array
+      The wavelength of flux.  [micron]
+    fluxd : float or array
+      The flux density of the comet.  [W/m2/um, or same units as sun
+      keyword]
+    rho : float
+      The aperture radius.  [arcsec]
+    geom : dictionary or ephem.Geom
+      The observing geometry via keywords `rh`, `delta`.  [AU, AU]
+    sun : float, optional
+      Use this value for the solar flux density at 1 AU, or None to
+      use calib.solar_flux().  [same units as flux parameter]
+    bandpass : dict, optional
+      Instead of using `sun`, set to a dictionary of keywords to pass,
+      along with the solar spectrum, to `util.bandpass`.
+
+    Returns
+    -------
+    afrho : float or ndarray
+      The Afrho parameter.  [cm]
+
+    Notes
+    -----
+    Farnham, Schleicher, and A'Hearn (2000), Hale-Bopp
+    filter set:
+
+      UC = 0.3449 um, qUC = 2.716e17 -> 908.9 W/m2/um
+      BC = 0.4453 um, qBC = 1.276e17 -> 1934 W/m2/um
+      GC = 0.5259 um, qGC = 1.341e17 -> 1841 W/m2/um
+      RC = 0.7133 um, qRC = 1.975e17 -> 1250 W/m2/um
+
+    """
+
+    from . import util
+    from . import calib
+    import astropy.constants as const
+
+    try:
+        deltacm = geom['delta'].centimeter
+        rh = geom['rh'].au
+    except AttributeError:
+        deltacm = geom['delta'] * const.au.centimeter
+        rh = geom['rh']
+
+    if sun is None:
+        if bandpass is None:
+            sun = calib.solar_flux(wave * u.um, unit=u.Unit('W/(m2 um)')).value
+        else:
+            sw, sf = calib.e490(smooth=True, unit=u.Unit('W/(m2 um)'))
+            sun = util.bandpass(sw.micrometer, sf.value, **bandpass)[1]
+
+    afrho = 4 * deltacm * 206265. / rho * fluxd * rh**2 / sun
+    return afrho
+
+def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
+    """Convert flux density to efrho (epsilon * f * rho).
+
+    efrho is defined by Kelley et al. (2013, Icarus 225, 475-494).
+
+    Parameters
+    ----------
+    wave : float or array
+      The wavelength of flux.  [micron]
+    flux : float or array
+      The flux density of the comet.  [W/m2/um]
+    rho : float
+      The aperture radius.  [arcsec]
+    geom : dictionary or ephem.Geom
+      The observing geometry via keywords `rh`, `delta`.  [AU, AU]
+    Tscale : float, optional
+      Use a continuum temperature of `Tscale * 278 / sqrt(rh)` K.
+      Kelley et al. (2013) suggest a default of 1.1.
+
+    Returns
+    -------
+    efrho : float or ndarray
+      The epsfrho parameter.  [cm]
+
+    """
+
+    from . import util
+    import astropy.constants as const
+
+    try:
+        deltacm = geom['delta'].centimeter
+        rh = geom['rh'].au
+    except AttributeError:
+        deltacm = geom['delta'] * const.au.centimeter
+        rh = geom['rh']
+
+    B = util.planck(wave, Tscale * 278. / np.sqrt(rh),
+                    unit=u.Unit('W/(m2 um sr)'))
+    B = B.value
+    _rho = rho / 206265. * deltacm  # cm
+    Om = np.pi * (rho / 206265.)**2  # sr
+    I = flux / Om  # W/m2/um/sr
+    return I * _rho / B
+
+def m2afrho1(M1):
+    """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.
+
+    Based on an empirical correlation between M1 and Afrho as measured
+    by A'Hearn et al. (1995).  There is easily a factor of 4 scatter
+    about the trend line.
+
+    Parameters
+    ----------
+    M1 : float
+      Comet's absolute magnitude from JPL.
+
+    Returns
+    -------
+    Afrho1 : float
+      Afrho at 1 AU.  [cm]
+
+    """
+    return 10**(-0.208 * M1 + 4.687)
 
 # update module docstring
 from .util import autodoc
