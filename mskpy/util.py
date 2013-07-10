@@ -1635,10 +1635,10 @@ def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
     ft : array, optional
       Filter transmission profile.
     filter : string, optional
-      The name of a filter (see `calib.filtertrans`).
+      The name of a filter (see `calib.filter_trans`).
     filterdir : string, optional
       The directory containing the filter transmission files
-      (see `calib.filtertrans`).
+      (see `calib.filter_trans`).
     s : float, optional
       Interpolation smoothing.  See scipy.interpolate.splrep().
 
@@ -1660,7 +1660,7 @@ def bandpass(sw, sf, se, fw=None, ft=None, filter=None, filterdir=None,
         _fw = fw.copy()
         _ft = ft.copy()
     elif filter is not None:
-        _fw, _ft = calib.filtertrans(filter)
+        _fw, _ft = calib.filter_trans(filter)
     else:
         raise ValueError("Neither fw+ft nor filter was supplied.")
 
