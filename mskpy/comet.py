@@ -16,14 +16,16 @@ comet --- Comets!
    ---------
    fluxd2afrho
    fluxd2efrho
-   m2afrho
+   m2afrho1
 
 """
 
 __all__ = [
     'Coma',
     'Comet',
-    'fluxd2afrho'
+    'fluxd2afrho',
+    'fluxd2efrho',
+    'm2afrho1'
 ]
 
 import numpy as np
@@ -308,7 +310,7 @@ def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     rho : float
       The aperture radius.  [arcsec]
     geom : dictionary or ephem.Geom
-      The observing geometry as keywords rh, delta.  [AU, AU]
+      The observing geometry via keywords `rh`, `delta`.  [AU, AU]
     sun : float, optional
       Use this value for the solar flux density at 1 AU, or None to
       use calib.solar_flux().  [same units as flux parameter]
@@ -353,6 +355,70 @@ def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
 
     afrho = 4 * deltacm * 206265. / rho * fluxd * rh**2 / sun
     return afrho
+
+def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
+    """Convert flux density to efrho (epsilon * f * rho).
+
+    efrho is defined by Kelley et al. (2013, Icarus 225, 475-494).
+
+    Parameters
+    ----------
+    wave : float or array
+      The wavelength of flux.  [micron]
+    flux : float or array
+      The flux density of the comet.  [W/m2/um]
+    rho : float
+      The aperture radius.  [arcsec]
+    geom : dictionary or ephem.Geom
+      The observing geometry via keywords `rh`, `delta`.  [AU, AU]
+    Tscale : float, optional
+      Use a continuum temperature of `Tscale * 278 / sqrt(rh)` K.
+      Kelley et al. (2013) suggest a default of 1.1.
+
+    Returns
+    -------
+    efrho : float or ndarray
+      The epsfrho parameter.  [cm]
+
+    """
+
+    from . import util
+    import astropy.constants as const
+
+    try:
+        deltacm = geom['delta'].centimeter
+        rh = geom['rh'].au
+    except AttributeError:
+        deltacm = geom['delta'] * const.au.centimeter
+        rh = geom['rh']
+
+    B = util.planck(wave, Tscale * 278. / np.sqrt(rh),
+                    unit=u.Unit('W/(m2 um sr)'))
+    B = B.value
+    _rho = rho / 206265. * deltacm  # cm
+    Om = np.pi * (rho / 206265.)**2  # sr
+    I = flux / Om  # W/m2/um/sr
+    return I * _rho / B
+
+def m2afrho1(M1):
+    """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.
+
+    Based on an empirical correlation between M1 and Afrho as measured
+    by A'Hearn et al. (1995).  There is easily a factor of 4 scatter
+    about the trend line.
+
+    Parameters
+    ----------
+    M1 : float
+      Comet's absolute magnitude from JPL.
+
+    Returns
+    -------
+    Afrho1 : float
+      Afrho at 1 AU.  [cm]
+
+    """
+    return 10**(-0.208 * M1 + 4.687)
 
 # update module docstring
 from .util import autodoc
