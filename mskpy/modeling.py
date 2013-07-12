@@ -1,12 +1,12 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
-fitting --- Models for fitting.
-===============================
+modeling --- Models for fitting data.
+=====================================
 
 .. autosummary::
    :toctree: generated/
 
-   CometSED
+   ComaSED
 
 """
 
@@ -16,11 +16,11 @@ import astropy.units as u
 from astropy.modeling import Parameter, ParametricModel
 
 __all__ = [
-    'CometSED'
+    'ComaSED'
 ]
 
-class CometSED(ParametricModel):
-    """A simple, semi-empirical comet SED, based on Afrho.
+class ComaSED(ParametricModel):
+    """A simple, semi-empirical coma SED, based on Afrho.
 
     Parameters
     ----------
@@ -43,13 +43,13 @@ class CometSED(ParametricModel):
 
     >>> import astropy.units as u
     >>> from astropy.modeling import fitting
-    >>> from mskpy.fitting import CometSED
+    >>> from mskpy.fitting import ComaSED
     >>> wave = np.array([3.55, 4.49, 5.73, 7.87])
     >>> flux = array([1.49e-15, 3.31e-15, 1.08e-14, 2.92e-14]) # W/m2/um
     >>> geom = dict(rh=1.490 * u.au, delta=1.669 * u.au, phase=35.7 * u.deg)
     >>> rap = 7.32 * u.arcsec
-    >>> comet = CometSED(geom, rap, 1000 * u.cm)
-    >>> fit = fitting.NonLinearLSQFitter(comet)
+    >>> coma = ComaSED(geom, rap, 1000 * u.cm)
+    >>> fit = fitting.NonLinearLSQFitter(coma)
     >>> fit(wave, flux)
     >>> print (fit.model(wave) - flux) / flux
     [ 0.04580127 -0.06261374  0.00882257 -0.00058844]

@@ -13,10 +13,10 @@ mskpy --- MSK's personal library for astronomy and stuff.
    calib       - Photometric calibration.
    comet       - Defines a comet for observing, flux estimates.
    ephem       - Solar System object ephemerides (requires PySPICE).
-   fitting     - For fitting models to data.
    graphics    - Helper functions for making plots.
    image       - Image generators, analysis, and processing.
    instruments - Cameras, spectrometers, etc. for astronomy.
+   modeling    - For fitting models to data.
    models      - Surface and dust models.
    util        - Grab bag of utility functions.
 
@@ -31,7 +31,7 @@ from .image import *
 from . import calib
 from . import instruments
 from . import models
-from . import fitting
+from . import modeling
 
 # the following block depends on PySPICE
 try:
