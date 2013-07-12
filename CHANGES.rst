@@ -1,6 +1,13 @@
 2.0.0 (unreleased)
 ------------------
 
+Critical Fixes
+--------------
+
+- Converting Afrho to thermal emission resulted in fluxes a factor of
+  4 too high (`comet.fluxest`).  This has been corrected in
+  `dust.AfrhoThermal`.
+
 New Features
 ^^^^^^^^^^^^
 
