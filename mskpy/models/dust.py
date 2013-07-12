@@ -126,8 +126,8 @@ class AfrhoScattered(AfrhoRadiation):
             raise ValueError("rap must have angular or length units.")
 
         fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
-        fluxd = (self.Afrho * self.phasef(np.abs(geom['phase'].degree)) / 
-                 4.0 / geom['delta'].to(self.Afrho.unit)**2 * rho * fsun)
+        fluxd = (self.Afrho * self.phasef(np.abs(geom['phase'].degree))
+                 * rho * fsun / 4.0 / geom['delta'].to(self.Afrho.unit)**2)
 
         return fluxd
 
@@ -211,7 +211,7 @@ class AfrhoThermal(AfrhoRadiation):
 
         # A0 = A(phase=0)
         q = phase_integral(self.phasef)
-        A0 = self.phasef(geom['phase'].degree) / q * self.A
+        A0 = 4 * self.phasef(0) / q * self.A
 
         T = self.Tscale * 278 / np.sqrt(geom['rh'].au)
         B = planck(wave, T, unit=unit / u.sr).value
@@ -364,6 +364,7 @@ def phaseHM(phase):
 
     C = splrep(th, ph)
     return splev(np.abs(phase), C)
+
 
 # update module docstring
 from ..util import autodoc
