@@ -56,6 +56,9 @@ New Features
   fluxes from comets and asteroids, but may have other uses in the
   future.  Includes `midir` sub-module with `MIRSI`.
 
+- New `modeling` module (mirroring `astropy.modeling`) for fitting
+  models to data.
+
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
