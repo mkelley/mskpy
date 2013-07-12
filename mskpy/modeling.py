@@ -63,13 +63,13 @@ class ComaSED(ParametricModel):
                  unit=u.Unit('W/(m2 um)'), param_dim=1):
         from .models import dust
 
+        assert isinstance(Afrho, u.Quantity)
+        assert isinstance(rap, u.Quantity)
+
         if phasef is None:
             phasef = dust.phaseK
         self.phasef = phasef
-
-        assert isinstance(Afrho, u.Quantity)
-        assert isinstance(rap, u.Quantity)
-        assert hasattr(phasef, '__call__')
+        assert hasattr(self.phasef, '__call__')
 
         self._Afrho = Parameter(name='Afrho', val=Afrho.centimeter,
                                 mclass=self, param_dim=param_dim)
