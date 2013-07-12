@@ -366,7 +366,7 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
       Set to true to correct parameters for light travel time
       (currently, only one ltt iteration is implemented).
     kernel : string, optional
-      If the target is a string, use this kernel.
+      If the target or observer is a string, use this kernel.
 
     Returns
     -------
@@ -379,23 +379,23 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     """
 
-    global _loaded_objects
+    from . import _loaded_objects
+    from .state import SpiceState
 
     if isinstance(target, str):
-        target = SpiceObject(target, kernel=kernel)
+        target = SolarSysObject(SpiceState(target, kernel=kernel))
     elif not isinstance(target, SolarSysObject):
-        raise ValueError("target must be a string or SolarSysObject")
+        raise ValueError("target must be a string or SolarSysObject.")
 
     if isinstance(observer, str):
         if observer.lower() in _loaded_objects:
             observer = _loaded_objects[observer.lower()]
         else:
-            ValueError("{} is not in the built-in list: {}".format(
-                    observer.lower(), _loaded_objects.keys()))
+            observer = SolarSysObject(SpiceState(target, kernel=kernel))
     elif np.iterable(observer):
         observer = FixedObject(observer)
     elif not isinstance(observer, SolarSysObject):
-        raise ValueError("observer must be a string or SolarSysObject")
+        raise ValueError("observer must be a string, array, or SolarSysObject")
 
     return observer.observe(target, date, ltt=ltt)
 
