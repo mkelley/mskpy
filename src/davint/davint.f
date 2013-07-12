@@ -1,5 +1,13 @@
 *DECK DAVINT
       SUBROUTINE DAVINT (X, Y, N, XLO, XUP, ANS, IERR)
+!! f2py declarations
+!f2py double precision dimension(*) :: x
+!f2py double precision dimension(*) :: y
+!f2py integer :: n
+!f2py double precision :: xlo
+!f2py double precision :: xup
+!f2py double precision, intent(out) :: ans
+!f2py integer, intent(out) :: ierr
 C***BEGIN PROLOGUE  DAVINT
 C***PURPOSE  Integrate a function tabulated at arbitrarily spaced
 C            abscissas using overlapping parabolas.
