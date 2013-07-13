@@ -40,55 +40,78 @@ class IRAC(Camera):
         location = Spitzer
         Camera.__init__(self, w, shape, ps, location=location)
 
-        self.sp10r200 = LongSlitSpectrometer(10.5 * u.um, self.shape, self.ps,
-                                             2.25, 0.022 * u.um, R=200,
-                                             location=self.location)
-
-        self.sp20r100 = LongSlitSpectrometer(21.5 * u.um, self.shape, self.ps,
-                                             4.5, 0.028 * u.um, R=100,
-                                             location=self.location)
-
-        self._mode = 'imager'
-
-    @property
-    def mode(self):
-        if self._mode in ['imager', 'sp10r200', 'sp20r100']:
-            return self.__dict__[self._mode]
-        else:
-            raise KeyError("Invalid mode: {:}".format(self._mode))
-
-    def sed(self, *args, **kwargs):
-        """Spectral energy distribution of a target.
+    def ccorrection(self, sf):
+        """IRAC color correction.
 
         Parameters
         ----------
-        *args
-        **kwargs
-          Arguments and keywords depend on the current MIRSI mode.
+        sf : function
+          A function that generates source flux density as a Quantity
+          given wavelength as a Quantity.
 
         Returns
         -------
-        sed : ndarray
+        K : ndarray
+          Color correction: `Fcc = F / K`.
 
         """
-        return self.mode.sed(*args, **kwargs)
 
-    def lightcurve(self, *args, **kwargs):
-        """Secular lightcurve of a target.
+        from scipy import interpolate
+        import astropy.constants as const
+        from ..calib import filter_trans
+        from ..util import davint
+
+        nu0 = (const.c.si / self.wave).Hertz
+        K = np.zeros(4)
+        for i in range(4):
+            fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
+
+            _sf = sf(fw).to(u.Jy, equivalencies=u.spectral_density(fw.unit, fw))
+
+            nu = (const.c / fw).Hertz
+            j = nu.argsort()
+            K[i] = (davint(nu[j], (_sf * ft * nu0 / nu)[j], nu[-1], nu[0])
+                    / davint(nu[j], (ft * (nu / nu0)**2)[j], nu[-1], nu[0]))
+
+        return K
+
+    def ccorrection_tab(self, sw, sf):
+        """IRAC color correction of a tabulated spectrum.
 
         Parameters
         ----------
-        *args
-        **kwargs
-          Arguments and keywords depend on the current MIRSI mode.
+        sw : Quantity
+          Source wavelength.
+        sf : Quantity
+          Source flux density.
 
         Returns
         -------
-        lc : astropy Table
+        K : ndarray
+          Color correction: `Fcc = F / K`.
 
         """
-        return self.mode.lightcurve(*args, **kwargs)
 
+        from scipy import interpolate
+        import astropy.constants as const
+        from ..calib import filter_trans
+        from ..util import davint
+
+        nu0 = (const.c.si / self.wave).Hertz
+        K = np.zeros(4)
+        for i in range(4):
+            fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
+
+            s = interpolate.splrep(sw, sf)
+            _sf = interpolate.splev(fw, s, ext=1)
+            _sf = _sf.to(u.Jy, equivalencies=u.spectral_density(fw.unit, fw))
+
+            nu = (const.c / fw).Hertz
+            j = nu.argsort()
+            K[i] = (davint(nu[j], (_sf * ft * nu0 / nu)[j], nu[-1], nu[0])
+                    / davint(nu[j], (ft * (nu / nu0)**2)[j], nu[-1], nu[0]))
+
+        return K
 
 # update module docstring
 from ..util import autodoc
