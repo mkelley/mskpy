@@ -52,7 +52,7 @@ class IRAC(Camera):
         Returns
         -------
         K : ndarray
-          Color correction: `Fcc = F / K`.
+          Color correction factor, where `Fcc = F / K`.
 
         """
 
@@ -67,11 +67,12 @@ class IRAC(Camera):
             fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
 
             _sf = sf(fw).to(u.Jy, equivalencies=u.spectral_density(fw.unit, fw))
+            _sf /= sf(self.wave[i])
 
             nu = (const.c / fw).Hertz
             j = nu.argsort()
-            K[i] = (davint(nu[j], (_sf * ft * nu0 / nu)[j], nu[-1], nu[0])
-                    / davint(nu[j], (ft * (nu / nu0)**2)[j], nu[-1], nu[0]))
+            K[i] = (davint(nu[j], (_sf * ft * nu0[i] / nu)[j], nu[-1], nu[0])
+                    / davint(nu[j], (ft * (nu / nu0[i])**2)[j], nu[-1], nu[0]))
 
         return K
 
@@ -102,14 +103,17 @@ class IRAC(Camera):
         for i in range(4):
             fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
 
-            s = interpolate.splrep(sw, sf)
+            s = interpolate.splrep(sw, sf.value)
             _sf = interpolate.splev(fw, s, ext=1)
-            _sf = _sf.to(u.Jy, equivalencies=u.spectral_density(fw.unit, fw))
+            _sf /= interpolate.splev(self.wave[i], s, ext=1)
+
+            equiv = u.spectral_density(fw.unit, fw)
+            _sf *= sf.unit.to(u.Jy, equivalencies=equiv)
 
             nu = (const.c / fw).Hertz
             j = nu.argsort()
-            K[i] = (davint(nu[j], (_sf * ft * nu0 / nu)[j], nu[-1], nu[0])
-                    / davint(nu[j], (ft * (nu / nu0)**2)[j], nu[-1], nu[0]))
+            K[i] = (davint(nu[j], (_sf * ft * nu0[i] / nu)[j], nu[-1], nu[0])
+                    / davint(nu[j], (ft * (nu / nu0[i])**2)[j], nu[-1], nu[0]))
 
         return K
 
