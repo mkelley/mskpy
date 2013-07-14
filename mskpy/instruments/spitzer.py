@@ -43,6 +43,9 @@ class IRAC(Camera):
     def ccorrection(self, sf):
         """IRAC color correction.
 
+        Seems to agree within 1% of the IRAC Instrument Handbook.
+        Thier quoted values are good to ~1%.
+
         Parameters
         ----------
         sf : function
@@ -59,20 +62,23 @@ class IRAC(Camera):
         from scipy import interpolate
         import astropy.constants as const
         from ..calib import filter_trans
-        from ..util import davint
+        from ..util import davint, takefrom
 
-        nu0 = (const.c.si / self.wave).Hertz
+        nu0 = (const.c.si / self.wave).teraHertz
         K = np.zeros(4)
         for i in range(4):
-            fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
+            tw, tr = filter_trans('IRAC CH{:}'.format(i + 1))
+            nu = (const.c / tw).teraHertz
 
-            _sf = sf(fw).to(u.Jy, equivalencies=u.spectral_density(fw.unit, fw))
-            _sf /= sf(self.wave[i])
+            equiv = u.spectral_density(tw.unit, tw)
+            sfnu = sf(tw).to(u.Jy, equivalencies=equiv).value
 
-            nu = (const.c / fw).Hertz
-            j = nu.argsort()
-            K[i] = (davint(nu[j], (_sf * ft * nu0[i] / nu)[j], nu[-1], nu[0])
-                    / davint(nu[j], (ft * (nu / nu0[i])**2)[j], nu[-1], nu[0]))
+            equiv = u.spectral_density(self.wave.unit, self.wave[i])
+            sfnu /= sf(self.wave[i]).to(u.Jy, equivalencies=equiv).value
+
+            sfnu, tr, nu = takefrom((sfnu, tr, nu), nu.argsort())
+            K[i] = (davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
+                    / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1]))
 
         return K
 
@@ -96,25 +102,28 @@ class IRAC(Camera):
         from scipy import interpolate
         import astropy.constants as const
         from ..calib import filter_trans
-        from ..util import davint
+        from ..util import davint, takefrom
 
-        nu0 = (const.c.si / self.wave).Hertz
+        nu0 = (const.c.si / self.wave).teraHertz
         K = np.zeros(4)
         for i in range(4):
-            fw, ft = filter_trans('IRAC CH{:}'.format(i + 1))
+            tw, tr = filter_trans('IRAC CH{:}'.format(i + 1))
+            nu = (const.c / tw).teraHertz
 
-            s = interpolate.splrep(sw, sf.value)
-            _sf = interpolate.splev(fw, s, ext=1)
-            _sf /= interpolate.splev(self.wave[i], s, ext=1)
+            # interpolate the filter transmission to a higher
+            # resolution
+            t
+
+            s = interpolate.splrep(sw.value, sf.value)
+            _sf = interpolate.splev(fw.value, s, ext=1)
+            _sf /= interpolate.splev(self.wave[i].value, s, ext=1)
 
             equiv = u.spectral_density(fw.unit, fw)
             _sf *= sf.unit.to(u.Jy, equivalencies=equiv)
 
-            nu = (const.c / fw).Hertz
-            j = nu.argsort()
-            K[i] = (davint(nu[j], (_sf * ft * nu0[i] / nu)[j], nu[-1], nu[0])
-                    / davint(nu[j], (ft * (nu / nu0[i])**2)[j], nu[-1], nu[0]))
-
+            _sf, ft, nu = takefrom((_sf, ft, nu), nu.argsort())
+            K[i] = (davint(nu, _sf * ft * nu0[i] / nu, nu[0], nu[-1])
+                    / davint(nu, ft * (nu0[i] / nu)**2, nu[0], nu[-1]))
         return K
 
 # update module docstring
