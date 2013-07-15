@@ -461,7 +461,7 @@ def imstat(im, **kwargs):
 
     from ..util import meanclip
 
-    mc = meanclip(im, full_output=True, **keywords)
+    mc = meanclip(im, full_output=True, **kwargs)
     scmean, scstdev = mc[:2]
     scmedian = np.median(im.flatten()[mc[2]])
 
