@@ -28,7 +28,7 @@ class ComaSED(ParametricModel):
       The observing geometry via keywords rh, delta, and phase.
     rap : Quantity
       Aperture radius in length or angular units.
-    Afrho : float
+    Afrho : Quantity
       In units of length.
     ef2af : float, optional
       Conversion from episilon-f_therm to A-f_sca.
