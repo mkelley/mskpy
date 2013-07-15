@@ -459,17 +459,17 @@ def imstat(im, **kwargs):
 
     """
 
-    from ..util import meanclip
-    import scipy
+    from .. import util
+    import scipy.stats
 
-    mc = meanclip(im, full_output=True, **kwargs)
+    mc = util.meanclip(im, full_output=True, **kwargs)
     scmean, scstdev = mc[:2]
     scmedian = np.median(im.flatten()[mc[2]])
 
     return dict(min = np.nanmin(im),
                 max = np.nanmax(im),
                 mean = scipy.stats.nanmean(im.ravel()),
-                median = math.nanmedian(im),
+                median = util.nanmedian(im),
                 mode = 3.0 * scmedian - 2.0 * scmean,
                 stdev = scipy.stats.nanstd(im.ravel()),
                 scmean = scmean,
