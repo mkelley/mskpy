@@ -266,7 +266,7 @@ def bgfit(im, unc=None, order=1, mask=True):
     else:
         v = unc[mask]
 
-    cx, cy, cov = core.polyfit2d(u, y, x, unc=v, order=order)
+    cx, cy, cov = polyfit2d(u, y, x, unc=v, order=order)
     bg = np.polyval(cy, yy) + np.polyval(cx, xx)
 
     return bg
