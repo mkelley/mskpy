@@ -460,6 +460,7 @@ def imstat(im, **kwargs):
     """
 
     from ..util import meanclip
+    import scipy
 
     mc = meanclip(im, full_output=True, **kwargs)
     scmean, scstdev = mc[:2]
