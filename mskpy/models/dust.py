@@ -36,7 +36,7 @@ __all__ = [
 ]
 
 class AfrhoRadiation(object):
-    """Light from a coma in the Solar System parameterized by Afrho.
+    """Light from a comet coma parameterized by Afrho, or similar.
 
     Methods
     -------
@@ -47,8 +47,8 @@ class AfrhoRadiation(object):
     Afrho should refer to the value at zero phase angle.
 
     Inheriting classes should override `fluxd`, and `__init__`
-    functions.  `__init__` should take a single argument, `Afrho`, as
-    a Quantity.
+    functions.  `__init__` should take a single argument, `Afrho` (or
+    equivalent) as a Quantity.
 
     As much as possible, keyword arguments must have the same meaning
     in all derived models.
@@ -58,11 +58,14 @@ class AfrhoRadiation(object):
     def __init__(self, Afrho, **kwargs):
         pass
 
+    def __call__(self, *args, **kwargs):
+        return self.fluxd(*args, **kwargs)
+
     def fluxd(self, geom, wave, unit=None):
         pass
 
 class AfrhoScattered(AfrhoRadiation):
-    """Scattered light from a coma parameterized by Afrho.
+    """Scattered light from a comet coma parameterized by Afrho.
 
     If you use this model, please reference A'Hearn et al. (1984, AJ
     89, 579-591) as the source of the Afrho parameter.
@@ -132,30 +135,25 @@ class AfrhoScattered(AfrhoRadiation):
         return fluxd
 
 class AfrhoThermal(AfrhoRadiation):
-    """Thermal emisson from a coma parameterized by Afrho.
+    """Thermal emisson from a coma parameterized by efrho.
 
-    If you use this model, please reference Kelley and Wooden (2009,
-    Planetary and Space Science 57, 1133-1145) for the conversion from
-    `Afrho` to thermal emission.
-
-    Here, the `A` in `Afrho` can be thought of as the albedo in the
-    visual wavelength range, or the mean albedo weighted by the solar
-    spectrum.
+    If you use this model, please cite and reference Kelley et
+    al. (2013, Icarus 225, 475-494).  They define epsilon-f-rho as the
+    product of IR emissivity, dust filling factor, f, and observer's
+    aperture radius, rho.
 
     Parameters
     ----------
     Afrho : Quantity
       The product of albedo at zero phase, A, dust filling factor, f,
       and observer's aperture radius, rho.
-    phasef : function, optional
-      The phase function of the coma.  Set to `None` to use `phaseK`.
-      The phase integral of this function will be computed.
-    A : float, optional
-      The mean bolometric albedo of the dust.  Gerhz and Ney (1992,
-      Icarus 100, 162-186) find ~0.32 for several Oort cloud comets.
+    ef2af : float, optional
+      The ratio of epsilon-f_therm to A-f_sca, where f_therm and f_sca
+      are the effective thermal and scattered light filling factors,
+      (they are not necessarily the same).
     Tscale : float, optional
-      The isothermal blackbody sphere temperature scale factor to
-      determine the spectral shape of the thermal emission.
+      The isothermal blackbody sphere temperature scale factor that
+      characterizes the spectral shape of the thermal emission.
 
     Methods
     -------
@@ -163,13 +161,10 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, phasef=None, A=0.32, Tscale=1.1, **kwargs):
+    def __init__(self, Afrho, ef2af=10.0, Tscale=1.1, **kwargs):
+        assert isinstance(Afrho, u.Quantity)
         self.Afrho = Afrho
-        if phasef is None:
-            self.phasef = phaseK
-        else:
-            self.phasef = phasef
-        self.A = A
+        self.ef2af = ef2af
         self.Tscale = Tscale
 
     def fluxd(self, geom, wave, rap, unit=u.Unit('W / (m2 um)')):
@@ -209,15 +204,11 @@ class AfrhoThermal(AfrhoRadiation):
         else:
             raise ValueError("rap must have angular or length units.")
 
-        # A0 = A(phase=0)
-        q = phase_integral(self.phasef)
-        A0 = 4 * self.phasef(0) / q * self.A
-
         T = self.Tscale * 278 / np.sqrt(geom['rh'].au)
         B = planck(wave, T, unit=unit / u.sr).value
-
-        fluxd = ((1 - self.A) / A0 * np.pi * B * rho.centimeter
-                 * self.Afrho.centimeter / geom['delta'].centimeter**2)
+        efrho = self.Afrho * self.ef2af
+        d = geom['delta'].to(self.Afrho.unit).value
+        fluxd = efrho.value * np.pi * B * rho.value / d**2
 
         return fluxd * unit
 

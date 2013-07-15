@@ -30,8 +30,8 @@ class ComaSED(ParametricModel):
       Aperture radius in length or angular units.
     Afrho : float
       In units of length.
-    A : float, optional
-      Bolometric albedo.
+    ef2af : float, optional
+      Conversion from episilon-f_therm to A-f_sca.
     Tscale : float, optional
       Temperature scale factor.
 
@@ -43,7 +43,7 @@ class ComaSED(ParametricModel):
 
     >>> import astropy.units as u
     >>> from astropy.modeling import fitting
-    >>> from mskpy.fitting import ComaSED
+    >>> from mskpy.modeling import ComaSED
     >>> wave = np.array([3.55, 4.49, 5.73, 7.87])
     >>> flux = array([1.49e-15, 3.31e-15, 1.08e-14, 2.92e-14]) # W/m2/um
     >>> geom = dict(rh=1.490 * u.au, delta=1.669 * u.au, phase=35.7 * u.deg)
@@ -56,10 +56,10 @@ class ComaSED(ParametricModel):
 
     """
 
-    param_names = ['Afrho', 'A', 'Tscale']
+    param_names = ['Afrho', 'ef2af', 'Tscale']
     deriv = None  # compute numerical derivatives
 
-    def __init__(self, geom, rap, Afrho, phasef=None, A=0.32, Tscale=1.1,
+    def __init__(self, geom, rap, Afrho, phasef=None, ef2af=10, Tscale=1.1,
                  unit=u.Unit('W/(m2 um)'), param_dim=1):
         from .models import dust
 
@@ -73,8 +73,8 @@ class ComaSED(ParametricModel):
 
         self._Afrho = Parameter(name='Afrho', val=Afrho.centimeter,
                                 mclass=self, param_dim=param_dim)
-        self._A = Parameter(name='A', val=A, mclass=self,
-                            param_dim=param_dim)
+        self._ef2af = Parameter(name='ef2af', val=ef2af, mclass=self,
+                                param_dim=param_dim)
         self._Tscale = Parameter(name='Tscale', val=Tscale, mclass=self,
                                  param_dim=param_dim)
         self.geom = geom
@@ -86,15 +86,13 @@ class ComaSED(ParametricModel):
         self.linear = False
 
         self.reflected = dust.AfrhoScattered(Afrho, phasef=phasef)
-        self.thermal = dust.AfrhoThermal(Afrho, phasef=phasef, A=A,
-                                         Tscale=Tscale)
+        self.thermal = dust.AfrhoThermal(Afrho, ef2af=ef2af, Tscale=Tscale)
 
     def eval(self, wave, params):
         self.reflected.Afrho = params[0] * u.cm
         self.reflected.phasef = self.phasef
         self.thermal.Afrho = params[0] * u.cm
-        self.thermal.phasef = self.phasef
-        self.thermal.A = params[1]
+        self.thermal.ef2af = params[1]
         self.thermal.Tscale = params[2]
         f = self.reflected.fluxd(self.geom, wave * u.um, self.rap,
                                  unit=self.unit).value
