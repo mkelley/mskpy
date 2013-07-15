@@ -34,6 +34,8 @@ class ComaSED(ParametricModel):
       Conversion from episilon-f_therm to A-f_sca.
     Tscale : float, optional
       Temperature scale factor.
+    unit : astropy Unit, optional
+      The output flux density units.
 
     Examples
     --------
