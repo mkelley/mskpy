@@ -16,9 +16,11 @@ Instruments can be used observe a `SolarSysObject`.
 
 from . import instrument
 from . import midir
+from . import spitzer
 
 from instrument import *
 from midir import *
+from spitzer import *
 
 # update module docstring
 from ..util import autodoc
