@@ -346,11 +346,7 @@ def flux2Q(fgas, wave, geom, g, rap, v):
     else:
         raise ValueError("rap must have angular or length units.")
 
-    print rho
-
     N = 4 * pi * geom['delta']**2 * fgas * wave / hc * geom['rh'].au**2 / g
-    print geom['delta'], fgas, wave, hc, geom['rh'].au, g
-    print N.decompose()
 
     return (2 * N * v / pi / rho).decompose()
 
