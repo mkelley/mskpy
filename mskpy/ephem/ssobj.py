@@ -10,6 +10,7 @@ ssobj --- Solar System objects.
    Functions
    ---------
    getgeom
+   getspiceobj
    getxyz
    summarizegeom
 
@@ -27,6 +28,7 @@ from .state import State
 __all__ = [
     'SolarSysObject',
     'getgeom',
+    'getspiceobj',
     'getxyz',
     'summarizegeom',
 ]
@@ -399,6 +401,29 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     return observer.observe(target, date, ltt=ltt)
 
+def getspiceobj(obj, kernel=None):
+    """Create a new SolarSysObject with a SPICE kernel, for your convenience.
+
+    Parameters
+    ----------
+    obj : string or int
+      The object's name or NAIF ID, as found in the relevant SPICE
+      kernel.
+    kernel : string, optional
+      The name of a specific SPICE planetary ephemeris kernel (SPK) to
+      use for this object, or `None` to automatically search for a
+      kernel through `find_kernel`.
+
+    Returns
+    -------
+    obj : SolarSysObject
+      A `SolarSysObject` loaded with the requested SPICE ephemeris
+      file.
+
+    """
+
+    return SolarSysObject(SpiceObject(obj, kernel=kernel))
+
 def getxyz(obj, date=None, kernel=None):
     """Coordinates and velocity from an ephemeris kernel.
 
@@ -418,7 +443,6 @@ def getxyz(obj, date=None, kernel=None):
 
     Returns
     -------
-
     r, v: array
       The position and veloctiy vectors as 3-element arrays, or, if
       multiple dates are requested, Nx3-element arrays. [km and km/s]
