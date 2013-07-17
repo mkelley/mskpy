@@ -14,6 +14,7 @@ comet --- Comets!
 
    Functions
    ---------
+   flux2Q
    fluxd2afrho
    fluxd2efrho
    m2afrho1
@@ -23,6 +24,7 @@ comet --- Comets!
 __all__ = [
     'Coma',
     'Comet',
+    'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
     'm2afrho1'
@@ -294,6 +296,59 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+def flux2Q(fgas, wave, geom, g, rap, v):
+    """Convert gas emission to Q.
+
+    Use when rho << gas photodissociation lengthscale.
+
+    Q = 2 N v / (pi rho)
+
+    Parameters
+    ----------
+    fgas : Quantity
+      The total line/band emission from the gas in units of flux.
+    wave : Quantity
+      The wavelength of the line/band.
+    geom : dict of Quantity, or ephem.Geom
+      The observing circumstances (rh and delta).
+    g : Quantity
+      The g-factor of the line/band at 1 AU.
+    rap : Quantity
+      The radius of the aperture used to measure the flux.  May be an
+      angle or length.
+    v : Quantity
+      The expansion velocity of the gas.
+
+    Returns
+    -------
+    Q : Quantity
+      The gas production rate.
+
+    """
+
+    from numpy import pi
+
+    assert isinstance(fgas, u.Quantity)
+    assert isinstance(wave, u.Quantity)
+    assert isinstance(geom['delta'], u.Quantity)
+    assert isinstance(geom['rh'], u.Quantity)
+    assert isinstance(g, u.Quantity)
+    assert isinstance(rap, u.Quantity)
+    assert isinstance(v, u.Quantity)
+
+    hc = 1.9864457e-25 * u.J * u.m
+
+    if rap.unit.is_equivalent(u.radian):
+        rho = (rap * geom['delta'].au * 725 * u.km / u.arcsec).decompose()
+    elif rap.unit.is_equivalent(u.meter):
+        rho = rap
+    else:
+        raise ValueError("rap must have angular or length units.")
+
+    N = 4 * pi * geom['delta']**2 * fgas * wave / hc * geom['rh'].au**2 / g
+
+    return (2 * N * v / pi / rho).decompose()
 
 def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     """Convert flux density to A(th)frho.
