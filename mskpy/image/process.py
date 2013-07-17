@@ -281,7 +281,7 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
 
     return flat, bpm
 
-def psfmatch(psf, psfr, ps=1, psr=1):
+def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
     """Generate a convolution kernel to match the PSFs of two images.
 
     Parameters
@@ -294,10 +294,10 @@ def psfmatch(psf, psfr, ps=1, psr=1):
       The pixel scale of the input and reference PSFs.  If they
       differ, `scipy.ndimage.zoom` will be used to match the `psfr`
       scale with `psf`.
-    smooth : float
+    smooth : float, optional
       If not `None`, smooth the resulting kernel with a `smooth`-width
       Gaussian kernel.
-    mask : float
+    mask : float, optional
       If not `None`, set all pixels at a distance greater than `mask`
       from the center of the kernel to 0 (i.e., mask the
       high-frequency components, which are usually dominated by
@@ -305,13 +305,14 @@ def psfmatch(psf, psfr, ps=1, psr=1):
 
     Returns
     -------
-    k : ndarray
+    K : ndarray
       The convolution kernel to change the PSF of an image to match
       the reference PSF.
 
     """
 
     from scipy.ndimage import zoom, gaussian_filter
+    from numpy import fft
 
     assert psf.shape[0] == psf.shape[1], "psf should have a square shape"
     assert psfr.shape[0] == psfr.shape[1], "psfr should have a square shape"
