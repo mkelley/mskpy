@@ -422,7 +422,9 @@ def getspiceobj(obj, kernel=None):
 
     """
 
-    return SolarSysObject(SpiceObject(obj, kernel=kernel))
+    from .state import SpiceState
+
+    return SolarSysObject(SpiceState(obj, kernel=kernel))
 
 def getxyz(obj, date=None, kernel=None):
     """Coordinates and velocity from an ephemeris kernel.
