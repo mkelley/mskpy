@@ -41,7 +41,7 @@ class SolarSysObject(object):
 
     Methods
     -------
-    ephemeris : Ephemeris for a target.
+    ephemeris : Ephemeris for an observer.
     fluxd : Total flux density as seen by an observer.
     lightcurve : An ephemeris table with fluxes.
     observe : Distance, phase angle, etc. to another object.
@@ -91,14 +91,14 @@ class SolarSysObject(object):
         """
         return self.state.v(date)
 
-    def ephemeris(self, target, dates, num=None, columns=None,
+    def ephemeris(self, observer, dates, num=None, columns=None,
                   cformats=None, date_format=None, ltt=False, **kwargs):
-        """Ephemeris for a target.
+        """Ephemeris for an observer.
 
         Parameters
         ----------
-        target : SolarSysObject
-          The target to observe.
+        observer : SolarSysObject
+          The observer.
         dates : array
           If `num` is `None`, set `dates` to a list of exact times for
           the ephemeris, otherwise, let `dates` be a start and stop
@@ -148,7 +148,7 @@ class SolarSysObject(object):
         else:
             time = dates
 
-        g = self.observe(target, time, ltt=ltt)
+        g = observer.observe(self, time, ltt=ltt)
 
         if columns is None:
             columns = ['date', 'ra', 'dec', 'rh', 'delta', 'phase', 'selong']
