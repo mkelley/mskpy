@@ -1805,7 +1805,6 @@ def phase_integral(phasef, range=[0, 180]):
     return pint
 
 def planck(wave, T, unit=None, deriv=None):
-
     """The Planck function.
 
     Parameters
@@ -1841,9 +1840,9 @@ def planck(wave, T, unit=None, deriv=None):
 
     # wave in m
     if isinstance(wave, Quantity):
-        wave = wave.si.value
+        wavem = wave.si.value
     else:
-        wave *= 1e-6
+        wave = wave * 1e-6
 
     #from astropy import constants as const
     #c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
