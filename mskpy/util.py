@@ -208,7 +208,13 @@ def cartesian(*arrays):
     from itertools import product
     return np.array(list(product(*arrays)))
 
-def davint(x, y, x0, x1):
+_davint_err = dict()
+_davint_err[2] = 'x1 was less than x0'
+_davint_err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
+_davint_err[4] = 'the restriction x(i+1) > x(i) was violated.'
+_davint_err[5] = 'the number of function values was < 2'
+
+def davint(x, y, x0, x1, axis=0):
     """Integrate an array using overlapping parabolas.
     
     Interface to davint.f from SLATEC at netlib.org.
@@ -234,22 +240,30 @@ def davint(x, y, x0, x1):
       Lower limit of integration.
     x1 : float
       Upper limit of integration.
+    axis : int
+      If `y` is a 2D array, then integrate over axis `axis` for each
+      element of the other axis.
 
     Returns
     -------
-    r : float
+    float
       The result.
 
     """
     from lib import davint as _davint
-    err = dict()
-    err[2] = 'x1 was less than x0'
-    err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
-    err[4] = 'the restriction x(i+1) > x(i) was violated.'
-    err[5] = 'the number of function values was < 2'
-    r, ierr = _davint(x, y, len(x), x0, x1)
-    if ierr != 1:
-        raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
+
+    y = np.array(y)
+    if y.ndim == 1:
+        r, ierr = _davint(x, y, len(x), x0, x1)
+        if ierr != 1:
+            raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
+    elif y.ndim == 2:
+        r = np.zeros(y.shape[axis])
+        for i, yy in enumerate(np.rollaxis(y, axis)):
+            r[i] = davint(x, yy, x0, x1)
+    else:
+        raise ValueError("y must have 1 or 2 dimensions.")
+
     return r
 
 def deriv(y, x=None):
