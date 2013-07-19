@@ -26,8 +26,8 @@ util --- Short and sweet functions, generic algorithms
    Searching, sorting
    ------------------
    between
-   cmp_leading_num
    groupby
+   leading_num_key
    nearest
    takefrom
    whist
@@ -105,8 +105,8 @@ __all__ = [
     'getrot',
 
     'between',
-    'cmp_leading_num',
     'groupby',
+    'leading_num_key',
     'nearest',
     'takefrom',
     'whist',
@@ -684,51 +684,6 @@ def between(a, limits, closed=True):
 
     return i.astype(bool)
 
-def cmp_leading_num(x, y):
-    """Compare two strings, considering leading multidigit integers.
-
-    A normal string comparision will compare the strings character by
-    character, e.g., "101P" is less than "1P" because "0" < "P".
-    `cmp_numalpha` will instead consider the leading multidigit
-    integer, e.g., "101P" > "1P" because 101 > 1.
-
-    Parameters
-    ----------
-    x, y : strings
-      The strings to compare.
-
-    Returns
-    -------
-    cmp : integer
-      -1, 0, 1 if x < y, x == y, x > y.
-
-    """
-
-    na = re.compile('^([0-9]*)(.*)')
-    mx = na.findall(x)[0]
-    my = na.findall(y)[0]
-
-    if (len(mx[0]) == 0) and (len(my[0]) == 0):
-        if x > y:
-            return 1
-        elif x < y:
-            return -1
-        else:
-            return 0
-    elif len(mx[0]) == 0:
-        return 1
-    elif len(my[0]) == 0:
-        return -1
-    else:
-        xx = int(mx[0])
-        yy = int(my[0])
-        if xx < yy:
-            return -1
-        if xx > yy:
-            return 1
-        else:
-            return cmp_leading_num(mx[1], my[1])
-
 def groupby(key, *lists):
     """Sort elements of `lists` by `unique(key)`.
 
@@ -773,6 +728,35 @@ def groupby(key, *lists):
         for l in lists:
             groups[k] += (list(np.asarray(l)[i]),)
     return groups
+
+def leading_num_key(s):
+    """Keys for sorting strings, based on leading multidigit numbers.
+
+    A normal string comparision will compare the strings character by
+    character, e.g., "101P" is less than "1P" because "0" < "P".
+    `leading_num_key` will generate keys so that `str.sort` can
+    consider the leading multidigit integer, e.g., "101P" > "1P"
+    because 101 > 1.
+
+    Parameters
+    ----------
+    s : string
+
+    Returns
+    -------
+    keys : tuple
+      They keys to sort by for this string: `keys[0]` is the leading
+      number, `keys[1]` is the rest of the string.
+
+    """
+
+    pfx = ''
+    for i in range(len(s)):
+        if not s[i].isdigit():
+            break
+        pfx += s[i]
+    sfx = s[i:]
+    return int(pfx), sfx
 
 def nearest(array, v):
     """Return the index of `array` where the value is nearest `v`.

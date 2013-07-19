@@ -72,7 +72,7 @@ Changes From mskpy v1.7.0
 
   - `nanmedian` now considers `inf` as a real value.
 
-  - `numalpha` renamed `cmp_leading_num`.
+  - `numalpha` replaced with `leading_num_key`.
 
   - `dminmax` renamed `mean2minmax`.
 
