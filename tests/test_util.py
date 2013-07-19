@@ -43,6 +43,54 @@ class TestUtilMathmatical():
         r = np.array([1, 0]) * util.rotmat(2 * pi).squeeze()
         assert np.allclose(r, [1, 0])
 
+    def test_basicwcs(self):
+        wcs = util.basicwcs([256, 256], [0., 45], 1, 60)
+
+    #fitslog
+    #getrot
+
+    def test_between(self):
+        a = np.arange(20.)
+        assert util.between(a, [4, 9]).sum() == 6
+        assert util.between(a, [4, 9], closed=False).sum() == 4
+        assert util.between(a, [[4, 9], [13, 14]]).sum() == 8
+
+    def test_groupby(self):
+        keys = [1, 2, 2, 0, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 0, 0, 0, 1, 2, 2]
+        lists = (list('abcdefghijklmnopqrstuvwxyz'), range(26))
+        grouped = util.groupby(keys, *lists)
+        answer = {0: (['d', 'o', 'p', 'q'], [3, 14, 15, 16]),
+                  1: (['a', 'e', 'f', 'g', 'h', 'i', 'j', 'l', 'n', 'r'],
+                      [0, 4, 5, 6, 7, 8, 9, 11, 13, 17]),
+                  2: (['b', 'c', 'k', 'm', 's', 't'], [1, 2, 10, 12, 18, 19])}
+        assert grouped == answer
+
+    def test_leading_num_key(self):
+        a = ['1P', '101P', '2P', 'C/2001 Q4']
+        b = ['1P', '2P', '101P', 'C/2001 Q4']
+        assert sorted(a, key=util.leading_num_key) == b
+
+    def test_nearest(self):
+        a = np.arange(20.)
+        assert util.nearest(a, 2.5) == 1
+        assert util.nearest(a, 2.9) == 2
+        assert util.nearest(a, 3) == 2
+        assert util.nearest(a, 3.1) == 2
+        assert util.nearest(a, 3.5) == 2
+
+    def test_takefrom(self):
+        a = list(range(20))
+        b = list(range(20))
+        c = [1, 5, 10]
+        assert util.takefrom((a, b), c) == (c, c)
+
+    def test_whist(self):
+        x = np.arange(1, 5.)
+        y = x**2
+        w = x**-1
+        wh = util.whist(x, y, w, errors=False, bins=[0, 5])
+        assert np.allclose(wh[0], 4.8)
+
 class TestSearchingSorting():
     def test_between(self):
         a = np.arange(100, int)
