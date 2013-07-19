@@ -85,6 +85,7 @@ util --- Short and sweet functions, generic algorithms
    asValue
    autodoc
    spectral_density_sb
+   timesten
 
 """
 
@@ -153,7 +154,8 @@ __all__ = [
     'asQuantity',
     'asValue',
     'autodoc',
-    'spectral_density_sb'
+    'spectral_density_sb',
+    'timesten'
 ]
 
 def archav(y):
@@ -2502,6 +2504,28 @@ def spectral_density_sb(s):
         (fnu, nufnu, converter_fnu_nufnu, iconverter_fnu_nufnu),
         (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
     ]
+
+def timesten(v, sigfigs):
+    """Format a number in LaTeX style scientific notation: $A\times10^{B}$.
+
+    Parameters
+    ----------
+    v : float, int, or array
+      The number(s) for format.
+    sigfigs : int
+      The number of significant figures.
+
+    """
+
+    if np.iterable(v):
+        s = []
+        for i in range(len(v)):
+            s.append(timesten(v[i], sigfigs))
+        return s
+
+    s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
+    s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
+    return s
 
 # summarize the module
 autodoc(globals())
