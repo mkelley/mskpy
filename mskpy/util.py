@@ -806,11 +806,11 @@ def whist(x, y, w, errors=True, **keywords):
 
     Parameters
     ----------
-    x : array-like
+    x : array
       The independent variable.
-    y : array-like
+    y : array
       The parameter to average.
-    w : array-like
+    w : array
       The weights for each `y`.  If `errors` is `True`, then `x` will
       be weighted by `1 / w**2`.
     errors : bool, optional
