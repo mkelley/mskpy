@@ -54,7 +54,6 @@ util --- Short and sweet functions, generic algorithms
    sigma
    spearman
    uclip
-   wmean
 
    "Special" functions
    -------------------
@@ -130,7 +129,6 @@ __all__ = [
     'sigma',
     'spearman',
     'uclip',
-    'wmean',
 
     'bandpass',
     'deresolve',
@@ -1571,45 +1569,6 @@ def uclip(x, ufunc, full_output=False, **keywords):
         return ufunc(x.flatten()[mc[2]]), mc[2], mc[3]
     else:
         return ufunc(x.flatten()[mc[2]])
-
-def wmean(x, w, errors=True, axis=None):
-    """The weighted mean.
-
-    Parameters
-    ----------
-    x : array
-      The parameter to average.
-    w : array
-      The weights for each `x`.  If `errors` is `True`, then `x` will
-      be weighted by `1 / w**2`.
-    errors : bool, optional
-      Set to `True` if `w` is an array of uncertainties on `x`, and
-      not the actual weights.
-    axis : int, optional
-      Set to the axis over which to average.
-
-    Returns
-    -------
-    m : float
-      The weighted mean.
-    merr : float
-      The uncertainty on `m` (when `errors` is `True`).
-
-    """
-
-    _x = np.array(x)
-    _w = np.array(w)
-
-    if errors:
-        _w = 1.0 / _w**2
-
-    m = np.sum(_x * _w, axis=axis) / np.sum(_w, axis=axis)
-
-    if errors:
-        merr = np.sqrt(1.0 / np.sum(_w, axis=axis))
-        return m, merr
-    else:
-        return m
 
 def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
              s=None):
