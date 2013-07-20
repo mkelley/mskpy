@@ -19,9 +19,9 @@ class TestUtilMathmatical():
         assert np.alltrue(util.cartesian(a, b) == c)
 
     def test_davint(self):
-        x = np.arange(0, 2 * pi)
+        x = np.linspace(0, 2 * pi)
         y = np.sin(x)
-        assert util.davint(x, y, 0, 2 * pi) == 0
+        assert np.allclose(util.davint(x, y, 0, 2 * pi), 0)
 
     def test_deriv(self):
         a = np.arange(10)
@@ -43,12 +43,14 @@ class TestUtilMathmatical():
         r = np.array([1, 0]) * util.rotmat(2 * pi).squeeze()
         assert np.allclose(r, [1, 0])
 
+class TestFITSWCS():
     def test_basicwcs(self):
         wcs = util.basicwcs([256, 256], [0., 45], 1, 60)
 
     #fitslog
     #getrot
 
+class TestSearchingSorting():
     def test_between(self):
         a = np.arange(20.)
         assert util.between(a, [4, 9]).sum() == 6
@@ -72,11 +74,11 @@ class TestUtilMathmatical():
 
     def test_nearest(self):
         a = np.arange(20.)
-        assert util.nearest(a, 2.5) == 1
-        assert util.nearest(a, 2.9) == 2
-        assert util.nearest(a, 3) == 2
-        assert util.nearest(a, 3.1) == 2
-        assert util.nearest(a, 3.5) == 2
+        assert util.nearest(a, 2.5) == 2
+        assert util.nearest(a, 2.9) == 3
+        assert util.nearest(a, 3) == 3
+        assert util.nearest(a, 3.1) == 3
+        assert util.nearest(a, 3.5) == 3
 
     def test_takefrom(self):
         a = list(range(20))
@@ -91,41 +93,87 @@ class TestUtilMathmatical():
         wh = util.whist(x, y, w, errors=False, bins=[0, 5])
         assert np.allclose(wh[0], 4.8)
 
-class TestSearchingSorting():
-    def test_between(self):
-        a = np.arange(100, int)
-        assert util.between(a, [5, 8]) == np.array([5, 6, 7, 8])
-        assert util.between(a, [5, 8], closed=False) == np.array([6, 7])
+class TestSpecial():
+    def test_ec2eq(self):
+        # from IDL Astro Library, euler.pro
+        assert np.allclose(util.ec2eq(45, -60), [62.139614, -40.838363])
 
-    def test_cmp_leading_num(self):
-        a = '1P 103P 88P asdf'.split()
-        a.sort(util.cmp_leading_num)
-        assert a == '1P 88P 103P asdf'.split()
+    def test_projected_vector_angle(self):
+        a = util.projected_vector_angle([0, 1, 0], [0, 0, 1000], 0, 0)
+        assert np.allclose(a, 0)
 
-    def test_groupby(self):
-        lists = (list('abcdef'), range(6))
-        key = [3, 3, 100, 0, 0, 100]
-        grouped = util.groupby(key, *lists)
-        assert key[100] == (['c', 'f'], [2, 5])
+    def test_spherical_coord_rotate(self):
+        ll = util.spherical_coord_rotate(0, 90, 0, 0, 0, 0)
+        assert np.allclose(ll, [0, -90])
 
-    def test_nearest(self):
-        a = np.logspace(-1, 2, 7)
-        n = util.nearest(a, np.log(20))
-        assert n == 2
+    def test_state2orbit(self):
+        from astropy.constants import au
+        vcirc = 1.32712440018e11 / au.kilometer
+        orbit = util.state2orbit([0, 1, 0], [vcirc, 0, 0])
+        assert np.allclose([orbit['a'], orbit['ec'], orbit['in']],
+                           [au.kilometer, 0.0, 0.0])
 
-    def test_takefrom(self):
-        r = util.takefrom((list('asdf'), list('jkl;')), [3, 2])
-        assert r == (['f', 'd'], [';', 'l'])
+    def test_vector_rotate(self):
+        r = util.vector_rotate([0, 0, 1], [1, 0, 1], 180)
+        assert np.allclose(r, [1, 0, 0])
 
-    def test_whist(self):
-        x = np.arange(5) + 1
-        y = x**2
-        w = 1.0 / x
-        h = util.whist(x, y, w, errors=False, bins=[0, 2.5, 5.0])
-        assert np.allclose(h[0], np.array([0.5, 3.0]))
-        assert h[1] is None
-        assert h[2] == np.array([2, 3])
-        assert h[3] == np.array([0, 2.5, 5.0])
+class TestStatistics():
+    def test_kuiper(self):
+        from scipy.stats import ks_2samp
+        x = np.random.randn(1000)
+        y = np.random.randn(1000) * 2
+        v, pk = util.kuiper(x, y)
+        d, pks = ks_2samp(x, y)
+        assert v > d
+        assert pk < pks
+
+    # kuiper_prob
+
+    def test_mean2minmax(self):
+        x = util.mean2minmax([0, 1, 2])
+        assert all(x == np.array([1., 1.]))
+
+    def test_meanclip(self):
+        x = np.arange(10)
+        assert util.meanclip(x) == 4.5
+        x[-1] = 100
+        assert util.meanclip(x) == 4.
+
+    def test_midstep(self):
+        assert all(util.midstep([0, 1, 2]) == np.array([0.5, 1.5]))
+
+    def test_minmax(self):
+        assert all(util.minmax(np.arange(10)) == np.array([0, 9]))
+
+    def test_nanmedian(self):
+        x = np.arange(10.)
+        x[4] = np.nan
+        assert util.nanmedian(x) == 5.
+
+    def test_nanminmax(self):
+        x = np.arange(10.)
+        x[4] = np.nan
+        assert all(util.nanminmax(x) == np.array([0., 9.]))
+
+    def test_randpl(self):
+        p1 = util.randpl(1, 100, 1, 1000)
+        p2 = util.randpl(1, 100, 2, 1000)
+        assert np.allclose(sum(p1 > 10), sum(p2 > 10) / 10.)
+
+    def test_sigma(self):
+        assert np.allclose(util.sigma(1), 0.682689492)
+
+    def test_spearman(self):
+        x = np.arange(1000)
+        y = 2 * x
+        r, p, z = util.spearman(x, y)
+        assert r == 1.
+
+    def test_uclip(self):
+        x = np.arange(10)
+        assert util.uclip(x, np.median) == 5
+        x[-1] = 100
+        assert util.uclip(x, np.median) == 4        
 
 def test_phase_integral():
     from mskpy.models.surfaces import phaseHG
