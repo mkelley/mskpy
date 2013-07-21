@@ -756,7 +756,10 @@ def leading_num_key(s):
             break
         pfx += s[i]
     sfx = s[i:]
-    return int(pfx), sfx
+
+    if len(pfx) > 0:
+        pfx = int(pfx)
+    return pfx, sfx
 
 def nearest(array, v):
     """Return the index of `array` where the value is nearest `v`.
