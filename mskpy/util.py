@@ -1574,7 +1574,7 @@ def uclip(x, ufunc, full_output=False, **keywords):
         return ufunc(x.flatten()[mc[2]])
 
 def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
-             s=None):
+             k=3, s=None):
     """Filters a spectrum given a transimission function.
 
     If the filter has a greater spectreal dispersion than the
@@ -1602,8 +1602,11 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     filterdir : string, optional
       The directory containing the filter transmission files
       (see `calib.filter_trans`).
+    k : int, optional
+      Order of the spline fit for interpolation.  See
+      `scipy.interpolate.splrep`.
     s : float, optional
-      Interpolation smoothing.  See scipy.interpolate.splrep().
+      Interpolation smoothing.  See `scipy.interpolate.splrep`.
 
     Returns
     -------
@@ -1648,11 +1651,9 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _ft = _ft[i]
 
         _w = _fw
-        #_sf = interpolate.interp1d(_sw, _sf, kind=kind)(_w)
-        #_se2 = interpolate.interp1d(_sw, _se**2, kind=kind)(_w)
-        spl = interpolate.splrep(_sw, _sf)
+        spl = interpolate.splrep(_sw, _sf, k=k, s=s)
         _sf = interpolate.splev(_w, spl)
-        spl = interpolate.splrep(_sw, _se**2)
+        spl = interpolate.splrep(_sw, _se**2, k=k, s=s)
         _se2 = interpolate.splev(_w, spl)
         _ft = _ft
     else:
@@ -1664,8 +1665,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _se = _se[i]
 
         _w = _sw
-        #_ft = interpolate.interp1d(_fw, _ft, kind=kind)(_w)
-        spl = interpolate.splrep(_fw, _ft)
+        spl = interpolate.splrep(_fw, _ft, k=k, s=s)
         _ft = interpolate.splev(_w, spl)
         _sf = _sf
         _se2 = _se**2

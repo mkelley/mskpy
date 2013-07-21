@@ -183,15 +183,16 @@ class TestSpecial():
         ft = np.zeros(100)
         ft[40:60] = 1
         w, f = util.bandpass(wave, flux, fw=fw, ft=ft)
-        assert allclose(f, 0.05)
+        flux_analytical = util.sigma(10 / 3.) * 0.05
+        assert allclose(f, flux_analytical, 1e-4)
 
         w, f, e = util.bandpass(wave, flux, np.ones(100), fw=fw, ft=ft)
-        assert allclose(f, 0.05)
+        assert allclose(f, flux_analytical, 1e-4)
 
-        fw = [1, 39.9, 40, 60, 60.1, 0]
-        ft = [0, 0, 1, 1, 0, 0]
-        w, f = util.bandpass(wave, flux, fw=fw, ft=ft)
-        assert allclose(f, 0.05)
+        fw = [1, 39.9, 40, 59, 59.1, 100]
+        ft = [0,    0,  1,  1,    0,   0]
+        w, f = util.bandpass(wave, flux, fw=fw, ft=ft, k=1)
+        assert allclose(f, flux_analytical, 1e-4)
 
         flux = np.zeros(100)
         flux[50] = 1.0
