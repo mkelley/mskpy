@@ -1696,7 +1696,7 @@ def deresolve(func, wave, flux, err=None):
       takes one parameter: delta-wavelength (distance from the center
       of the filter) in the same units as `wave`.  Some shortcut
       strings are allowed (case insensitive):
-        "Gaussian(sigma)" - specifiy sigma in the same units as `wave`
+        "gaussian(sigma)" - specifiy sigma in the same units as `wave`
         "uniform(fwhm)" - specifiy fwhm in the same units as `wave`
     wave : ndarray
       The wavelengths of the spectrum.
@@ -1713,16 +1713,19 @@ def deresolve(func, wave, flux, err=None):
 
     """
 
+    import re
+
     if type(func) is str:
         if 'gaussian' in func.lower():
-            sigma = float(re.findall('gaussian\(([^)]+)\)', func)[0])
+            sigma = float(re.findall('gaussian\(([^)]+)\)', func.lower())[0])
             def func(dw):
                 return gaussian(dw, 0, sigma)
         elif 'uniform' in func.lower():
-            hwhm = float(re.findall('uniform\(([^)]+)\)', func)[0]) / 2.0
+            hwhm = (float(re.findall('uniform\(([^)]+)\)', func.lower())[0])
+                    / 2.0)
             def func(dw):
                 f = np.zeros_like(dw)
-                i = (dw > hwhm) * (dw <= hwhm)
+                i = (dw > -hwhm) * (dw <= hwhm)
                 if any(i):
                     f[i] = 1.0
                 return f
@@ -1738,7 +1741,7 @@ def deresolve(func, wave, flux, err=None):
 
     wflux = flux * weights
     fluxout = np.zeros_like(wflux)
-    
+
     for i in range(len(wave)):
         dw = wave - wave[i]
         f = func(dw)
