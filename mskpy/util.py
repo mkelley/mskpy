@@ -1619,16 +1619,16 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     from . import calib
 
     # local copies
-    _sw = sw.copy()
-    _sf = sf.copy()
+    _sw = np.array(sw)
+    _sf = np.array(sf)
     if se is None:
         _se = np.ones_like(_sf)
     else:
-        _se = se.copy()
+        _se = np.array(se)
 
     if (fw is not None) and (ft != None):
-        _fw = fw.copy()
-        _ft = ft.copy()
+        _fw = np.array(fw)
+        _ft = np.array(ft)
     elif filter is not None:
         _fw, _ft = calib.filter_trans(filter)
         _fw = _fw.micrometer
