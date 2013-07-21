@@ -61,7 +61,7 @@ util --- Short and sweet functions, generic algorithms
    deresolve
    phase_integral
    planck
-   redden
+   #redden
    polcurve
    savitzky_golay
 
@@ -134,7 +134,7 @@ __all__ = [
     'deresolve',
     'phase_integral',
     'planck',
-    'redden',
+#    'redden',
     'polcurve',
     'savitzky_golay',
 
@@ -1799,7 +1799,7 @@ def planck(wave, T, unit=None, deriv=None):
 
     # wave in m
     if isinstance(wave, Quantity):
-        wavem = wave.si.value
+        wave = wave.si.value
     else:
         wave = wave * 1e-6
 
@@ -1836,7 +1836,7 @@ def planck(wave, T, unit=None, deriv=None):
 
     return B
 
-def redden(wave, S, wave0=0.55):
+def _redden(wave, S, wave0=0.55):
     """Redden a spectrum with the slope S.
 
     Parameters
