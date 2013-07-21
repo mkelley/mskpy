@@ -1681,7 +1681,10 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     err = davint(_w, weights, *wrange) / davint(_w, 1.0 / _se2, *wrange)
     err = np.sqrt(err) * errscale
 
-    return wave, flux, err
+    if se is None:
+        return wave, flux
+    else:
+        return wave, flux, err
 
 def deresolve(func, wave, flux, err=None):
     """De-resolve a spectrum using the supplied instrument profile.
