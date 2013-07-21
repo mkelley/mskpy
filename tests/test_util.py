@@ -4,13 +4,13 @@ This package contains utilities to run the test suite.
 """
 
 import numpy as np
-from numpy import pi
+from numpy import pi, allclose
 from mskpy import util
 
 class TestUtilMathmatical():
     def test_haversine(self):
         th = np.arange(-pi, pi)
-        assert np.allclose(util.archav(util.hav(th)), np.abs(th))
+        assert allclose(util.archav(util.hav(th)), np.abs(th))
 
     def test_cartesian(self):
         a = [0, 1, 2]
@@ -21,11 +21,11 @@ class TestUtilMathmatical():
     def test_davint(self):
         x = np.linspace(0, 2 * pi)
         y = np.sin(x)
-        assert np.allclose(util.davint(x, y, 0, 2 * pi), 0)
+        assert allclose(util.davint(x, y, 0, 2 * pi), 0)
 
     def test_deriv(self):
         a = np.arange(10)
-        assert np.allclose(util.deriv(a), np.ones(10))
+        assert allclose(util.deriv(a), np.ones(10))
 
     def test_gaussian(self):
         assert util.gaussian(0, 0, 1) == 1 / np.sqrt(2 * pi)
@@ -35,13 +35,13 @@ class TestUtilMathmatical():
 
     def test_rotmat(self):
         r = np.array([1, 0]) * util.rotmat(pi / 2).squeeze()
-        assert np.allclose(r, [0, 1])
+        assert allclose(r, [0, 1])
         r = np.array([1, 0]) * util.rotmat(-pi / 2).squeeze()
-        assert np.allclose(r, [0, -1])
+        assert allclose(r, [0, -1])
         r = np.array([1, 0]) * util.rotmat(pi).squeeze()
-        assert np.allclose(r, [-1, 0])
+        assert allclose(r, [-1, 0])
         r = np.array([1, 0]) * util.rotmat(2 * pi).squeeze()
-        assert np.allclose(r, [1, 0])
+        assert allclose(r, [1, 0])
 
 class TestFITSWCS():
     def test_basicwcs(self):
@@ -91,31 +91,31 @@ class TestSearchingSorting():
         y = x**2
         w = x**-1
         wh = util.whist(x, y, w, errors=False, bins=[0, 5])
-        assert np.allclose(wh[0], 4.8)
+        assert allclose(wh[0], 4.8)
 
 class TestSpecial():
     def test_ec2eq(self):
         # from IDL Astro Library, euler.pro
-        assert np.allclose(util.ec2eq(45, -60), [62.139614, -40.838363])
+        assert allclose(util.ec2eq(45, -60), [62.139614, -40.838363])
 
     def test_projected_vector_angle(self):
         a = util.projected_vector_angle([0, 1, 0], [0, 0, 1000], 0, 0)
-        assert np.allclose(a, 0)
+        assert allclose(a, 0)
 
     def test_spherical_coord_rotate(self):
         ll = util.spherical_coord_rotate(0, 90, 0, 0, 0, 0)
-        assert np.allclose(ll, [0, -90])
+        assert allclose(ll, [0, -90])
 
     def test_state2orbit(self):
         from astropy.constants import au
         vcirc = 1.32712440018e11 / au.kilometer
         orbit = util.state2orbit([0, 1, 0], [vcirc, 0, 0])
-        assert np.allclose([orbit['a'], orbit['ec'], orbit['in']],
+        assert allclose([orbit['a'], orbit['ec'], orbit['in']],
                            [au.kilometer, 0.0, 0.0])
 
     def test_vector_rotate(self):
         r = util.vector_rotate([0, 0, 1], [1, 0, 1], 180)
-        assert np.allclose(r, [1, 0, 0])
+        assert allclose(r, [1, 0, 0])
 
 class TestStatistics():
     def test_kuiper(self):
@@ -158,10 +158,10 @@ class TestStatistics():
     def test_randpl(self):
         p1 = util.randpl(1, 100, 1, 1000)
         p2 = util.randpl(1, 100, 2, 1000)
-        assert np.allclose(sum(p1 > 10), sum(p2 > 10) / 10.)
+        assert allclose(sum(p1 > 10), sum(p2 > 10) / 10.)
 
     def test_sigma(self):
-        assert np.allclose(util.sigma(1), 0.682689492)
+        assert allclose(util.sigma(1), 0.682689492)
 
     def test_spearman(self):
         x = np.arange(1000)
@@ -175,13 +175,76 @@ class TestStatistics():
         x[-1] = 100
         assert util.uclip(x, np.median) == 4        
 
-def test_phase_integral():
-    from mskpy.models.surfaces import phaseHG
-    def phasef(phase):
-        return phaseHG(phase, 0.15)
+class TestSpecial():
+    def test_bandpass(self):
+        wave = np.arange(1, 101)
+        flux = util.gaussian(wave, 50, 3)
+        fw = wave
+        ft = np.zeros(100)
+        ft[40:60] = 1
+        w, f = util.bandpass(wave, flux, fw=fw, ft=ft)
+        assert allclose(f, 0.05)
 
-    pint = util.phase_integral(phasef)
-    # According to Muinonen et al. (2010, Icarus 209, 542), the
-    # approximation pint(G) == (0.290 + 0.684 * G) is good to 5%.  For
-    # G = 0.15, this is 0.3926.
-    assert np.allclose(pint, 0.384039206983)
+        w, f, e = util.bandpass(wave, flux, np.ones(100), fw=fw, ft=ft)
+        assert allclose(f, 0.05)
+
+        fw = [1, 39.9, 40, 60, 60.1, 0]
+        ft = [0, 0, 1, 1, 0, 0]
+        w, f = util.bandpass(wave, flux, fw=fw, ft=ft)
+        assert allclose(f, 0.05)
+
+        flux = np.zeros(100)
+        flux[50] = 1.0
+        fw = wave
+        ft = np.zeros(100)
+        ft[40:60] = 1
+        w, f = util.bandpass(wave, flux, fw=fw, ft=ft)
+        assert allclose(f, 0.05)
+
+    def test_deresolve(self):
+        wave = np.arange(1, 101)
+        flux = np.zeros(wave.shape)
+        flux[50] = 1
+        f = util.deresolve("Gaussian(3.0)", wave, flux)
+        assert allclose(flux.sum(), f.sum())
+
+        f = util.deresolve("uniform(3.0)", wave, flux)
+        assert allclose(flux.sum(), f.sum())
+        assert allclose(f.max(), 0.33)
+
+        f = util.deresolve(lambda w: np.sin(w / 10. / np.pi), wave, flux)
+        assert allclose(flux.sum(), f.sum())
+
+    def test_planck(self):
+        import astropy.units as u
+        import astropy.constants as const
+
+        wave = np.logspace(-1, 3, 10000) * u.um
+        I = util.planck(wave, 300, unit=u.Unit('W/(m2 um sr)'))
+        assert allclose(wave[I.value.argmax()], 2.8977685e3 / 300, rtol=1e-3)
+
+        F = (util.davint(wave.value, I.value, wave.value[0], wave.value[-1])
+             * np.pi)
+        assert allclose(F, const.sigma_sb.si.value * 300.**4, rtol=1e-5)
+
+    def test_phase_integral(self):
+        from mskpy.models.surfaces import phaseHG
+        def phasef(phase):
+            return phaseHG(phase, 0.15)
+
+        pint = util.phase_integral(phasef)
+        # According to Muinonen et al. (2010, Icarus 209, 542), the
+        # approximation pint(G) == (0.290 + 0.684 * G) is good to 5%.
+        # For G = 0.15, this is 0.3926.
+        assert allclose(pint, 0.384039206983)
+
+    def test_polcurve(self):
+        th = np.arange(180.)
+        p = util.polcurve(th, 48.8, 1.26, 1.53, 21.1)
+        assert th[p.argmax()] == 83
+        assert th[p.argmin()] == 12
+
+    def test_savitzky_golay(self):
+        a = np.random.randn(1000)
+        b = util.savitzky_golay(a, 7)
+        assert allclose(a.sum(), b.sum(), 1e-2)
