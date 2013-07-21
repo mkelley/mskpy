@@ -1911,8 +1911,9 @@ def polcurve(th, p, a, b, th0):
       The polarization at phase angle `th`.
 
     """
-    return (p * np.sin(np.radians(th))**a * np.cos(th.value / 2.)**b *
-            np.sin(np.radians(th - th0)))
+    thr = np.radians(th)
+    return (p * np.sin(thr)**a * np.cos(thr / 2.)**b
+            * np.sin(thr - np.radians(th0)))
 
 def savitzky_golay(x, kernel=11, order=4):
     """Smooth with the Savitzky-Golay filter.
@@ -1959,17 +1960,15 @@ def savitzky_golay(x, kernel=11, order=4):
     offset_data = zip(offsets, m)
 
     # temporary data, extended with a mirror image to the left and right
-    firstval = data[0]
-    lastval = data[len(data) - 1]
     # left extension: f(x0-x) = f(x0)-(f(x)-f(x0)) = 2f(x0)-f(x)
     # right extension: f(xl+x) = f(xl)+(f(xl)-f(xl-x)) = 2f(xl)-f(xl-x)
-    leftpad = np.zeros(half_window) + 2 * firstval
-    rightpad = np.zeros(half_window) + 2 * lastval
-    leftchunk = data[1:(1 + half_window)]
+    leftpad = np.zeros(half_window) + 2 * x[0]
+    rightpad = np.zeros(half_window) + 2 * x[-1]
+    leftchunk = x[1:(1 + half_window)]
     leftpad = leftpad-leftchunk[::-1]
-    rightchunk = data[len(data) - half_window - 1:len(data) - 1]
+    rightchunk = x[len(x) - half_window - 1:len(x) - 1]
     rightpad = rightpad - rightchunk[::-1]
-    data = np.concatenate((leftpad, data))
+    data = np.concatenate((leftpad, x))
     data = np.concatenate((data, rightpad))
 
     smooth_data = list()
