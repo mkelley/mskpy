@@ -257,7 +257,7 @@ class SolarSysObject(object):
 
         from astropy.table import Column
 
-        lc = observer.ephemeris(self, dates, **kwargs)
+        lc = self.ephemeris(observer, dates, **kwargs)
         if 'date' not in lc.columns:
             raise KeyError("Ephemeris must return a date column."
                            "  Update columns.")
