@@ -161,7 +161,7 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, ef2af=10.0, Tscale=1.1, **kwargs):
+    def __init__(self, Afrho, ef2af=2.0, Tscale=1.1, **kwargs):
         assert isinstance(Afrho, u.Quantity)
         self.Afrho = Afrho
         self.ef2af = ef2af
