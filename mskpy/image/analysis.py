@@ -162,7 +162,7 @@ def apphot(im, yx, rap, subsample=4):
     """
     if not np.iterable(rap):
         rap = np.array([rap])
-    n, f = anphot(im, xy, rap, subsample=subsample)
+    n, f = anphot(im, yx, rap, subsample=subsample)
     return n.cumsum(-1), f.cumsum(-1)
 
 def azavg(im, yx, raps=None, subsample=4, **kwargs):
