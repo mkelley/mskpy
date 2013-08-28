@@ -32,6 +32,10 @@ util --- Short and sweet functions, generic algorithms
    takefrom
    whist
 
+   Simple fitting
+   --------------
+   LinearFit
+
    Spherical/Celestial/vectorial geometry
    --------------------------------------
    ec2eq
@@ -110,6 +114,8 @@ __all__ = [
     'nearest',
     'takefrom',
     'whist',
+
+    'LinearFit',
 
     'ec2eq',
     'projected_vector_angle',
@@ -859,6 +865,59 @@ def whist(x, y, w, errors=True, **keywords):
         err = None
 
     return m, err, n, edges
+
+class LinearFit(object):
+    """Fit a line to data.
+
+    """
+
+    def __init__(self, x, y, yerr, guess=None):
+        self.x = x
+        self.y = y
+        self.yerr = yerr
+        if guess is None:
+            self.guess = (0, 0)
+        else:
+            self.guess = guess
+        self.best = (None, None)
+        self.err = (None, None)
+
+    @property
+    def m(self):
+        return self.best[0], self.err[0]
+
+    @m.setter
+    def m(self, m, merr=None):
+        self.best = (m, self.best[1])
+        self.err = (merr, self.err[1])
+
+    @property
+    def m(self):
+        return self.best[0], self.err[0]
+
+    @m.setter
+    def m(self, m, merr=None):
+        self.best = (m, self.best[1])
+        self.err = (merr, self.err[1])
+
+    def model(self, x):
+        return self.m * x + self.b
+
+    def _lsq_chi(self, p, x, y, yerr):
+        # for scipy.optimize.leastsq
+        m, b = p
+        model = m * x + b
+        return (y - model) / yerr
+
+    def fit(self):
+        from scipy.optimize import leastsq
+        best = leastsq(self._lsq_chi, guess, args=(self.x, self.y, self.yerr),
+                       epsfcn=1e-4, full_output=True)
+        self.m = best[0]
+        self.b = best[1]
+        self.err = 
+        self.cov
+        
 
 def ec2eq(lam, bet):
     """Ecliptic coordinates to equatorial (J2000.0) coordinates.
