@@ -63,6 +63,9 @@ New Features
   future.  Includes `midir` sub-module with `MIRSI`, and `spitzer`
   sub-module with `IRAC`.
 
+- New `scripts` directory for command-line scripts.  Currently
+  includes an ephemeris generator.
+
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
