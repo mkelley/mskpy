@@ -335,7 +335,7 @@ class Geom(object):
         if self.date is None:
             return None
         rm = Moon.r(self.date)
-        rom = rm - self.ro
+        rom = rm - self._ro
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
                            / deltam / self.delta.kilometer)
