@@ -214,7 +214,7 @@ class Geom(object):
     def phase(self):
         phase = np.arccos((self.rh**2 + self.delta**2 - self.obsrh**2) /
                           2.0 / self.rh / self.delta)
-        return np.degrees(phase) * u.deg
+        return np.degrees(phase)  # quantity magic will put this in deg.
 
     @property
     def signedphase(self):
