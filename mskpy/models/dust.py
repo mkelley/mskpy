@@ -138,14 +138,20 @@ class AfrhoThermal(AfrhoRadiation):
     """Thermal emisson from a coma parameterized by efrho.
 
     If you use this model, please cite and reference Kelley et
-    al. (2013, Icarus 225, 475-494).  They define epsilon-f-rho as the
-    product of IR emissivity, dust filling factor, f, and observer's
-    aperture radius, rho.
+    al. (2013, Icarus 225, 475-494).  They define `epsilon-f-rho` as
+    the product of IR emissivity (`epsilon`), dust filling factor
+    (`f`), and observer's aperture radius (`rho`).
 
-    The default long-wavelength slope, beta = 0.89+/-0.10, is from an
-    analysis of Hyakutake JCMT data by Jewitt and Matthews (1997, AJ
-    113, 1145).  The break-point, wave0 = 70 um, is based on my own
-    analysis, combining the Jewitt and Matthews fluxes with mid-IR
+    The default `ef2af` is 3.5, which assumes `epsilion` is
+    approximately 0.9, `A` is approximately 0.25, and the scattering
+    and emission filling factors are the same.  This value can roughly
+    reproduce the spectral shape of 73P-C/Schwassmann-Wachmann in
+    Fig. 16 of Sitko et al. (2011, AJ 142, 80) for `Tscale = 1.12`.
+
+    The default long-wavelength slope, `beta = 0.89+/-0.10`, is from
+    an analysis of Hyakutake JCMT data by Jewitt and Matthews (1997,
+    AJ 113, 1145).  The break-point, `wave0` = 70 um, is based on my
+    own analysis, combining the Jewitt and Matthews fluxes with mid-IR
     fluxes from Mason et al. (1998, ApJ 507, 398).
 
     Parameters
@@ -170,7 +176,7 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, ef2af=2.0, Tscale=1.1, beta=0.89,
+    def __init__(self, Afrho, ef2af=3.5, Tscale=1.1, beta=0.89,
                  wave0=70 * u.um, **kwargs):
         assert isinstance(Afrho, u.Quantity)
         self.Afrho = Afrho

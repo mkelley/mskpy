@@ -4,7 +4,7 @@ mskpy
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: numpy, scipy, astropy.
+Requires: numpy, scipy, astropy (v0.3).
 
 Recommended: pyspice, matplotlib.
 
@@ -12,4 +12,80 @@ Recommended: pyspice, matplotlib.
 Caution
 =======
 
-mskpy is in development.  Don't count on anything until v2.0.0 is released.
+I hope you find mskpy useful, but use at your own risk.
+
+
+Examples
+========
+
+Ephemerides
+-----------
+
+>>> from mskpy import Earth, Moon
+>>> print Moon.ephemeris(Earth, ['2013-1-1', '2013-12-31'], num=365)
+      date         ra   dec     rh  delta phase selong
+---------------- ----- ------ ----- ----- ----- ------
+2013-01-01 00:00 09:25  09:46 0.985 0.003    40    140
+2013-01-02 00:00 10:13  05:35 0.985 0.003    52    128
+2013-01-03 00:00 11:01  01:05 0.984 0.003    63    116
+2013-01-04 00:00 11:50  -3:33 0.984 0.003    75    104
+2013-01-05 00:00 12:40  -8:07 0.983 0.003    88     92
+2013-01-06 00:00 13:33 -12:24 0.983 0.002   100     79
+2013-01-07 00:00 14:29 -16:06 0.982 0.002   113     66
+2013-01-08 00:00 15:29 -18:55 0.982 0.002   127     53
+2013-01-09 00:00 16:31 -20:33 0.982 0.002   141     39
+2013-01-10 00:00 17:35 -20:46 0.981 0.002   154     26
+2013-01-11 00:00 18:39 -19:31 0.981 0.002   168     12
+2013-01-12 00:00 19:41 -16:55 0.981 0.002   175      5
+2013-01-13 00:00 20:40 -13:16 0.981 0.002   163     17
+2013-01-14 00:00 21:36  -8:54 0.981 0.002   150     30
+2013-01-15 00:00 22:29  -4:11 0.982 0.003   137     43
+2013-01-16 00:00 23:19  00:35 0.982 0.003   125     55
+             ...   ...    ...   ...   ...   ...    ...
+2013-12-17 00:00 05:20  19:33 0.987 0.003     6    174
+2013-12-18 00:00 06:11  19:10 0.987 0.003     8    172
+2013-12-19 00:00 07:01  17:56 0.986 0.003    18    162
+2013-12-20 00:00 07:49  15:55 0.986 0.003    29    151
+2013-12-21 00:00 08:37  13:16 0.986 0.003    39    140
+2013-12-22 00:00 09:24  10:04 0.985 0.003    50    130
+2013-12-23 00:00 10:09  06:26 0.985 0.003    61    119
+2013-12-24 00:00 10:55  02:31 0.984 0.003    72    108
+2013-12-25 00:00 11:42  -1:34 0.984 0.003    83     97
+2013-12-26 00:00 12:29  -5:42 0.983 0.003    95     85
+2013-12-27 00:00 13:19  -9:42 0.983 0.003   107     73
+2013-12-28 00:00 14:12 -13:21 0.982 0.003   119     61
+2013-12-29 00:00 15:08 -16:23 0.982 0.002   132     48
+2013-12-30 00:00 16:08 -18:32 0.981 0.002   145     35
+2013-12-31 00:00 17:11 -19:29 0.981 0.002   159     21
+
+Flux estimates
+--------------
+
+Asteroid
+^^^^^^^^
+
+Download (24) Themis SPICE kernel from JPL HORIZONS; save as
+'2000024.bsp'::
+
+  >>> import astropy.units as u
+  >>> from mskpy import Asteroid, SpiceState, Earth
+  >>> themis = Asteroid(SpiceState(2000024), 198 * u.km, 0.067, G=0.19, eta=1.0)
+  >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy)
+  [ 0.03166609  0.01328637  6.19537744] Jy
+
+
+Comet coma
+^^^^^^^^^^
+
+Download 2P/Encke SPICE kernel from JPL HORIZONS; save as 'encke.bsp'.
+Download *Spitzer Space Telescope* kernel from JPL NAIF; save as
+'spitzer.bsp'::
+
+  >>> import astropy.units as u
+  >>> from mskpy import Coma, SpiceState, Spitzer
+  >>> Afrho1 = 8.9 * u.cm * 2.53**2
+  >>> encke = Coma(SpiceState('encke'), Afrho1, ef2af=3.5, Tscale=1.1)
+  >>> print encke.fluxd(Spitzer, '2004-06-20 18:35', 23.7 * u.um,
+                        rap=12.5 * u.arcsec, unit=u.Jy)
+  [ 0.02589534] Jy
+
