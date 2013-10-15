@@ -1,11 +1,12 @@
-2.0.0 (unreleased)
-------------------
+2.0.0
+-----
 
 Critical Fixes
---------------
+^^^^^^^^^^^^^^
 
-- Converting Afrho to thermal emission resulted in fluxes a factor of
-  4 too high (`comet.fluxest`).  This has been corrected in
+- Converting Afrho to thermal emission in `mskpy1` resulted in fluxes
+  a factor of 4 too high (`comet.fluxest`).  This has been corrected
+  by implementing an Afrho to efrho conversion factor (`ef2af`) in
   `dust.AfrhoThermal`.
 
 New Features
@@ -78,8 +79,6 @@ Changes From mskpy v1.7.0
   - `numalpha` replaced with `leading_num_key`.
 
   - `dminmax` renamed `mean2minmax`.
-
-  - `numalpha` renamed `cmp_numalpha`.
 
   - `powerlaw` renamed `randpl`.
 
