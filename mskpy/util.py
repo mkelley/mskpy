@@ -26,8 +26,8 @@ util --- Short and sweet functions, generic algorithms
    Searching, sorting
    ------------------
    between
-   cmp_leading_num
    groupby
+   leading_num_key
    nearest
    takefrom
    whist
@@ -54,7 +54,6 @@ util --- Short and sweet functions, generic algorithms
    sigma
    spearman
    uclip
-   wmean
 
    "Special" functions
    -------------------
@@ -62,7 +61,7 @@ util --- Short and sweet functions, generic algorithms
    deresolve
    phase_integral
    planck
-   redden
+   #redden
    polcurve
    savitzky_golay
 
@@ -85,6 +84,7 @@ util --- Short and sweet functions, generic algorithms
    asValue
    autodoc
    spectral_density_sb
+   timesten
 
 """
 
@@ -105,8 +105,8 @@ __all__ = [
     'getrot',
 
     'between',
-    'cmp_leading_num',
     'groupby',
+    'leading_num_key',
     'nearest',
     'takefrom',
     'whist',
@@ -129,13 +129,12 @@ __all__ = [
     'sigma',
     'spearman',
     'uclip',
-    'wmean',
 
     'bandpass',
     'deresolve',
     'phase_integral',
     'planck',
-    'redden',
+#    'redden',
     'polcurve',
     'savitzky_golay',
 
@@ -153,7 +152,8 @@ __all__ = [
     'asQuantity',
     'asValue',
     'autodoc',
-    'spectral_density_sb'
+    'spectral_density_sb',
+    'timesten'
 ]
 
 def archav(y):
@@ -208,7 +208,13 @@ def cartesian(*arrays):
     from itertools import product
     return np.array(list(product(*arrays)))
 
-def davint(x, y, x0, x1):
+_davint_err = dict()
+_davint_err[2] = 'x1 was less than x0'
+_davint_err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
+_davint_err[4] = 'the restriction x(i+1) > x(i) was violated.'
+_davint_err[5] = 'the number of function values was < 2'
+
+def davint(x, y, x0, x1, axis=0):
     """Integrate an array using overlapping parabolas.
     
     Interface to davint.f from SLATEC at netlib.org.
@@ -234,22 +240,30 @@ def davint(x, y, x0, x1):
       Lower limit of integration.
     x1 : float
       Upper limit of integration.
+    axis : int
+      If `y` is a 2D array, then integrate over axis `axis` for each
+      element of the other axis.
 
     Returns
     -------
-    r : float
+    float
       The result.
 
     """
     from lib import davint as _davint
-    err = dict()
-    err[2] = 'x1 was less than x0'
-    err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
-    err[4] = 'the restriction x(i+1) > x(i) was violated.'
-    err[5] = 'the number of function values was < 2'
-    r, ierr = _davint(x, y, len(x), x0, x1)
-    if ierr != 1:
-        raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
+
+    y = np.array(y)
+    if y.ndim == 1:
+        r, ierr = _davint(x, y, len(x), x0, x1)
+        if ierr != 1:
+            raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
+    elif y.ndim == 2:
+        r = np.zeros(y.shape[axis])
+        for i, yy in enumerate(np.rollaxis(y, axis)):
+            r[i] = davint(x, yy, x0, x1)
+    else:
+        raise ValueError("y must have 1 or 2 dimensions.")
+
     return r
 
 def deriv(y, x=None):
@@ -670,51 +684,6 @@ def between(a, limits, closed=True):
 
     return i.astype(bool)
 
-def cmp_leading_num(x, y):
-    """Compare two strings, considering leading multidigit integers.
-
-    A normal string comparision will compare the strings character by
-    character, e.g., "101P" is less than "1P" because "0" < "P".
-    `cmp_numalpha` will instead consider the leading multidigit
-    integer, e.g., "101P" > "1P" because 101 > 1.
-
-    Parameters
-    ----------
-    x, y : strings
-      The strings to compare.
-
-    Returns
-    -------
-    cmp : integer
-      -1, 0, 1 if x < y, x == y, x > y.
-
-    """
-
-    na = re.compile('^([0-9]*)(.*)')
-    mx = na.findall(x)[0]
-    my = na.findall(y)[0]
-
-    if (len(mx[0]) == 0) and (len(my[0]) == 0):
-        if x > y:
-            return 1
-        elif x < y:
-            return -1
-        else:
-            return 0
-    elif len(mx[0]) == 0:
-        return 1
-    elif len(my[0]) == 0:
-        return -1
-    else:
-        xx = int(mx[0])
-        yy = int(my[0])
-        if xx < yy:
-            return -1
-        if xx > yy:
-            return 1
-        else:
-            return cmp_leading_num(mx[1], my[1])
-
 def groupby(key, *lists):
     """Sort elements of `lists` by `unique(key)`.
 
@@ -759,6 +728,38 @@ def groupby(key, *lists):
         for l in lists:
             groups[k] += (list(np.asarray(l)[i]),)
     return groups
+
+def leading_num_key(s):
+    """Keys for sorting strings, based on leading multidigit numbers.
+
+    A normal string comparision will compare the strings character by
+    character, e.g., "101P" is less than "1P" because "0" < "P".
+    `leading_num_key` will generate keys so that `str.sort` can
+    consider the leading multidigit integer, e.g., "101P" > "1P"
+    because 101 > 1.
+
+    Parameters
+    ----------
+    s : string
+
+    Returns
+    -------
+    keys : tuple
+      They keys to sort by for this string: `keys[0]` is the leading
+      number, `keys[1]` is the rest of the string.
+
+    """
+
+    pfx = ''
+    for i in range(len(s)):
+        if not s[i].isdigit():
+            break
+        pfx += s[i]
+    sfx = s[i:]
+
+    if len(pfx) > 0:
+        pfx = int(pfx)
+    return pfx, sfx
 
 def nearest(array, v):
     """Return the index of `array` where the value is nearest `v`.
@@ -808,11 +809,11 @@ def whist(x, y, w, errors=True, **keywords):
 
     Parameters
     ----------
-    x : array-like
+    x : array
       The independent variable.
-    y : array-like
+    y : array
       The parameter to average.
-    w : array-like
+    w : array
       The weights for each `y`.  If `errors` is `True`, then `x` will
       be weighted by `1 / w**2`.
     errors : bool, optional
@@ -1572,47 +1573,8 @@ def uclip(x, ufunc, full_output=False, **keywords):
     else:
         return ufunc(x.flatten()[mc[2]])
 
-def wmean(x, w, errors=True, axis=None):
-    """The weighted mean.
-
-    Parameters
-    ----------
-    x : array
-      The parameter to average.
-    w : array
-      The weights for each `x`.  If `errors` is `True`, then `x` will
-      be weighted by `1 / w**2`.
-    errors : bool, optional
-      Set to `True` if `w` is an array of uncertainties on `x`, and
-      not the actual weights.
-    axis : int, optional
-      Set to the axis over which to average.
-
-    Returns
-    -------
-    m : float
-      The weighted mean.
-    merr : float
-      The uncertainty on `m` (when `errors` is `True`).
-
-    """
-
-    _x = np.array(x)
-    _w = np.array(w)
-
-    if errors:
-        _w = 1.0 / _w**2
-
-    m = np.sum(_x * _w, axis=axis) / np.sum(_w, axis=axis)
-
-    if errors:
-        merr = np.sqrt(1.0 / np.sum(_w, axis=axis))
-        return m, merr
-    else:
-        return m
-
 def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
-             s=None):
+             k=3, s=None):
     """Filters a spectrum given a transimission function.
 
     If the filter has a greater spectreal dispersion than the
@@ -1640,8 +1602,11 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     filterdir : string, optional
       The directory containing the filter transmission files
       (see `calib.filter_trans`).
+    k : int, optional
+      Order of the spline fit for interpolation.  See
+      `scipy.interpolate.splrep`.
     s : float, optional
-      Interpolation smoothing.  See scipy.interpolate.splrep().
+      Interpolation smoothing.  See `scipy.interpolate.splrep`.
 
     Returns
     -------
@@ -1657,16 +1622,16 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     from . import calib
 
     # local copies
-    _sw = sw.copy()
-    _sf = sf.copy()
+    _sw = np.array(sw)
+    _sf = np.array(sf)
     if se is None:
         _se = np.ones_like(_sf)
     else:
-        _se = se.copy()
+        _se = np.array(se)
 
     if (fw is not None) and (ft != None):
-        _fw = fw.copy()
-        _ft = ft.copy()
+        _fw = np.array(fw)
+        _ft = np.array(ft)
     elif filter is not None:
         _fw, _ft = calib.filter_trans(filter)
         _fw = _fw.micrometer
@@ -1686,11 +1651,9 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _ft = _ft[i]
 
         _w = _fw
-        #_sf = interpolate.interp1d(_sw, _sf, kind=kind)(_w)
-        #_se2 = interpolate.interp1d(_sw, _se**2, kind=kind)(_w)
-        spl = interpolate.splrep(_sw, _sf)
+        spl = interpolate.splrep(_sw, _sf, k=k, s=s)
         _sf = interpolate.splev(_w, spl)
-        spl = interpolate.splrep(_sw, _se**2)
+        spl = interpolate.splrep(_sw, _se**2, k=k, s=s)
         _se2 = interpolate.splev(_w, spl)
         _ft = _ft
     else:
@@ -1702,8 +1665,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _se = _se[i]
 
         _w = _sw
-        #_ft = interpolate.interp1d(_fw, _ft, kind=kind)(_w)
-        spl = interpolate.splrep(_fw, _ft)
+        spl = interpolate.splrep(_fw, _ft, k=k, s=s)
         _ft = interpolate.splev(_w, spl)
         _sf = _sf
         _se2 = _se**2
@@ -1719,7 +1681,10 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     err = davint(_w, weights, *wrange) / davint(_w, 1.0 / _se2, *wrange)
     err = np.sqrt(err) * errscale
 
-    return wave, flux, err
+    if se is None:
+        return wave, flux
+    else:
+        return wave, flux, err
 
 def deresolve(func, wave, flux, err=None):
     """De-resolve a spectrum using the supplied instrument profile.
@@ -1731,7 +1696,7 @@ def deresolve(func, wave, flux, err=None):
       takes one parameter: delta-wavelength (distance from the center
       of the filter) in the same units as `wave`.  Some shortcut
       strings are allowed (case insensitive):
-        "Gaussian(sigma)" - specifiy sigma in the same units as `wave`
+        "gaussian(sigma)" - specifiy sigma in the same units as `wave`
         "uniform(fwhm)" - specifiy fwhm in the same units as `wave`
     wave : ndarray
       The wavelengths of the spectrum.
@@ -1748,16 +1713,19 @@ def deresolve(func, wave, flux, err=None):
 
     """
 
+    import re
+
     if type(func) is str:
         if 'gaussian' in func.lower():
-            sigma = float(re.findall('gaussian\(([^)]+)\)', func)[0])
+            sigma = float(re.findall('gaussian\(([^)]+)\)', func.lower())[0])
             def func(dw):
                 return gaussian(dw, 0, sigma)
         elif 'uniform' in func.lower():
-            hwhm = float(re.findall('uniform\(([^)]+)\)', func)[0]) / 2.0
+            hwhm = (float(re.findall('uniform\(([^)]+)\)', func.lower())[0])
+                    / 2.0)
             def func(dw):
                 f = np.zeros_like(dw)
-                i = (dw > hwhm) * (dw <= hwhm)
+                i = (dw > -hwhm) * (dw <= hwhm)
                 if any(i):
                     f[i] = 1.0
                 return f
@@ -1773,7 +1741,7 @@ def deresolve(func, wave, flux, err=None):
 
     wflux = flux * weights
     fluxout = np.zeros_like(wflux)
-    
+
     for i in range(len(wave)):
         dw = wave - wave[i]
         f = func(dw)
@@ -1805,7 +1773,6 @@ def phase_integral(phasef, range=[0, 180]):
     return pint
 
 def planck(wave, T, unit=None, deriv=None):
-
     """The Planck function.
 
     Parameters
@@ -1843,7 +1810,7 @@ def planck(wave, T, unit=None, deriv=None):
     if isinstance(wave, Quantity):
         wave = wave.si.value
     else:
-        wave *= 1e-6
+        wave = wave * 1e-6
 
     #from astropy import constants as const
     #c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
@@ -1878,7 +1845,7 @@ def planck(wave, T, unit=None, deriv=None):
 
     return B
 
-def redden(wave, S, wave0=0.55):
+def _redden(wave, S, wave0=0.55):
     """Redden a spectrum with the slope S.
 
     Parameters
@@ -1953,8 +1920,9 @@ def polcurve(th, p, a, b, th0):
       The polarization at phase angle `th`.
 
     """
-    return (p * np.sin(np.radians(th))**a * np.cos(th.value / 2.)**b *
-            np.sin(np.radians(th - th0)))
+    thr = np.radians(th)
+    return (p * np.sin(thr)**a * np.cos(thr / 2.)**b
+            * np.sin(thr - np.radians(th0)))
 
 def savitzky_golay(x, kernel=11, order=4):
     """Smooth with the Savitzky-Golay filter.
@@ -2001,17 +1969,15 @@ def savitzky_golay(x, kernel=11, order=4):
     offset_data = zip(offsets, m)
 
     # temporary data, extended with a mirror image to the left and right
-    firstval = data[0]
-    lastval = data[len(data) - 1]
     # left extension: f(x0-x) = f(x0)-(f(x)-f(x0)) = 2f(x0)-f(x)
     # right extension: f(xl+x) = f(xl)+(f(xl)-f(xl-x)) = 2f(xl)-f(xl-x)
-    leftpad = np.zeros(half_window) + 2 * firstval
-    rightpad = np.zeros(half_window) + 2 * lastval
-    leftchunk = data[1:(1 + half_window)]
+    leftpad = np.zeros(half_window) + 2 * x[0]
+    rightpad = np.zeros(half_window) + 2 * x[-1]
+    leftchunk = x[1:(1 + half_window)]
     leftpad = leftpad-leftchunk[::-1]
-    rightchunk = data[len(data) - half_window - 1:len(data) - 1]
+    rightchunk = x[len(x) - half_window - 1:len(x) - 1]
     rightpad = rightpad - rightchunk[::-1]
-    data = np.concatenate((leftpad, data))
+    data = np.concatenate((leftpad, x))
     data = np.concatenate((data, rightpad))
 
     smooth_data = list()
@@ -2505,6 +2471,28 @@ def spectral_density_sb(s):
         (fnu, nufnu, converter_fnu_nufnu, iconverter_fnu_nufnu),
         (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
     ]
+
+def timesten(v, sigfigs):
+    """Format a number in LaTeX style scientific notation: $A\times10^{B}$.
+
+    Parameters
+    ----------
+    v : float, int, or array
+      The number(s) for format.
+    sigfigs : int
+      The number of significant figures.
+
+    """
+
+    if np.iterable(v):
+        s = []
+        for i in range(len(v)):
+            s.append(timesten(v[i], sigfigs))
+        return s
+
+    s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
+    s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
+    return s
 
 # summarize the module
 autodoc(globals())

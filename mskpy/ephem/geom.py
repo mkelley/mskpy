@@ -163,6 +163,19 @@ class Geom(object):
         else:
             return self.__getattribute__(key)
 
+    def __str__(self):
+        keys = ['date', 'rh', 'delta', 'phase', 'obsrh', 'so', 'st',
+                'lam', 'bet', 'ra', 'dec', 'sangle', 'vangle', 'selong',
+                'lelong']
+        s = ""
+        for k in keys:
+            s += "{:>6s} : ".format(k)
+            if len(self) == 1:
+                s += "{:}\n".format(self[k])
+            else:
+                s += "{:}\n".format(self[k])
+        return s[:-1]
+
     @property
     def _rot(self):
         return self._rt - self._ro
@@ -201,7 +214,7 @@ class Geom(object):
     def phase(self):
         phase = np.arccos((self.rh**2 + self.delta**2 - self.obsrh**2) /
                           2.0 / self.rh / self.delta)
-        return np.degrees(phase) * u.deg
+        return np.degrees(phase)  # quantity magic will put this in deg.
 
     @property
     def signedphase(self):
@@ -322,7 +335,7 @@ class Geom(object):
         if self.date is None:
             return None
         rm = Moon.r(self.date)
-        rom = rm - self.ro
+        rom = rm - self._ro
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
                            / deltam / self.delta.kilometer)
@@ -491,8 +504,8 @@ class Geom(object):
             datemax, timemax = jd2time(gmax['date']).iso.split()
             timemax = timemax.split('.')[0]
 
-            minmaxtime = '  [{:}, {:}]'.format(timemin, timemax)
-            minmaxdate = '  [{:}, {:}]'.format(datemin, datemax)
+            minmaxtime = '     [{:}, {:}]'.format(timemin, timemax)
+            minmaxdate = '   [{:}, {:}]'.format(datemin, datemax)
 
             ramin = Angle(gmin['ra'].value, u.deg).format(
                 'hour', **opts)
@@ -506,10 +519,10 @@ class Geom(object):
             raminmax = '  [ {:},  {:}]'.format(ramin, ramax)
             decminmax = '  [{:}, {:}]'.format(decmin, decmax)
 
-            jdminmax = '  [{:}, {:}]'.format(gmin['date'].jd, gmax['date'].jd)
+            jdminmax = '   [{:.2f}, {:.2f}]'.format(gmin['date'].jd, gmax['date'].jd)
 
             def minmax(p, f):
-                return '  [{:{f}}, {:{f}}]'.format(
+                return '     [{:{f}}, {:{f}}]'.format(
                     gmin[p].value, gmax[p].value, f=f)
         else:
             g = self
@@ -533,7 +546,7 @@ class Geom(object):
         print ("""
 {:>34s} {:s}{:}
 {:>34s} {:s}{:}
-{:>34s} {:f}{:}
+{:>34s} {:.2f}{:}
 
 {:>34s} {:8.3f}{:}
 {:>34s} {:8.3f}{:}

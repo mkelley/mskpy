@@ -61,7 +61,7 @@ class ComaSED(ParametricModel):
     param_names = ['Afrho', 'ef2af', 'Tscale']
     deriv = None  # compute numerical derivatives
 
-    def __init__(self, geom, rap, Afrho, phasef=None, ef2af=10, Tscale=1.1,
+    def __init__(self, geom, rap, Afrho, phasef=None, ef2af=2.0, Tscale=1.1,
                  unit=u.Unit('W/(m2 um)'), param_dim=1):
         from .models import dust
 
