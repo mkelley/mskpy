@@ -9,7 +9,7 @@ from mskpy import image
 
 class TestImageCore():
     def test_imshift(self):
-        a = arange(5.0).reshape((5, 1))
+        a = np.arange(5.0).reshape((5, 1))
         b = image.imshift(a, [0.5, 0], subsample=2)
         assert b[0] == 2.0
 

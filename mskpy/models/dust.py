@@ -142,6 +142,12 @@ class AfrhoThermal(AfrhoRadiation):
     product of IR emissivity, dust filling factor, f, and observer's
     aperture radius, rho.
 
+    The default long-wavelength slope, beta = 0.89+/-0.10, is from an
+    analysis of Hyakutake JCMT data by Jewitt and Matthews (1997, AJ
+    113, 1145).  The break-point, wave0 = 70 um, is based on my own
+    analysis, combining the Jewitt and Matthews fluxes with mid-IR
+    fluxes from Mason et al. (1998, ApJ 507, 398).
+
     Parameters
     ----------
     Afrho : Quantity
@@ -154,6 +160,9 @@ class AfrhoThermal(AfrhoRadiation):
     Tscale : float, optional
       The isothermal blackbody sphere temperature scale factor that
       characterizes the spectral shape of the thermal emission.
+    beta : float, optional
+    wave0 : Quantity, optional
+      Scale wavelengths longer than `wave0` by `(wave / wave0)**-beta`.
 
     Methods
     -------
@@ -161,11 +170,14 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, ef2af=10.0, Tscale=1.1, **kwargs):
+    def __init__(self, Afrho, ef2af=2.0, Tscale=1.1, beta=0.89,
+                 wave0=70 * u.um, **kwargs):
         assert isinstance(Afrho, u.Quantity)
         self.Afrho = Afrho
         self.ef2af = ef2af
         self.Tscale = Tscale
+        self.beta = beta
+        self.wave0 = wave0
 
     def fluxd(self, geom, wave, rap, unit=u.Unit('W / (m2 um)')):
         """Flux density.
@@ -209,6 +221,12 @@ class AfrhoThermal(AfrhoRadiation):
         efrho = self.Afrho * self.ef2af
         d = geom['delta'].to(self.Afrho.unit).value
         fluxd = efrho.value * np.pi * B * rho.value / d**2
+
+        if any(wave > self.wave0):
+            eps = np.ones(len(wave))
+            i = wave > self.wave0
+            eps[i] *= (wave[i] / self.wave0)**-self.beta
+            fluxd *= eps
 
         return fluxd * unit
 

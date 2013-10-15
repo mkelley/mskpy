@@ -65,8 +65,8 @@ class TestEphemSolarSysObject():
         print(g.vt)
 
     def test_ephemeris(self):
-        eph = ephem.Earth.ephemeris(ephem.Mars, ['2000-1-1', '2010-1-1'],
-                                    num=10)
+        eph = ephem.Mars.ephemeris(ephem.Earth, ['2000-1-1', '2010-1-1'],
+                                   num=10)
 
     def test_orbit(self):
         print(ephem.Earth.orbit('2000-1-1'))

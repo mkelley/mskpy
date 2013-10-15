@@ -377,8 +377,8 @@ def stripes(im, axis=0, stat=np.median, **keywords):
 
     m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
 
-    print("mean/sig/% masked = {0}/{1}/{2}".format(
-        m, sig, 1 - good.size / np.prod(im.shape).astype(float)))
+    #print("mean/sig/% masked = {0}/{1}/{2}".format(
+    #    m, sig, 1 - len(good) / np.prod(im.shape).astype(float)))
 
     mask = np.ones_like(im).astype(bool)
     mask.ravel()[good] = False

@@ -17,8 +17,11 @@ New Features
     estimates.
 
   - `SpiceState` to retrieve positions and velocities from SPICE
-  kernels.  `ephem` includes a set of default `SolarSysObject`s, e.g.,
-  `Sun`, `Earth`, `Spitzer` (if the kernels are available).
+    kernels.  `ephem` includes a set of default `SolarSysObject`s,
+    e.g., `Sun`, `Earth`, `Spitzer` (if the kernels are available).
+
+  - Use `getspiceobj` to easily create a `SolarSysObject` with a
+    `SpiceState`.
 
 - `comet` and `asteroid` modules define the `Asteroid`, `Coma`, and
   `Comet` `SolarSysObject`s for flux estimates of comets and
@@ -37,6 +40,9 @@ New Features
   - Various phase functions for dust and surfaces: `phaseHG`,
     `lambertian`, `phaseK`, `phaseH`, `phaseHM`.
 
+- New `modeling` module (mirroring `astropy.modeling`) for fitting
+  models to data.
+
 - `Asteroid`, `Coma`, and `Comet` objects for easy estimates of their
   fluxes.  These objects package together `SpiceObject` and `models`.
 
@@ -54,10 +60,11 @@ New Features
 
 - New `instruments` module.  It can currently be used to estimate
   fluxes from comets and asteroids, but may have other uses in the
-  future.  Includes `midir` sub-module with `MIRSI`.
+  future.  Includes `midir` sub-module with `MIRSI`, and `spitzer`
+  sub-module with `IRAC`.
 
-- New `modeling` module (mirroring `astropy.modeling`) for fitting
-  models to data.
+- New `scripts` directory for command-line scripts.  Currently
+  includes an ephemeris generator.
 
 Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -68,7 +75,7 @@ Changes From mskpy v1.7.0
 
   - `nanmedian` now considers `inf` as a real value.
 
-  - `numalpha` renamed `cmp_leading_num`.
+  - `numalpha` replaced with `leading_num_key`.
 
   - `dminmax` renamed `mean2minmax`.
 
