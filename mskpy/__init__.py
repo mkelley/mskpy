@@ -22,6 +22,8 @@ mskpy --- MSK's personal library for astronomy and stuff.
 
 """
 
+from . import config
+
 from . import image
 from . import util
 
