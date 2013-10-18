@@ -18,7 +18,7 @@ Configuration
 =============
 
 After installation, the file $HOME/.config/mskpy/mskpy.cfg should be
-created.  If not simply execute ``python -c import mskpy.config``.
+created.  If not simply execute ``python -c 'import mskpy.config'``.
 This file currently contains paths to your SPICE kernels and Cohen
 mid-IR standards (both are not required to run mskpy).
 
