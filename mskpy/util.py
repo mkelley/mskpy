@@ -2381,15 +2381,16 @@ def asValue(x, unit_in, unit_out):
     from astropy.units import Quantity
     from astropy.coordinates import Angle
 
-    if isinstance(x, Angle):
-        if unit_out == u.deg:
-            y = x.degrees
-        elif unit_out == u.rad:
-            y = x.radians
-        else:
-            raise ValueError("Cannot convert Angle to units of {}".format(
-                    unit_out))
-    elif isinstance(x, Quantity):
+#    if isinstance(x, Angle):
+#        if unit_out == u.deg:
+#            y = x.degrees
+#        elif unit_out == u.rad:
+#            y = x.radians
+#        else:
+#            raise ValueError("Cannot convert Angle to units of {}".format(
+#                    unit_out))
+#    elif isinstance(x, Quantity):
+    if isinstance(x, (Angle, Quantity)):
         y = x.to(unit_out).value
     else:
         y = (x * unit_in).to(unit_out).value

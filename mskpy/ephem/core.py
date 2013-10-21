@@ -16,7 +16,6 @@ core --- Basic functions, mostly time, for ephem.
 from datetime import datetime
 
 import numpy as np
-import astropy.units as u
 from astropy.time import Time
 import spice
 

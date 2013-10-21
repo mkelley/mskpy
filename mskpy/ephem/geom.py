@@ -279,7 +279,7 @@ class Geom(object):
         """Right ascension and declination."""
         from ..util import ec2eq
         lam, bet = self.lambet
-        ra, dec = ec2eq(lam.degree, bet.degree)
+        ra, dec = ec2eq(lam.to(u.deg).value, bet.to(u.deg).value)
         return ra * u.deg, dec * u.deg
 
     @property
@@ -302,10 +302,12 @@ class Geom(object):
         if len(self) > 1:
             sangle = np.zeros(len(self))
             for i in range(len(self)):
-                sangle[i] = pva(-self._rt[i], self._rot[i], ra[i].degree,
-                                dec[i].degree)
+                sangle[i] = pva(-self._rt[i], self._rot[i],
+                                 ra[i].to(u.deg).value,
+                                dec[i].to(u.deg).value)
         else:
-            sangle = pva(-self._rt, self._rot, ra.degree, dec.degree)
+            sangle = pva(-self._rt, self._rot, ra.to(u.deg).value,
+                          dec.to(u.deg).value)
             
         return sangle * u.deg
 
@@ -319,10 +321,12 @@ class Geom(object):
         if len(self) > 1:
             vangle = np.zeros(len(self))
             for i in range(len(self)):
-                vangle[i] = pva(self._vt[i], self._rot[i], ra[i].degree,
-                                dec[i].degree)
+                vangle[i] = pva(self._vt[i], self._rot[i],
+                                ra[i].to(u.deg).value,
+                                dec[i].to(u.deg).value)
         else:
-            vangle = pva(self._vt, self._rot, ra.degree, dec.degree)
+            vangle = pva(self._vt, self._rot, ra.to(u.deg).value,
+                         dec.to(u.deg).value)
 
         return vangle * u.deg
 
@@ -330,7 +334,8 @@ class Geom(object):
     def selong(self):
         """Solar elongation."""
         selong = np.arccos(np.sum(-self._ro * self._rot, -1)
-                           / self.obsrh.kilometer / self.delta.kilometer)
+                           / self.obsrh.to(u.km).value
+                           / self.delta.to(u.km).value)
         return np.degrees(selong) * u.deg
 
     @property
@@ -343,7 +348,7 @@ class Geom(object):
         rom = rm - self._ro
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
-                           / deltam / self.delta.kilometer)
+                           / deltam / self.delta.to(u.km).value)
         return np.degrees(lelong) * u.deg
 
     def reduce(self, func, units=False):
