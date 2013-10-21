@@ -124,6 +124,7 @@ class FixedState(State):
        
         """
 
+        from .. import util
         N = util.date_len(date)
         if N != 0:
             return np.tile(self.xyz, N).reshape(N, 3)
@@ -146,6 +147,7 @@ class FixedState(State):
        
         """
 
+        from .. import util
         N = util.date_len(date)
         if N != 0:
             shape = (N, 3)
@@ -209,6 +211,7 @@ class SpiceState(State):
        
         """
 
+        from .. import util
         N = util.date_len(date)
         if N > 0:
             return np.array([self.r(d) for d in date])
@@ -234,6 +237,7 @@ class SpiceState(State):
        
         """
 
+        from .. import util
         N = util.date_len(date)
         if N > 0:
             return np.array([self.v(d) for d in date])
