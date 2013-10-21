@@ -124,9 +124,8 @@ class FixedState(State):
        
         """
 
-        if (isinstance(date, (list, tuple, np.ndarray))
-            or (isinstance(date, Time) and len(date) > 1)):
-            N = len(date)
+        N = util.date_len(date)
+        if N != 0:
             return np.tile(self.xyz, N).reshape(N, 3)
         else:
             return self.xyz
@@ -147,9 +146,9 @@ class FixedState(State):
        
         """
 
-        if (isinstance(date, (list, tuple, np.ndarray))
-            or (isinstance(date, Time) and len(date) > 1)):
-            shape = (len(date), 3)
+        N = util.date_len(date)
+        if N != 0:
+            shape = (N, 3)
         else:
             shape = (3,)
 
@@ -210,9 +209,8 @@ class SpiceState(State):
        
         """
 
-        if isinstance(date, (list, tuple, np.ndarray)):
-            return np.array([self.r(d) for d in date])
-        if isinstance(date, Time) and len(date) > 1:
+        N = util.date_len(date)
+        if N > 0:
             return np.array([self.r(d) for d in date])
 
         et = core.date2et(date)
@@ -236,9 +234,8 @@ class SpiceState(State):
        
         """
 
-        if isinstance(date, (list, tuple, np.ndarray)):
-            return np.array([self.v(d) for d in date])
-        if isinstance(date, Time) and len(date) > 1:
+        N = util.date_len(date)
+        if N > 0:
             return np.array([self.v(d) for d in date])
 
         et = core.date2et(date)
