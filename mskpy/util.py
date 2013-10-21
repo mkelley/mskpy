@@ -2104,6 +2104,7 @@ def date_len(date):
 
     """
 
+    from astropy.time import Time
     if isinstance(date, (list, tuple, np.ndarray)):
         return len(date)
     elif isinstance(date, Time):

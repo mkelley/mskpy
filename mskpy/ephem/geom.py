@@ -94,6 +94,7 @@ class Geom(object):
 
     def __init__(self, ro, rt, vo=None, vt=None, date=None):
         from astropy.units import Quantity
+        from .. import util
 
         self._ro = ro.to(u.km).value
         self._rt = rt.to(u.km).value
@@ -121,7 +122,10 @@ class Geom(object):
 
         if date is not None:
             self.date = date
-            if len(self.date) != self._len:
+            N = util.date_len(self.date)
+            if N == 0:
+                N += 1
+            if self._len != N:
                 raise ValueError("Given ro, the length of date "
                                  " must be {}.".format(self._len))
 
@@ -133,6 +137,7 @@ class Geom(object):
         return self._len
 
     def __getitem__(self, key):
+        from .. import util
         # are we slicing?
         if isinstance(key, (int, slice, list, np.ndarray)):
             if self._ro.ndim == 1:
@@ -154,7 +159,7 @@ class Geom(object):
 
             if self.date is None:
                 date = None
-            elif len(self.date) == 1:
+            elif util.date_len(self.date) <= 1:
                 date = self.date
             else:
                 date = self.date[key]
