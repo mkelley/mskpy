@@ -47,8 +47,10 @@ class Target(object):
         self.label = label
 
     def __repr__(self):
-        return '<Target ra={} dec={} label={}>'.format(
-            self.ra.to_string(), self.dec.to_string(), self.label)
+        opts = dict(sep=':', precision=0, pad=True)
+        return '<Target ra={} dec={} label="{}">'.format(
+            self.ra.to_string(**opts),
+            self.dec.to_string(alwayssign=True, **opts), self.label)
 
 class MovingTarget(Target):
     """A moving target to be observed.
@@ -88,7 +90,8 @@ class Observer(object):
     tz : float
       The time zone of the observer.
     date : string, float, astropy Time, datetime, or array
-      The current date (civil time), passed to `util.date2time`.
+      The current date (civil time), passed to `util.date2time`.  If
+      `None`, `date` will be set to now.
 
     Properties
     ----------
@@ -109,7 +112,14 @@ class Observer(object):
         self.lon = lon
         self.lat = lat
         self.tz = tz
-        self.date = util.date2time(date)
+        if date is None:
+            self.date = util.date2time(None)
+            if isinstance(tz, float):
+                self.date += tz * u.hr
+            else:
+                self.date += util.tz2utc(self.date, tz).total_seconds() * u.s
+        else:
+            self.date = util.date2time(date)
 
     @property
     def lst(self):
@@ -190,24 +200,35 @@ class Observer(object):
 
         """
 
+        from datetime import timedelta
         import matplotlib.pyplot as plt
+        from astropy.time import Time
+
         if ax is None:
             ax = plt.gca()
         label = kwargs.pop('label', target.label)
 
+        # round to nearest day
+        time = self.date.datetime.time()
+        dt = time.hour * u.hr
+        dt = dt + time.minute * u.min
+        dt += time.second * u.second
+        dt += time.microsecond * u.microsecond
+        date = self.date - dt
+
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
         for i in range(N):
-            ra, dec = self._radec(target, self.date + dt[i])
+            ra, dec = self._radec(target, date + dt[i])
             am[i] = core.airmass(target.ra.degree, target.dec.degree,
-                                 self.date + dt[i],
+                                 date + dt[i],
                                  self.lon.degree, self.lat.degree,
                                  self.tz)
 
-        return ax.plot(dt, am, label=label, **kwargs)
+        return ax.plot(dt.value, am, label=label, **kwargs)
 
-def am_plot(targets, observer, **kwargs):
-    """Generate a pretty airmass plot for a night.
+def am_plot(targets, observer, fig=None, **kwargs):
+    """Generate a letter-sized, pretty airmass plot for a night.
 
     Parameters
     ----------
@@ -215,6 +236,9 @@ def am_plot(targets, observer, **kwargs):
       A list of targets to plot.
     observer : Observer
       The observer.
+    fig : int, matplotlib Figure, or None
+      int/Figure: The matplotlib figure (number) to use.
+      None: Create a new figure.
     **kwargs
       Keyword arguments for `Observer.plot_am`.
 
@@ -227,10 +251,14 @@ def am_plot(targets, observer, **kwargs):
     import matplotlib.pyplot as plt
     from .. import graphics
 
+    if fig is None or isinstance(fig, int):
+        fig = plt.figure(fig, (11, 8.5))
+
     for t in targets:
         observer.plot_am(t, **kwargs)
 
     ax = plt.gca()
+    plt.minorticks_on()
     plt.setp(ax, xlim=[-8, 8], ylim=[3, 1], yscale='log',
              ylabel='Airmass', xlabel='Time (CT)')
     plt.setp(ax, yticks=[3, 2.5, 2, 1.5, 1.2, 1.0],
@@ -287,6 +315,8 @@ def file2targets(filename):
 #class MovingObserver(Observer):
 #    def __init__(self, obj):
 #        self.observer = obj
+
+mlof = Observer(Angle(-110.791667, u.deg), Angle(32.441667, u.deg), -7.0, None)
 
 # update module docstring
 from ..util import autodoc

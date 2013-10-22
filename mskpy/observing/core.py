@@ -36,8 +36,9 @@ def airmass(ra, dec, date, lon, lat, tz):
     lon : float
       The (east) longitude, and latitude of the Earth-bound
       observer. [deg]
-    tz : float
-      The UTC offset of the observer. [hr]
+    tz : float or string
+      float: The UTC offset of the observer. [hr]
+      string: A timezone name processed with `pytz` (e.g., US/Arizona).
 
     Returns
     -------
@@ -69,8 +70,9 @@ def ct2lst(date, lon, tz):
       The current date (civil time), passed to `util.date2time`.
     lon : float
       The East longitude of the observer. [deg]
-    tz : float
-      The UTC offset of the observer. [hr]
+    tz : float or string
+      float: The UTC offset of the observer. [hr]
+      string: A timezone name processed with `pytz` (e.g., US/Arizona).
 
     Returns
     -------
@@ -79,15 +81,18 @@ def ct2lst(date, lon, tz):
 
     """
 
-    from ..util import date2time
+    from ..util import date2time, tz2utc
 
-    jd = date2time(date).jd
-    jd0 = np.round(jd - tz / 24.0 - 1.0) + 0.5  # JD for 0h UT
+    d = date2time(date)
+    jd = d.jd
+    tzoff = tz if isinstance(tz, float) else tz2utc(d).total_seconds() / 3600
+
+    jd0 = np.round(jd - tzoff / 24.0 - 1.0) + 0.5  # JD for 0h UT
     T = (jd - 2451545.0) / 36525  # JD2000 = 2451545
     th0 = 280.46061837 + 360.98564736629 * (jd - 2451545.0) + \
         0.000387933 * T**2 - T**3 / 38710000.0
     th0 = th0 % 360.0
-    lst = ((th0 + lon) / 15.0  - tz) % 24.0
+    lst = ((th0 + lon) / 15.0  - tzoff) % 24.0
     return lst
 
 def hadec2altaz(ha, dec, lat):
