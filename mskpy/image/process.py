@@ -246,6 +246,9 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
       The combining function.
     lsig, hsig : float
       The lower- and upper-sigma limits used to define bad pixels.
+    mask : bool
+      `True` over areas of the array where pixels are already known to
+      be good.  This will be incorporated into the bad pixel mask.
     **kwargs, optional
       Any `core.uclip` keyword.
 
@@ -265,11 +268,11 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
 
     lhsig = dict(lsig=lsig, hsig=hsig)
 
-    stat = imstat(flat, **lhsig)
+    stat = imstat(flat[mask], **lhsig)
     flat /= stat['scmean']
-    bpm = flat.copy()
+    bpm = flat.copy() * mask
 
-    stat = imstat(bpm, **lhsig)
+    stat = imstat(bpm[mask], **lhsig)
     bpm[bpm < (1 - stat['scstdev'] * lsig)] = 0
     bpm[bpm > (1 + stat['scstdev'] * hsig)] = 0
     bpm = bpm == 0
