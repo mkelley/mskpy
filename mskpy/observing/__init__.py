@@ -5,6 +5,9 @@ observing --- Observing stuff
 
    Classes
    -------
+   Target
+   MovingTarget
+   Observer
 
 
    Functions
@@ -130,7 +133,7 @@ class Observer(object):
     def _radec(self, target, date):
         if isinstance(target, MovingTarget):
             ra = target.ra(self.Earth, date)
-            dec = target.ra(self.Earth, date)
+            dec = target.dec(self.Earth, date)
         else:
             ra = target.ra
             dec = target.dec
@@ -220,7 +223,7 @@ class Observer(object):
         dt = np.linspace(-12, 12, N) * u.hr
         for i in range(N):
             ra, dec = self._radec(target, date + dt[i])
-            am[i] = core.airmass(target.ra.degree, target.dec.degree,
+            am[i] = core.airmass(ra.to(u.deg).value, dec.to(u.deg).value,
                                  date + dt[i],
                                  self.lon.degree, self.lat.degree,
                                  self.tz)
@@ -294,20 +297,43 @@ def file2targets(filename):
       HD 106965 [K=7.3],       12:17:57.5 hr, +01:34:31.1 deg
       HD 106965 [K=7.3],       12 17 57.5 hr, +01 34 31.1 deg
 
+    Alternatively, you may request a moving target.  Specify the
+    object's name and, optionally, kernel file in a set of double
+    square brackets, e.g., [[object, kernel]].
+
+      2P/Encke,                [[encke]]
+      Jupiter,                 [[5, planets.bsp]]
+
     """
+
+    import re
+    from ..ephem import getspiceobj
+
+    fixed = re.compile('(.+),\s*(.+),\s*(.+)')
+    moving = re.compile('(.+),\s*\[\[([^,]+)(,\s*(.+))?]]')
 
     targets = []
     skipped = 0
     for line in open(filename, 'r').readlines():
+        mmov = moving.findall(line)
+        mfix = fixed.findall(line)
+
         if len(line.strip()) == 0:
-            continue
-        if line.strip()[0] == '#':
-            continue
-        if line.count(',') != 2:
+            pass
+        elif line.strip()[0] == '#':
+            pass
+        elif len(mmov) > 0:
+            label, name, dummy, kernel = mmov[0]
+            if len(kernel) == 0:
+                kernel = None
+            ssobj = getspiceobj(name, kernel=kernel)
+            targets.append(MovingTarget(ssobj, label=label))
+        elif len(mfix) > 0:
+            label, ra, dec = mfix[0]
+            targets.append(Target(Angle(ra), Angle(dec), label=label))
+        else:
             skipped += 1
-            continue
-        label, ra, dec = [x.strip() for x in line.split(',')]
-        targets.append(Target(Angle(ra), Angle(dec), label=label))
+
     if skipped > 0:
         print("Skipped {} possible targets".format(skipped))
     return targets
