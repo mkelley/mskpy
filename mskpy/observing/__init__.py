@@ -79,10 +79,10 @@ class MovingTarget(Target):
         return '<MovingTarget label={}>'.format(self.label)
 
     def ra(self, observer, date):
-        return observer.observe(self.target, date, ltt=self.ltt)['ra']
-        
+        return Angle(observer.observe(self.target, date, ltt=self.ltt)['ra'])
+
     def dec(self, observer, date):
-        return observer.observe(self.target, date, ltt=self.ltt)['dec']
+        return Angle(observer.observe(self.target, date, ltt=self.ltt)['dec'])
 
 class Observer(object):
     """An Earth-based observer.
@@ -107,6 +107,7 @@ class Observer(object):
     airmass
     altaz
     plot_am
+    rts
 
     """
     from ..ephem import Earth
@@ -224,12 +225,59 @@ class Observer(object):
         dt = np.linspace(-12, 12, N) * u.hr
         for i in range(N):
             ra, dec = self._radec(target, date + dt[i])
-            am[i] = core.airmass(ra.to(u.deg).value, dec.to(u.deg).value,
+            am[i] = core.airmass(ra.degree, dec.degree,
                                  date + dt[i],
                                  self.lon.degree, self.lat.degree,
                                  self.tz)
 
         return ax.plot(dt.value, am, label=label, **kwargs)
+
+    def rts(self, target, limit=20):
+        """Rise, transit, set times for targets.
+
+        Parameters
+        ----------
+        target : Target or array
+          The target(s) to observe.
+        limit : float
+          The altitude at which the target is considered risen/set.
+
+        Returns
+        -------
+        r, t, s : Quantity
+          Rise, transit, set times.  `rise` and `set` will be `None`
+          if the target never sets.  `transit` will be `None` if the
+          target never rises.
+
+        """
+
+        from ..util import dh2hms
+
+        if isinstance(target, (list, tuple)):
+            times = ()
+            for t in target:
+                times += (self.rts(t, limit=limit), )
+            return times
+
+        ra, dec = self._radec(target, self.date)
+        r, t, s = rts(ra.degree, dec.degree, self.date, self.lon.degree,
+                      self.lat.degree, self.tz, limit)
+        if t is not None:
+            t = t * u.hr
+
+        if r is not None:
+            r = r * u.hr
+            s = s * u.hr
+
+        if r is not None:
+            rr = dh2hms(r.value, '{:02d}:{:02d}')
+        if t is not None:
+            tt = dh2hms(t.value, '{:02d}:{:02d}')
+        if s is not None:
+            ss = dh2hms(s.value, '{:02d}:{:02d}')
+        print("{:32s} {} {} {}".format(target.label, rr, tt, ss))
+
+        return r, t, s
 
 def am_plot(targets, observer, fig=None, **kwargs):
     """Generate a letter-sized, pretty airmass plot for a night.
@@ -242,7 +290,7 @@ def am_plot(targets, observer, fig=None, **kwargs):
       The observer.
     fig : int, matplotlib Figure, or None
       int/Figure: The matplotlib figure (number) to use.
-      None: Create a new figure.
+      None: Use current figure.
     **kwargs
       Keyword arguments for `Observer.plot_am`.
 
@@ -256,10 +304,12 @@ def am_plot(targets, observer, fig=None, **kwargs):
     from .. import graphics
 
     if fig is None or isinstance(fig, int):
-        fig = plt.figure(fig, (11, 8.5))
+        fig = plt.gcf()
+        fig = fig.set_size_inches(11, 8.5, forward=True)
 
-    for t in targets:
-        observer.plot_am(t, **kwargs)
+    for target in targets:
+        observer.plot_am(target, **kwargs)
+        r, t, s = observer.rts(target)
 
     ax = plt.gca()
     plt.minorticks_on()

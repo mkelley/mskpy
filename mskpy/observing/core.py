@@ -51,8 +51,12 @@ def airmass(ra, dec, date, lon, lat, tz):
     lst = ct2lst(date, lon, tz) * 15.0
     ha = lst - ra
     alt = hadec2altaz(ha, dec, lat)[0]
+
+    old = np.seterr(invalid='ignore')
     secz = 1.0 / np.cos(np.radians(90.0 - alt))
     am = 1.0 / (np.sin(np.radians(alt)) + 0.1500 * (alt + 3.885)**-1.253)
+    np.seterr(**old)
+
     if np.iterable(am):
         am[alt < 1.0] = np.nan
     else:
@@ -139,7 +143,7 @@ def hadec2altaz(ha, dec, lat):
 
     return alt, az
 
-def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1441):
+def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
     """Rise, transit, set times for an object.
 
     Rise and set may be at the horizon, or elsewhere.
@@ -157,25 +161,29 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1441):
       float: The UTC offset of the observer. [hr]
       string: A timezone name processed with `pytz` (e.g., US/Arizona).
     limit : float
-      The altitude at which the object should be considered risen/set.
+      The altitude at which the object should be considered
+      risen/set. [deg]
     precision : int
       Number of steps to take per day, affecting the r/t/s precision.
 
     Returns
     -------
     r, t, s : float
-      Rise, transit, set times for `date`. [hr]
+      Rise, transit, set times for `date`.  If the object does not
+      set, `r` and `s` will be `None`.  If the object is always lower
+      than `limit`, `t` will be `None`. [hr]
 
     """
 
-    from ..util import date2time, nearest
+    from ..util import date2time, nearest, deriv
 
     # truncate the date
     date0 = round(date2time(date).jd - 0.5) + 0.5
     lst0 = ct2lst(date0, lon, tz) * 15.0  # deg
 
-    ha = np.linspace(-180, 180, precision)
-    t = np.linspace(-12, 12, precision)
+    ha = np.linspace(-180, 180, precision, endpoint=False)
+    ct = np.linspace(-12, 12, precision, endpoint=False)  # civil time
+    ct[ct < 0] += 24
 
     # roll ha, so that we get the correct hour angle at midnight
     i = nearest(ha, lst0 - ra)
@@ -183,13 +191,27 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1441):
 
     alt = hadec2altaz(ha, dec, lat)[0]
 
+    # make a branch cut at alt.min()
+    cut = alt.argmin()
+    alt = np.roll(alt, -cut)
+    ct = np.roll(ct, -cut)
+    dalt = deriv(alt)
+
     transit = alt.argmax()
     if not any(alt < limit):
-        rts = None, t[transit], None
+        r, t, s = None, ct[transit], None
+    elif all(alt < limit):
+        r, t, s = None, None, None
     else:
-        rts = (t[nearest(alt[:transit], limit)],
-               t[transit],
-               t[transit + nearest(alt[transit:], limit)])
+        t = ct[transit]
+        i = nearest(alt[:transit], limit)
+        j = transit + nearest(alt[transit:], limit)
+        if dalt[i] > 0:
+            r = ct[i]
+            s = ct[j]
+        else:
+            r = ct[j]
+            s = ct[i]
 
-    return rts
+    return r, t, s
         
