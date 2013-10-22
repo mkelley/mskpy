@@ -8,7 +8,7 @@ observing.core --- Core observing functions
    airmass
    ct2lst
    hadec2altaz
-
+   rts
 
 """
 
@@ -17,7 +17,8 @@ import numpy as np
 __all__ = [
     'airmass',
     'ct2lst',
-    'hadec2altaz'
+    'hadec2altaz',
+    'rts'
 ]
 
 def airmass(ra, dec, date, lon, lat, tz):
@@ -33,7 +34,7 @@ def airmass(ra, dec, date, lon, lat, tz):
       Right ascension and declination of the target. [deg]
     date : string, float, astropy Time, datetime, or array
       The current date (civil time), passed to `util.date2time`.
-    lon : float
+    lon, lat : float
       The (east) longitude, and latitude of the Earth-bound
       observer. [deg]
     tz : float or string
@@ -137,3 +138,58 @@ def hadec2altaz(ha, dec, lat):
     az = np.degrees(np.arctan2(y, x)) % 360.0
 
     return alt, az
+
+def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1441):
+    """Rise, transit, set times for an object.
+
+    Rise and set may be at the horizon, or elsewhere.
+
+    Parameters
+    ----------
+    ra, dec : float
+      Right ascension and declination of the target. [deg]
+    date : string, float, astropy Time, datetime, or array
+      The current date (civil time), passed to `util.date2time`.
+    lon, lat : float
+      The (east) longitude, and latitude of the Earth-bound
+      observer. [deg]
+    tz : float or string
+      float: The UTC offset of the observer. [hr]
+      string: A timezone name processed with `pytz` (e.g., US/Arizona).
+    limit : float
+      The altitude at which the object should be considered risen/set.
+    precision : int
+      Number of steps to take per day, affecting the r/t/s precision.
+
+    Returns
+    -------
+    r, t, s : float
+      Rise, transit, set times for `date`. [hr]
+
+    """
+
+    from ..util import date2time, nearest
+
+    # truncate the date
+    date0 = round(date2time(date).jd - 0.5) + 0.5
+    lst0 = ct2lst(date0, lon, tz) * 15.0  # deg
+
+    ha = np.linspace(-180, 180, precision)
+    t = np.linspace(-12, 12, precision)
+
+    # roll ha, so that we get the correct hour angle at midnight
+    i = nearest(ha, lst0 - ra)
+    ha = np.roll(ha, precision / 2 - i)
+
+    alt = hadec2altaz(ha, dec, lat)[0]
+
+    transit = alt.argmax()
+    if not any(alt < limit):
+        rts = None, t[transit], None
+    else:
+        rts = (t[nearest(alt[:transit], limit)],
+               t[transit],
+               t[transit + nearest(alt[transit:], limit)])
+
+    return rts
+        

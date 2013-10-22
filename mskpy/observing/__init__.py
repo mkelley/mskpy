@@ -22,6 +22,7 @@ import astropy.units as u
 from astropy.coordinates import Angle
 
 from . import core
+from .core import *
 
 __all__ = core.__all__ + [
     'Observer',
