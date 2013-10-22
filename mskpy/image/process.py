@@ -259,6 +259,7 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
     """
 
     from ..util import uclip
+    from .analysis import imstat
 
     flat = np.apply_along_axis(lambda a: uclip(a, func, **kwargs), 0, images)
 
