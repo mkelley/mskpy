@@ -288,8 +288,8 @@ def am_plot(targets, observer, fig=None, **kwargs):
       A list of targets to plot.
     observer : Observer
       The observer.
-    fig : int, matplotlib Figure, or None
-      int/Figure: The matplotlib figure (number) to use.
+    fig : matplotlib Figure or None
+      Figure: The matplotlib figure (number) to use.
       None: Use current figure.
     **kwargs
       Keyword arguments for `Observer.plot_am`.
@@ -302,8 +302,9 @@ def am_plot(targets, observer, fig=None, **kwargs):
 
     import matplotlib.pyplot as plt
     from .. import graphics
+    from ..util import dh2hms
 
-    if fig is None or isinstance(fig, int):
+    if fig is None:
         fig = plt.gcf()
         fig = fig.set_size_inches(11, 8.5, forward=True)
 
@@ -317,6 +318,11 @@ def am_plot(targets, observer, fig=None, **kwargs):
              ylabel='Airmass', xlabel='Time (CT)')
     plt.setp(ax, yticks=[3, 2.5, 2, 1.5, 1.2, 1.0],
              yticklabels=['3.0', '2.5', '2.0', '1.5', '1.2', '1.0'])
+
+    xts = np.array(ax.get_xticks())
+    if any(xts < 0):
+        xts[xts < 0] += 24.0
+    ax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
 
     graphics.niceplot()
     graphics.nicelegend(frameon=False, loc='upper left')

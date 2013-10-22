@@ -7,6 +7,7 @@ observing.core --- Core observing functions
    ---------
    airmass
    ct2lst
+   ct2lst0
    hadec2altaz
    rts
 
@@ -17,6 +18,7 @@ import numpy as np
 __all__ = [
     'airmass',
     'ct2lst',
+    'ct2lst0',
     'hadec2altaz',
     'rts'
 ]
@@ -100,6 +102,34 @@ def ct2lst(date, lon, tz):
     lst = ((th0 + lon) / 15.0  - tzoff) % 24.0
     return lst
 
+def ct2lst0(date, lon, tz):
+    """Convert civil time to local sidereal time at nearest midnight.
+
+    See Meeus, Astronomical Algorithms.
+
+    Parameters
+    ----------
+    date : string, float, astropy Time, datetime, or array
+      The current date (civil time), passed to `util.date2time`.
+    lon : float
+      The East longitude of the observer. [deg]
+    tz : float or string
+      float: The UTC offset of the observer. [hr]
+      string: A timezone name processed with `pytz` (e.g., US/Arizona).
+
+    Returns
+    -------
+    lst0 : float
+      The local sidereal time at nearest midnight.  [hr]
+
+    """
+
+    from ..util import date2time, tz2utc
+
+    d = date2time(date)
+    jd = round(d.jd - 0.5) + 0.5
+    return ct2lst(jd, lon, tz)
+
 def hadec2altaz(ha, dec, lat):
     """Convert hour angle and declination to altitude and azimuth.
 
@@ -178,8 +208,7 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
     from ..util import date2time, nearest, deriv
 
     # truncate the date
-    date0 = round(date2time(date).jd - 0.5) + 0.5
-    lst0 = ct2lst(date0, lon, tz) * 15.0  # deg
+    lst0 = ct2lst0(date, lon, tz) * 15.0  # deg
 
     ha = np.linspace(-180, 180, precision, endpoint=False)
     ct = np.linspace(-12, 12, precision, endpoint=False)  # civil time
