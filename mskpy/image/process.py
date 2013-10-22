@@ -263,7 +263,7 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
     def clip(a):
         return uclip(a, func, **kwargs)
 
-    flat = np.apply_over_axes(clip, 0, images)
+    flat = np.apply_over_axes(clip, images, 0)
 
     lhsig = dict(lsig=lsig, hsig=hsig)
 
