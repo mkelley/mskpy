@@ -208,14 +208,18 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
     from ..util import date2time, nearest, deriv
 
     # truncate the date
-    lst0 = ct2lst0(date, lon, tz) * 15.0  # deg
+    lst0 = ct2lst0(date, lon, tz) * 15.0 # deg
 
     ha = np.linspace(-180, 180, precision, endpoint=False)
     ct = np.linspace(-12, 12, precision, endpoint=False)  # civil time
     ct[ct < 0] += 24
 
     # roll ha, so that we get the correct hour angle at midnight
-    i = nearest(ha, lst0 - ra)
+    ha0 = (lst0 - ra) % 360.0  # HA at midnight
+    if ha0 > 180:
+        ha0 -= 360.0
+
+    i = nearest(ha, ha0)
     ha = np.roll(ha, precision / 2 - i)
 
     alt = hadec2altaz(ha, dec, lat)[0]

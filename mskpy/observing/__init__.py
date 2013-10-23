@@ -59,6 +59,8 @@ class Target(object):
 class MovingTarget(Target):
     """A moving target to be observed.
 
+    ..todo:: Merge with ephem.State?
+
     Parameters
     ----------
     ssobj : SolarSysObject
@@ -106,6 +108,8 @@ class Observer(object):
     -------
     airmass
     altaz
+    lst
+    lst0
     plot_am
     rts
 
@@ -130,6 +134,12 @@ class Observer(object):
     def lst(self):
         """Local sidereal time."""
         return Angle(core.ct2lst(self.date, self.lon.degree, self.tz),
+                     unit=u.hr)
+
+    @property
+    def lst0(self):
+        """Local sidereal time at nearest midnight."""
+        return Angle(core.ct2lst0(self.date, self.lon.degree, self.tz),
                      unit=u.hr)
 
     def _radec(self, target, date):
@@ -269,6 +279,7 @@ class Observer(object):
             r = r * u.hr
             s = s * u.hr
 
+        rr, tt, ss = None, None, None
         if r is not None:
             rr = dh2hms(r.value, '{:02d}:{:02d}')
         if t is not None:
@@ -303,14 +314,29 @@ def am_plot(targets, observer, fig=None, **kwargs):
     import matplotlib.pyplot as plt
     from .. import graphics
     from ..util import dh2hms
+    from .. import ephem
 
     if fig is None:
         fig = plt.gcf()
+        fig.clear()
         fig = fig.set_size_inches(11, 8.5, forward=True)
+
+    sun = MovingTarget(ephem.Sun, label='Sun')
+    astro_twilight = MovingTarget(ephem.Sun, label='Astro twilight')
+    civil_twilight = MovingTarget(ephem.Sun, label='Civil twilight')
+    moon = MovingTarget(ephem.Moon, label='Moon')
 
     for target in targets:
         observer.plot_am(target, **kwargs)
-        r, t, s = observer.rts(target)
+        observer.rts(target)
+
+    print()
+    for target in [sun, moon]:
+        observer.plot_am(target, **kwargs)
+        observer.rts(target, limit=0)
+
+    observer.rts(astro_twilight, limit=-18)
+    observer.rts(civil_twilight, limit=-6)
 
     ax = plt.gca()
     plt.minorticks_on()
