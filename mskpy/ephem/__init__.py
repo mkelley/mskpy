@@ -64,17 +64,17 @@ from .ssobj import *
 __all__ = geom.__all__ + state.__all__ + ssobj.__all__
 
 # load up a few objects
-Sun = getspiceobj('sun', kernel='planets.bsp')
-Mercury = getspiceobj('mercury', kernel='planets.bsp')
-Venus = getspiceobj('venus', kernel='planets.bsp')
-Earth = getspiceobj('earth', kernel='planets.bsp')
-Moon = getspiceobj('moon', kernel='planets.bsp')
-Mars = getspiceobj('mars', kernel='planets.bsp')
-Jupiter = getspiceobj('jupiter', kernel='planets.bsp')
-Saturn = getspiceobj('saturn', kernel='planets.bsp')
-Uranus = getspiceobj('uranus', kernel='planets.bsp')
-Neptune = getspiceobj('neptune', kernel='planets.bsp')
-Pluto = getspiceobj('pluto', kernel='planets.bsp')
+Sun = getspiceobj('Sun', kernel='planets.bsp')
+Mercury = getspiceobj('Mercury', kernel='planets.bsp')
+Venus = getspiceobj('Venus', kernel='planets.bsp')
+Earth = getspiceobj('Earth', kernel='planets.bsp')
+Moon = getspiceobj('Moon', kernel='planets.bsp')
+Mars = getspiceobj('Mars', kernel='planets.bsp')
+Jupiter = getspiceobj('Jupiter', kernel='planets.bsp')
+Saturn = getspiceobj('Saturn', kernel='planets.bsp')
+Uranus = getspiceobj('Uranus', kernel='planets.bsp')
+Neptune = getspiceobj('Neptune', kernel='planets.bsp')
+Pluto = getspiceobj('Pluto', kernel='planets.bsp')
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
                        uranus=Uranus, neptune=Neptune, pluto=Pluto)
@@ -82,14 +82,15 @@ __all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em
 try:
-    Spitzer = getspiceobj('-79', kernel='spitzer.bsp')
+    Spitzer = getspiceobj('-79', kernel='spitzer.bsp', name='Spitzer')
     _loaded_objects['spitzer'] = Spitzer
     __all__.append('Spitzer')
 except OSError:
     pass
 
 try:
-    DeepImpact = getspiceobj('-140', kernel='deepimpact.txt')
+    DeepImpact = getspiceobj('-140', kernel='deepimpact.txt',
+                             name='Deep Impact')
     _loaded_objects['deepimpact'] = DeepImpact
     __all__.append('DeepImpact')
 except OSError:
