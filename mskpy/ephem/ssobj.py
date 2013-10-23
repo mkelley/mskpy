@@ -323,7 +323,8 @@ class SolarSysObject(object):
                  date=date)
 
         if ltt:
-            date -= TimeDelta(g['delta'] / const.c.si.value, format='sec')
+            dt = (g['delta'] / const.c.si).decompose().value
+            date -= TimeDelta(dt, format='sec')
             g = self.observe(target, date, ltt=False)
 
         return g
