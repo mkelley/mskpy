@@ -5,10 +5,8 @@ observing --- Observing stuff
 
    Classes
    -------
-   CelestialTarget
-   MovingTarget
+   Target
    Observer
-
 
    Functions
    ---------
@@ -298,17 +296,17 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     ax = plt.gca()
     plt.minorticks_on()
 
-    sun = MovingTarget(ephem.Sun, name='Sun')
-    astro_twilight = MovingTarget(ephem.Sun, name='Astro twilight')
-    civil_twilight = MovingTarget(ephem.Sun, name='Civil twilight')
-    moon = MovingTarget(ephem.Moon, name='Moon')
+    astro_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
+                                       name='Astro twilight')
+    civil_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
+                                       name='Civil twilight')
 
     for target in targets:
         observer.plot_am(target, **kwargs)
         observer.rts(target, limit=25)
 
     print()
-    for target, ls in zip((sun, moon), ('y--', 'k:')):
+    for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
         observer.plot_am(target, color=ls[0], ls=ls[1:], **kwargs)
         observer.rts(target, limit=0)
 
