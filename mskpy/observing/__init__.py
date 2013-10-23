@@ -193,12 +193,7 @@ class Observer(object):
         label = kwargs.pop('label', target.name)
 
         # round to nearest day
-        time = self.date.datetime.time()
-        dt = time.hour * u.hr
-        dt = dt + time.minute * u.min
-        dt += time.second * u.second
-        dt += time.microsecond * u.microsecond
-        date = self.date - dt
+        date = Time(round(self.date.jd - 0.5) + 0.5)
 
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
