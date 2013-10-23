@@ -64,17 +64,17 @@ from .ssobj import *
 __all__ = geom.__all__ + state.__all__ + ssobj.__all__
 
 # load up a few objects
-Sun = SolarSysObject(SpiceState('sun', kernel='planets.bsp'))
-Mercury = SolarSysObject(SpiceState('mercury', kernel='planets.bsp'))
-Venus = SolarSysObject(SpiceState('venus', kernel='planets.bsp'))
-Earth = SolarSysObject(SpiceState('earth', kernel='planets.bsp'))
-Moon = SolarSysObject(SpiceState('moon', kernel='planets.bsp'))
-Mars = SolarSysObject(SpiceState('mars', kernel='planets.bsp'))
-Jupiter = SolarSysObject(SpiceState('jupiter', kernel='planets.bsp'))
-Saturn = SolarSysObject(SpiceState('saturn', kernel='planets.bsp'))
-Uranus = SolarSysObject(SpiceState('uranus', kernel='planets.bsp'))
-Neptune = SolarSysObject(SpiceState('neptune', kernel='planets.bsp'))
-Pluto = SolarSysObject(SpiceState('pluto', kernel='planets.bsp'))
+Sun = getspiceobj('sun', kernel='planets.bsp')
+Mercury = getspiceobj('mercury', kernel='planets.bsp')
+Venus = getspiceobj('venus', kernel='planets.bsp')
+Earth = getspiceobj('earth', kernel='planets.bsp')
+Moon = getspiceobj('moon', kernel='planets.bsp')
+Mars = getspiceobj('mars', kernel='planets.bsp')
+Jupiter = getspiceobj('jupiter', kernel='planets.bsp')
+Saturn = getspiceobj('saturn', kernel='planets.bsp')
+Uranus = getspiceobj('uranus', kernel='planets.bsp')
+Neptune = getspiceobj('neptune', kernel='planets.bsp')
+Pluto = getspiceobj('pluto', kernel='planets.bsp')
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
                        uranus=Uranus, neptune=Neptune, pluto=Pluto)
@@ -82,14 +82,14 @@ __all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em
 try:
-    Spitzer = SolarSysObject(SpiceState('-79', kernel='spitzer.bsp'))
+    Spitzer = getspiceobj('-79', kernel='spitzer.bsp')
     _loaded_objects['spitzer'] = Spitzer
     __all__.append('Spitzer')
 except OSError:
     pass
 
 try:
-    DeepImpact = SolarSysObject(SpiceState('-140', kernel='deepimpact.txt'))
+    DeepImpact = getspiceobj('-140', kernel='deepimpact.txt')
     _loaded_objects['deepimpact'] = DeepImpact
     __all__.append('DeepImpact')
 except OSError:
