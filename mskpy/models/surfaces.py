@@ -207,7 +207,7 @@ class NEATM(SurfaceRadiation):
 
         """
 
-        Fsun = 1367.567 / rh.au**2  # W / m2
+        Fsun = 1367.567 / rh.to(u.au).value**2  # W / m2
         sigma = 5.670373e-08  # W / (K4 m2)
         T0 = (((1.0 - self.A) * Fsun) / abs(self.eta) / self.epsilon
               / sigma)**0.25
