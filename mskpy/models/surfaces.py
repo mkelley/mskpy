@@ -152,7 +152,7 @@ class NEATM(SurfaceRadiation):
         #
         # Drop some units for efficiency
         phase_r = np.abs(phase.to(u.rad).value)
-        wave_um = wave.micrometer
+        wave_um = wave.to(u.um).value
         for i in range(len(wave_um)):
             fluxd[i] = quad(self._latitude_emission,
                             -pi / 2.0 + phase_r, pi / 2.0,
@@ -163,7 +163,7 @@ class NEATM(SurfaceRadiation):
                   / pi / 2.0).decompose() # W/m^2/Hz
 
         fluxd = fluxd * u.Unit('W / (m2 Hz)')
-        equiv = u.spectral_density(u.um, wave.micrometer)
+        equiv = u.spectral_density(u.um, wave.to(u.um).value)
         fluxd = fluxd.to(unit, equivalencies=equiv)
         if len(fluxd) == 1:
             return fluxd[0]
