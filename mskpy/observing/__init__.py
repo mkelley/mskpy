@@ -5,7 +5,7 @@ observing --- Observing stuff
 
    Classes
    -------
-   Target
+   CelestialTarget
    MovingTarget
    Observer
 
@@ -39,52 +39,22 @@ class Target(object):
     ----------
     ra, dec : Angle
       The position of the target.
-    label : string, optional
+    name : string, optional
       The name of the target.
 
     """
 
-    def __init__(self, ra, dec, label=None):
+    def __init__(self, ra, dec, name=None):
         from .. import util
         self.ra = ra
         self.dec = dec
-        self.label = label
+        self.name = name
 
     def __repr__(self):
         opts = dict(sep=':', precision=0, pad=True)
-        return '<Target ra={} dec={} label="{}">'.format(
+        return '<Target ra={} dec={} name="{}">'.format(
             self.ra.to_string(**opts),
-            self.dec.to_string(alwayssign=True, **opts), self.label)
-
-class MovingTarget(Target):
-    """A moving target to be observed.
-
-    ..todo:: Merge with ephem.State?
-
-    Parameters
-    ----------
-    ssobj : SolarSysObject
-      The moving target.
-    ltt : bool
-      Set to `True` to account for light travel time.
-    label : string, optional
-      The name of the target.
-
-    """
-
-    def __init__(self, ssobj, ltt=False, label=None):
-        self.target = ssobj
-        self.ltt = ltt
-        self.label = label
-
-    def __repr__(self):
-        return '<MovingTarget label={}>'.format(self.label)
-
-    def ra(self, observer, date):
-        return Angle(observer.observe(self.target, date, ltt=self.ltt)['ra'])
-
-    def dec(self, observer, date):
-        return Angle(observer.observe(self.target, date, ltt=self.ltt)['dec'])
+            self.dec.to_string(alwayssign=True, **opts), self.name)
 
 class Observer(object):
     """An Earth-based observer.
@@ -114,7 +84,6 @@ class Observer(object):
     rts
 
     """
-    from ..ephem import Earth
 
     def __init__(self, lon, lat, tz, date):
         from .. import util
@@ -143,9 +112,11 @@ class Observer(object):
                      unit=u.hr)
 
     def _radec(self, target, date):
-        if isinstance(target, MovingTarget):
-            ra = target.ra(self.Earth, date)
-            dec = target.dec(self.Earth, date)
+        from ..ephem import Earth, SolarSysObject
+        if isinstance(target, SolarSysObject):
+            g = Earth.observe(target, date, ltt=True)
+            ra = g['ra']
+            dec = g['dec']
         else:
             ra = target.ra
             dec = target.dec
@@ -221,7 +192,7 @@ class Observer(object):
 
         if ax is None:
             ax = plt.gca()
-        label = kwargs.pop('label', target.label)
+        label = kwargs.pop('label', target.name)
 
         # round to nearest day
         time = self.date.datetime.time()
@@ -286,7 +257,7 @@ class Observer(object):
             tt = dh2hms(t.value, '{:02d}:{:02d}')
         if s is not None:
             ss = dh2hms(s.value, '{:02d}:{:02d}')
-        print("{:32s} {} {} {}".format(target.label, rr, tt, ss))
+        print("{:32s} {} {} {}".format(target.name, rr, tt, ss))
 
         return r, t, s
 
@@ -327,10 +298,10 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     ax = plt.gca()
     plt.minorticks_on()
 
-    sun = MovingTarget(ephem.Sun, label='Sun')
-    astro_twilight = MovingTarget(ephem.Sun, label='Astro twilight')
-    civil_twilight = MovingTarget(ephem.Sun, label='Civil twilight')
-    moon = MovingTarget(ephem.Moon, label='Moon')
+    sun = MovingTarget(ephem.Sun, name='Sun')
+    astro_twilight = MovingTarget(ephem.Sun, name='Astro twilight')
+    civil_twilight = MovingTarget(ephem.Sun, name='Civil twilight')
+    moon = MovingTarget(ephem.Moon, name='Moon')
 
     for target in targets:
         observer.plot_am(target, **kwargs)
@@ -428,14 +399,13 @@ def file2targets(filename):
         elif line.strip()[0] == '#':
             pass
         elif len(mmov) > 0:
-            label, name, dummy, kernel = mmov[0]
+            name, naifname, dummy, kernel = mmov[0]
             if len(kernel) == 0:
                 kernel = None
-            ssobj = getspiceobj(name, kernel=kernel)
-            targets.append(MovingTarget(ssobj, label=label))
+            targets.append(getspiceobj(naifname, kernel=kernel, name=name))
         elif len(mfix) > 0:
-            label, ra, dec = mfix[0]
-            targets.append(Target(Angle(ra), Angle(dec), label=label))
+            name, ra, dec = mfix[0]
+            targets.append(Target(Angle(ra), Angle(dec), name=name))
         else:
             skipped += 1
 
