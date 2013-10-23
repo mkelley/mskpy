@@ -290,7 +290,7 @@ class Observer(object):
 
         return r, t, s
 
-def am_plot(targets, observer, fig=None, **kwargs):
+def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     """Generate a letter-sized, pretty airmass plot for a night.
 
     Parameters
@@ -302,6 +302,8 @@ def am_plot(targets, observer, fig=None, **kwargs):
     fig : matplotlib Figure or None
       Figure: The matplotlib figure (number) to use.
       None: Use current figure.
+    ylim : array
+      Y-axis limits (airmass).
     **kwargs
       Keyword arguments for `Observer.plot_am`.
 
@@ -319,7 +321,11 @@ def am_plot(targets, observer, fig=None, **kwargs):
     if fig is None:
         fig = plt.gcf()
         fig.clear()
-        fig = fig.set_size_inches(11, 8.5, forward=True)
+        fig.set_size_inches(11, 8.5, forward=True)
+        fig.subplots_adjust(left=0.06, right=0.94, bottom=0.1, top=0.9)
+
+    ax = plt.gca()
+    plt.minorticks_on()
 
     sun = MovingTarget(ephem.Sun, label='Sun')
     astro_twilight = MovingTarget(ephem.Sun, label='Astro twilight')
@@ -328,29 +334,45 @@ def am_plot(targets, observer, fig=None, **kwargs):
 
     for target in targets:
         observer.plot_am(target, **kwargs)
-        observer.rts(target)
+        observer.rts(target, limit=25)
 
     print()
-    for target in [sun, moon]:
-        observer.plot_am(target, **kwargs)
+    for target, ls in zip((sun, moon), ('y--', 'k:')):
+        observer.plot_am(target, color=ls[0], ls=ls[1:], **kwargs)
         observer.rts(target, limit=0)
 
-    observer.rts(astro_twilight, limit=-18)
-    observer.rts(civil_twilight, limit=-6)
+    at_rts = observer.rts(astro_twilight, limit=-18)
+    ct_rts = observer.rts(civil_twilight, limit=-6)
 
-    ax = plt.gca()
-    plt.minorticks_on()
-    plt.setp(ax, xlim=[-8, 8], ylim=[3, 1], yscale='log',
-             ylabel='Airmass', xlabel='Time (CT)')
-    plt.setp(ax, yticks=[3, 2.5, 2, 1.5, 1.2, 1.0],
-             yticklabels=['3.0', '2.5', '2.0', '1.5', '1.2', '1.0'])
+    y = [ylim[0], ylim[0], ylim[1], ylim[1]]
+    c = (0.29, 0.64, 1.0, 0.1)
+    for twilight in (at_rts, ct_rts):
+        x = [-12, twilight[2].value - 24, twilight[2].value - 24, -12]
+        ax.fill(x, y, color=c)
 
+        x = [12, twilight[0].value, twilight[0].value, 12]
+        ax.fill(x, y, color=c)
+
+    plt.setp(ax, xlim=[-8, 8], ylim=ylim, ylabel='Airmass',
+             xlabel='Time (CT)')
+
+    # civil time labels
     xts = np.array(ax.get_xticks())
     if any(xts < 0):
         xts[xts < 0] += 24.0
     ax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
 
-    graphics.niceplot()
+    # LST labels
+    xts = np.array(ax.get_xticks()) + observer.lst0.hour
+    if any(xts < 0):
+        xts[xts < 0] += 24.0
+    tax = ax.twiny()
+    tax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
+    plt.minorticks_on()
+    plt.setp(tax, xlim=ax.get_xlim(), xlabel='LST')
+
+    plt.sca(ax)
+    graphics.niceplot(lw=1.6, tightlayout=False)
     graphics.nicelegend(frameon=False, loc='upper left')
 
 def file2targets(filename):
