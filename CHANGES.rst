@@ -1,3 +1,12 @@
+2.1.0
+-----
+
+New Features
+^^^^^^^^^^^^
+
+- New `observing` module, updated from `mskpy1`.
+
+
 2.0.0
 -----
 

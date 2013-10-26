@@ -41,9 +41,9 @@ class Geom(object):
       Target's heliocentric distance.
     delta : Quantity
       Observer-target distance.
-    phase : Quantity
+    phase : Angle
       Phase angle (Sun-target-observer).
-    signedphase : Quantity
+    signedphase : Angle
       Phase angle, <0 for pre-opposition, >0 for post-opposition.
     obsrh : Quantity
       The observer's heliocentric distance.
@@ -51,25 +51,25 @@ class Geom(object):
       The observer's speed.
     st : Quantity
       The target's speed.
-    lambet : tuple of Quantity
+    lambet : tuple of Angle
       Ecliptic longitude and latitude.
-    lam : Quantity
+    lam : Angle
       Ecliptic longitude.
-    bet : Quantity
+    bet : Angle
       Ecliptic latitude.
-    radec : tuple of Quantity
+    radec : tuple of Angle
       Right ascension and declination.
-    ra : Quantity
+    ra : Angle
       Right ascension.
-    dec : Quantity
+    dec : Angle
       Declination.
-    sangle : Quantity
+    sangle : Angle
       Projected Sun angle.
-    vangle : Quantity
+    vangle : Angle
       Projected velocity angle.
-    selong : Quantity
+    selong : Angle
       Solar elongation.
-    lelong : Quantity
+    lelong : Angle
       Lunar elongation.
 
     Methods
@@ -93,7 +93,7 @@ class Geom(object):
              'radec', 'ra', 'dec', 'sangle', 'vangle', 'selong', 'lelong']
 
     def __init__(self, ro, rt, vo=None, vt=None, date=None):
-        from astropy.units import Quantity
+        from astropy.coordinates import Angle
         from .. import util
 
         self._ro = ro.to(u.km).value
@@ -217,9 +217,10 @@ class Geom(object):
 
     @property
     def phase(self):
+        from astropy.coordinates import Angle
         phase = np.arccos((self.rh**2 + self.delta**2 - self.obsrh**2) /
                           2.0 / self.rh / self.delta)
-        return np.degrees(phase)  # quantity magic will put this in deg.
+        return Angle(np.degrees(phase))
 
     @property
     def signedphase(self):
@@ -234,8 +235,7 @@ class Geom(object):
         dot = np.sum((np.cross(self._rt, self._rot)
                       * np.cross(self._ro, self._vo)), -1)
         sign = np.sign(dot)
-        phase = self.phase
-        return (sign * self.phase.value) * u.deg
+        return sign * self.phase
 
     @property
     def obsrh(self):
@@ -259,10 +259,11 @@ class Geom(object):
     @property
     def lambet(self):
         """Ecliptic longitude and latitude."""
+        from astropy.coordinates import Angle
         lam = np.arctan2(self._rot.T[1], self._rot.T[0])
         bet = np.arctan2(self._rot.T[2],
                          np.sqrt(self._rot.T[0]**2 + self._rot.T[1]**2))
-        return np.degrees(lam) * u.deg, np.degrees(bet) * u.deg
+        return Angle(np.degrees(lam) * u.deg), Angle(np.degrees(bet) * u.deg)
 
     @property
     def lam(self):
@@ -277,10 +278,11 @@ class Geom(object):
     @property
     def radec(self):
         """Right ascension and declination."""
+        from astropy.coordinates import Angle
         from ..util import ec2eq
         lam, bet = self.lambet
-        ra, dec = ec2eq(lam.degree, bet.degree)
-        return ra * u.deg, dec * u.deg
+        ra, dec = ec2eq(lam.to(u.deg).value, bet.to(u.deg).value)
+        return Angle(ra * u.deg), Angle(dec * u.deg)
 
     @property
     def ra(self):
@@ -296,46 +298,55 @@ class Geom(object):
     def sangle(self):
         """Projected Sun angle."""
 
+        from astropy.coordinates import Angle
         from ..util import projected_vector_angle as pva
 
         ra, dec = self.radec
         if len(self) > 1:
             sangle = np.zeros(len(self))
             for i in range(len(self)):
-                sangle[i] = pva(-self._rt[i], self._rot[i], ra[i].degree,
-                                dec[i].degree)
+                sangle[i] = pva(-self._rt[i], self._rot[i],
+                                 ra[i].to(u.deg).value,
+                                dec[i].to(u.deg).value)
         else:
-            sangle = pva(-self._rt, self._rot, ra.degree, dec.degree)
+            sangle = pva(-self._rt, self._rot, ra.to(u.deg).value,
+                          dec.to(u.deg).value)
             
-        return sangle * u.deg
+        return Angle(sangle * u.deg)
 
     @property
     def vangle(self):
         """Projected velocity angle."""
 
+        from astropy.coordinates import Angle
         from ..util import projected_vector_angle as pva
 
         ra, dec = self.radec
         if len(self) > 1:
             vangle = np.zeros(len(self))
             for i in range(len(self)):
-                vangle[i] = pva(self._vt[i], self._rot[i], ra[i].degree,
-                                dec[i].degree)
+                vangle[i] = pva(self._vt[i], self._rot[i],
+                                ra[i].to(u.deg).value,
+                                dec[i].to(u.deg).value)
         else:
-            vangle = pva(self._vt, self._rot, ra.degree, dec.degree)
+            vangle = pva(self._vt, self._rot, ra.to(u.deg).value,
+                         dec.to(u.deg).value)
 
-        return vangle * u.deg
+        return Angle(vangle * u.deg)
 
     @property
     def selong(self):
         """Solar elongation."""
+        from astropy.coordinates import Angle
         selong = np.arccos(np.sum(-self._ro * self._rot, -1)
-                           / self.obsrh.kilometer / self.delta.kilometer)
-        return np.degrees(selong) * u.deg
+                           / self.obsrh.to(u.km).value
+                           / self.delta.to(u.km).value)
+        return Angle(np.degrees(selong) * u.deg)
 
     @property
     def lelong(self):
         """Lunar elongation."""
+        from astropy.coordinates import Angle
         from . import Moon
         if self.date is None:
             return None
@@ -343,8 +354,8 @@ class Geom(object):
         rom = rm - self._ro
         deltam = np.sqrt(np.sum(rom**2, -1))
         lelong = np.arccos(np.sum(rom * self._rot, -1)
-                           / deltam / self.delta.kilometer)
-        return np.degrees(lelong) * u.deg
+                           / deltam / self.delta.to(u.km).value)
+        return Angle(np.degrees(lelong) * u.deg)
 
     def reduce(self, func, units=False):
         """Apply a function to each vector.
@@ -493,7 +504,6 @@ class Geom(object):
 
         """
 
-        from astropy.coordinates import Angle
         from ..util import jd2time
 
         opts = dict(sep=':', precision=1, pad=True)
@@ -512,19 +522,16 @@ class Geom(object):
             minmaxtime = '     [{:}, {:}]'.format(timemin, timemax)
             minmaxdate = '   [{:}, {:}]'.format(datemin, datemax)
 
-            ramin = Angle(gmin['ra'].value, u.deg).format(
-                'hour', **opts)
-            decmin = Angle(gmin['dec'].value, u.deg).format(
-                'deg', alwayssign=True, **opts)
-            ramax = Angle(gmax['ra'].value, u.deg).format(
-                'hour', **opts)
-            decmax = Angle(gmax['dec'].value, u.deg).format(
-                'deg', alwayssign=True, **opts)
+            ramin = gmin['ra'].format('hour', **opts)
+            decmin = gmin['dec'].format('deg', alwayssign=True, **opts)
+            ramax = gmax['ra'].format('hour', **opts)
+            decmax = gmax['dec'].format('deg', alwayssign=True, **opts)
 
             raminmax = '  [ {:},  {:}]'.format(ramin, ramax)
             decminmax = '  [{:}, {:}]'.format(decmin, decmax)
 
-            jdminmax = '   [{:.2f}, {:.2f}]'.format(gmin['date'].jd, gmax['date'].jd)
+            jdminmax = ('   [{:.2f}, {:.2f}]'
+                        .format(gmin['date'].jd, gmax['date'].jd))
 
             def minmax(p, f):
                 return '     [{:{f}}, {:{f}}]'.format(
@@ -544,9 +551,8 @@ class Geom(object):
         date, time = jd2time(g['date']).iso.split()
         time = time.split('.')[0]
 
-        ra = Angle(g['ra'].value, u.deg).format('hour', **opts)
-        dec = Angle(g['dec'].value, u.deg).format('deg', alwayssign=True,
-                                                  **opts)
+        ra = g['ra'].format('hour', **opts)
+        dec = g['dec'].format('deg', alwayssign=True, **opts)
 
         print ("""
 {:>34s} {:s}{:}
@@ -572,17 +578,17 @@ class Geom(object):
            minmax('rh', '8.3f'),
            "Target-Observer distance (AU):", g['delta'].value,
            minmax('delta', '8.3f'),
-           "Sun-Object-Observer angle (deg):", g['phase'].value,
+           "Sun-Object-Observer angle (deg):", g['phase'].degree,
            minmax('phase', '8.3f'),
-           "Sun-Observer-Target angle (deg):", g['selong'].value,
+           "Sun-Observer-Target angle (deg):", g['selong'].degree,
            minmax('selong', '8.3f'),
-           "Moon-Observer-Target angle (deg):", g['lelong'].value,
+           "Moon-Observer-Target angle (deg):", g['lelong'].degree,
            minmax('lelong', '8.3f'),
            "RA (hr):", ra, raminmax,
            "Dec (deg):", dec, decminmax,
-           "Projected sun vector (deg):", g['sangle'].value,
+           "Projected sun vector (deg):", g['sangle'].degree,
            minmax('sangle', '8.3f'),
-           "Projected velocity vector (deg):", g['vangle'].value,
+           "Projected velocity vector (deg):", g['vangle'].degree,
            minmax('vangle', '8.3f')))
 
 # update module docstring

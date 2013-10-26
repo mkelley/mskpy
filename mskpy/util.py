@@ -77,6 +77,7 @@ util --- Short and sweet functions, generic algorithms
    hms2dh
    jd2doy
    jd2time
+   tz2utc
 
    Other
    -----
@@ -149,6 +150,7 @@ __all__ = [
     'hms2dh',
     'jd2doy',
     'jd2time',
+    'tz2utc',
 
     'asAngle',
     'asQuantity',
@@ -2090,7 +2092,7 @@ def cal2time(cal, scale='utc'):
 def date_len(date):
     """Length of the date, or 0 if it is a scalar.
 
-    Useful for routines that use date2time.
+    Useful for routines that use `date2time`.
 
     Parameters
     ----------
@@ -2119,7 +2121,7 @@ def date2time(date, scale='utc'):
     Parameters
     ----------
     date : string, float, astropy Time, datetime, or array
-      Some time-like thingy, or `None` to return the current date.
+      Some time-like thingy, or `None` to return the current date (UTC).
     scale : string, optional
       See `astropy.time.Time`.
 
@@ -2132,7 +2134,7 @@ def date2time(date, scale='utc'):
     from astropy.time import Time
 
     if date is None:
-        date = Time(datetime.now(), scale=scale, format='datetime')
+        date = Time(datetime.utcnow(), scale=scale, format='datetime')
     elif isinstance(date, Time):
         pass
     elif isinstance(date, float):
@@ -2304,6 +2306,27 @@ def jd2time(jd, jd2=None, scale='utc'):
     from astropy.time import Time
     return Time(jd, val2=jd2, format='jd', scale=scale)
 
+
+def tz2utc(date, tz):
+    """Offset between local time and UTC.
+
+    Parameters
+    ----------
+    date : various
+      The local time, in any format acceptable to `date2time`.
+    tz : string
+      date will be processed via `pytz`.
+
+    Returns
+    -------
+    offset : datetime.timedelta
+      The UTC offset.
+
+    """
+
+    from pytz import timezone
+    return timezone(tz).utcoffset(date2time(date).datetime)
+
 def asAngle(x, unit=None):
     """Make `x` an astropy `Angle`.
 
@@ -2381,15 +2404,16 @@ def asValue(x, unit_in, unit_out):
     from astropy.units import Quantity
     from astropy.coordinates import Angle
 
-    if isinstance(x, Angle):
-        if unit_out == u.deg:
-            y = x.degrees
-        elif unit_out == u.rad:
-            y = x.radians
-        else:
-            raise ValueError("Cannot convert Angle to units of {}".format(
-                    unit_out))
-    elif isinstance(x, Quantity):
+#    if isinstance(x, Angle):
+#        if unit_out == u.deg:
+#            y = x.degrees
+#        elif unit_out == u.rad:
+#            y = x.radians
+#        else:
+#            raise ValueError("Cannot convert Angle to units of {}".format(
+#                    unit_out))
+#    elif isinstance(x, Quantity):
+    if isinstance(x, (Angle, Quantity)):
         y = x.to(unit_out).value
     else:
         y = (x * unit_in).to(unit_out).value

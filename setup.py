@@ -48,7 +48,7 @@ if __name__ == "__main__":
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/mskpy",
           packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
-                    'mskpy.ephem', 'mskpy.instruments'],
+                    'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing'],
           data_files=files,
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],

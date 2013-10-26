@@ -34,6 +34,7 @@ from . import calib
 from . import instruments
 from . import models
 from . import modeling
+from . import observing
 
 # the following block depends on PySPICE
 try:
