@@ -91,7 +91,7 @@ class Observer(object):
 
     Parameters
     ----------
-    lon, lat : Angle
+    lon, lat : astropy Angle or Quantity
       The longitude and (East) latitude of the observer.
     tz : float
       The time zone of the observer.
@@ -118,8 +118,8 @@ class Observer(object):
 
     def __init__(self, lon, lat, tz, date):
         from .. import util
-        self.lon = lon
-        self.lat = lat
+        self.lon = Angle(lon)
+        self.lat = Angle(lat)
         self.tz = tz
         if date is None:
             self.date = util.date2time(None)
