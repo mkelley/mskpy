@@ -70,6 +70,7 @@ util --- Short and sweet functions, generic algorithms
    cal2doy
    cal2iso
    cal2time
+   date_len
    date2time
    dh2hms
    doy2md
@@ -141,6 +142,7 @@ __all__ = [
     'cal2doy',
     'cal2iso',
     'cal2time',
+    'date_len',
     'date2time',
     'dh2hms',
     'doy2md',
@@ -2084,6 +2086,32 @@ def cal2time(cal, scale='utc'):
     """
     from astropy.time import Time
     return Time(cal2iso(cal), format='isot', scale=scale)
+
+def date_len(date):
+    """Length of the date, or 0 if it is a scalar.
+
+    Useful for routines that use date2time.
+
+    Parameters
+    ----------
+    date : string, float, astropy Time, datetime, or array
+      Some time-like thingy, or `None` to return the current date.
+
+    Returns
+    -------
+    n : int
+      The length of the array, or 0 if it is a scalar.
+
+    """
+
+    from astropy.time import Time
+    if isinstance(date, (list, tuple, np.ndarray)):
+        return len(date)
+    elif isinstance(date, Time):
+        if date.isscalar:
+            return 0
+        else:
+            return len(date)
 
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.

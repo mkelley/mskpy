@@ -174,11 +174,12 @@ def time2et(t):
     """
 
     global _spice_setup
+    from .. import util
 
     if not _spice_setup:
         _setup_spice()
 
-    if isinstance(t, (list, tuple, np.ndarray)) or len(t) > 1:
+    if util.date_len(t) > 0:
         return [time2et(x) for x in t]
 
     return spice.utc2et(t.utc.iso)
