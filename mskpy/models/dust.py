@@ -110,7 +110,7 @@ class AfrhoScattered(AfrhoRadiation):
 
         Returns
         -------
-        fluxd : Quantity
+        fluxd : Quantityu
           The flux density from the coma.
 
         Raises
@@ -124,12 +124,13 @@ class AfrhoScattered(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
+            rho = geom['delta'].to(self.Afrho.unit) * rap.to(u.rad).value
         else:
             raise ValueError("rap must have angular or length units.")
 
-        fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
-        fluxd = (self.Afrho * self.phasef(np.abs(geom['phase'].degree))
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
+        fluxd = (self.Afrho
+                 * self.phasef(np.abs(geom['phase'].to(u.deg).value))
                  * rho * fsun / 4.0 / geom['delta'].to(self.Afrho.unit)**2)
 
         return fluxd
@@ -138,9 +139,21 @@ class AfrhoThermal(AfrhoRadiation):
     """Thermal emisson from a coma parameterized by efrho.
 
     If you use this model, please cite and reference Kelley et
-    al. (2013, Icarus 225, 475-494).  They define epsilon-f-rho as the
-    product of IR emissivity, dust filling factor, f, and observer's
-    aperture radius, rho.
+    al. (2013, Icarus 225, 475-494).  They define `epsilon-f-rho` as
+    the product of IR emissivity (`epsilon`), dust filling factor
+    (`f`), and observer's aperture radius (`rho`).
+
+    The default `ef2af` is 3.5, which assumes `epsilion` is
+    approximately 0.9, `A` is approximately 0.25, and the scattering
+    and emission filling factors are the same.  This value can roughly
+    reproduce the spectral shape of 73P-C/Schwassmann-Wachmann in
+    Fig. 16 of Sitko et al. (2011, AJ 142, 80) for `Tscale = 1.12`.
+
+    The default long-wavelength slope, `beta = 0.89+/-0.10`, is from
+    an analysis of Hyakutake JCMT data by Jewitt and Matthews (1997,
+    AJ 113, 1145).  The break-point, `wave0` = 70 um, is based on my
+    own analysis, combining the Jewitt and Matthews fluxes with mid-IR
+    fluxes from Mason et al. (1998, ApJ 507, 398).
 
     Parameters
     ----------
@@ -154,6 +167,9 @@ class AfrhoThermal(AfrhoRadiation):
     Tscale : float, optional
       The isothermal blackbody sphere temperature scale factor that
       characterizes the spectral shape of the thermal emission.
+    beta : float, optional
+    wave0 : Quantity, optional
+      Scale wavelengths longer than `wave0` by `(wave / wave0)**-beta`.
 
     Methods
     -------
@@ -161,11 +177,14 @@ class AfrhoThermal(AfrhoRadiation):
 
     """
 
-    def __init__(self, Afrho, ef2af=2.0, Tscale=1.1, **kwargs):
+    def __init__(self, Afrho, ef2af=3.5, Tscale=1.1, beta=0.89,
+                 wave0=70 * u.um, **kwargs):
         assert isinstance(Afrho, u.Quantity)
         self.Afrho = Afrho
         self.ef2af = ef2af
         self.Tscale = Tscale
+        self.beta = beta
+        self.wave0 = wave0
 
     def fluxd(self, geom, wave, rap, unit=u.Unit('W / (m2 um)')):
         """Flux density.
@@ -200,15 +219,21 @@ class AfrhoThermal(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
+            rho = geom['delta'].to(self.Afrho.unit) * rap.to(u.rad).value
         else:
             raise ValueError("rap must have angular or length units.")
 
-        T = self.Tscale * 278 / np.sqrt(geom['rh'].au)
+        T = self.Tscale * 278 / np.sqrt(geom['rh'].to(u.au).value)
         B = planck(wave, T, unit=unit / u.sr).value
         efrho = self.Afrho * self.ef2af
         d = geom['delta'].to(self.Afrho.unit).value
         fluxd = efrho.value * np.pi * B * rho.value / d**2
+
+        if any(wave > self.wave0):
+            eps = np.ones(len(wave))
+            i = wave > self.wave0
+            eps[i] *= (wave[i] / self.wave0)**-self.beta
+            fluxd *= eps
 
         return fluxd * unit
 

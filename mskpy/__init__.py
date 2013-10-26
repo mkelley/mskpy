@@ -18,9 +18,12 @@ mskpy --- MSK's personal library for astronomy and stuff.
    instruments - Cameras, spectrometers, etc. for astronomy.
    modeling    - For fitting models to data.
    models      - Surface and dust models.
+   observing   - Tools for observing preparations.
    util        - Grab bag of utility functions.
 
 """
+
+from . import config
 
 from . import image
 from . import util
@@ -32,6 +35,7 @@ from . import calib
 from . import instruments
 from . import models
 from . import modeling
+from . import observing
 
 # the following block depends on PySPICE
 try:

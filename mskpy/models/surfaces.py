@@ -139,7 +139,7 @@ class NEATM(SurfaceRadiation):
         phase = geom['phase']
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
-        T0 = self.T0(geom['rh']).Kelvin
+        T0 = self.T0(geom['rh']).to(u.Kelvin).value
         fluxd = np.zeros(len(wave))
 
         # Integrate theta from -pi/2 to pi/2: emission is emitted from
@@ -151,8 +151,8 @@ class NEATM(SurfaceRadiation):
         # pi/2)
         #
         # Drop some units for efficiency
-        phase_r = np.abs(phase.radian)
-        wave_um = wave.micrometer
+        phase_r = np.abs(phase.to(u.rad).value)
+        wave_um = wave.to(u.um).value
         for i in range(len(wave_um)):
             fluxd[i] = quad(self._latitude_emission,
                             -pi / 2.0 + phase_r, pi / 2.0,
@@ -163,7 +163,7 @@ class NEATM(SurfaceRadiation):
                   / pi / 2.0).decompose() # W/m^2/Hz
 
         fluxd = fluxd * u.Unit('W / (m2 Hz)')
-        equiv = u.spectral_density(u.um, wave.micrometer)
+        equiv = u.spectral_density(u.um, wave.to(u.um).value)
         fluxd = fluxd.to(unit, equivalencies=equiv)
         if len(fluxd) == 1:
             return fluxd[0]
@@ -207,7 +207,7 @@ class NEATM(SurfaceRadiation):
 
         """
 
-        Fsun = 1367.567 / rh.au**2  # W / m2
+        Fsun = 1367.567 / rh.to(u.au).value**2  # W / m2
         sigma = 5.670373e-08  # W / (K4 m2)
         T0 = (((1.0 - self.A) * Fsun) / abs(self.eta) / self.epsilon
               / sigma)**0.25
@@ -311,11 +311,11 @@ class HG(SurfaceRadiation):
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
-        rhdelta = geom['rh'].au * geom['delta'].au
+        rhdelta = geom['rh'].to(u.au).value * geom['delta'].to(u.au).value
         phase = geom['phase']
 
         mv = (self.H + 5.0 * np.log10(rhdelta)
-              - 2.5 * np.log10(phaseHG(np.abs(phase.degree), self.G)))
+              - 2.5 * np.log10(phaseHG(np.abs(phase.to(u.deg).value), self.G)))
 
         wave_v = np.linspace(0.5, 0.6) * u.um
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
@@ -416,10 +416,10 @@ class DAp(SurfaceRadiation):
 
         delta = geom['delta']
         phase = geom['phase']
-        fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
 
         #fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
-        fsca = (fsun * self.Ap * self.phasef(np.abs(phase.degree))
+        fsca = (fsun * self.Ap * self.phasef(np.abs(phase.to(u.deg).value))
                 * (self.R / delta).decompose()**2)
 
         if unit != fsca.unit:
@@ -441,7 +441,7 @@ class DAp(SurfaceRadiation):
 
         """
 
-        return 5 * np.log10(self.R.au * np.sqrt(self.Ap)) - Msun
+        return 5 * np.log10(self.R.to(u.au).value * np.sqrt(self.Ap)) - Msun
 
     @property
     def R(self):

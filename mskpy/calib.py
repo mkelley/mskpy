@@ -64,17 +64,12 @@ def e490(smooth=False, unit=u.Unit('W/(m2 um)')):
 
     Notes
     -----
-    The smoothed spectrum, up to 10 um, is generated via:
-      w, f = mskpy.calib.e490(False)
-      h = histogram(w, bins=logspace(-1, 1, 100))
-      h2 = histogram(w, bins=logspace(-1, 1, 100), weights=f)
-      a = h2[0] / h[0]
-      c_[mskpy.midstep(h2[1]), a]
-    At >= 10 um, the original resolution is retained.
+    The smoothed spectrum, up to 10 um, is the original E490 table,
+    rebinned.  At > 10 um, the original resolution is retained.
 
     """
     if smooth:
-        w, f = np.loadtxt(_e490.replace('.txt', '_smoothed0.005.txt')).T
+        w, f = np.loadtxt(_e490_sm).T
     else:
         w, f = np.loadtxt(_e490).T
 

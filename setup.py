@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 from numpy.distutils.core import setup, Extension, Command
+from distutils.command.install import install
+
+class my_install(install):
+    def run(self):
+        install.run(self)
+        import mskpy.config
 
 class PyTest(Command):
     user_options = []
@@ -36,17 +42,17 @@ if __name__ == "__main__":
     files = find_data_files()
 
     setup(name='mskpy',
-          version='2.0.dev',
+          version='2.1.0',
           description='General purpose and astronomy related tools',
           author="Michael S. Kelley",
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/mskpy",
           packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
-                    'mskpy.ephem', 'mskpy.instruments'],
+                    'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing'],
           data_files=files,
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
-          cmdclass={'test': PyTest},
+          cmdclass={'test': PyTest, 'install': my_install},
           license='BSD',
           classifiers = [
               'Intended Audience :: Science/Research',
@@ -54,5 +60,5 @@ if __name__ == "__main__":
               'Operating System :: OS Independent',
               "Programming Language :: Python :: 2.7",
               'Topic :: Scientific/Engineering :: Astronomy'
-          ],
+          ]
       )

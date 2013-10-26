@@ -246,6 +246,9 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
       The combining function.
     lsig, hsig : float
       The lower- and upper-sigma limits used to define bad pixels.
+    mask : bool
+      `True` over areas of the array where pixels are already known to
+      be good.  This will be incorporated into the bad pixel mask.
     **kwargs, optional
       Any `core.uclip` keyword.
 
@@ -259,19 +262,17 @@ def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
     """
 
     from ..util import uclip
+    from .analysis import imstat
 
-    def clip(a):
-        return uclip(a, func, **kwargs)
-
-    flat = np.apply_over_axes(clip, 0, images)
+    flat = np.apply_along_axis(lambda a: uclip(a, func, **kwargs), 0, images)
 
     lhsig = dict(lsig=lsig, hsig=hsig)
 
-    stat = imstat(flat, **lhsig)
+    stat = imstat(flat[mask], **lhsig)
     flat /= stat['scmean']
-    bpm = flat.copy()
+    bpm = flat.copy() * mask
 
-    stat = imstat(bpm, **lhsig)
+    stat = imstat(bpm[mask], **lhsig)
     bpm[bpm < (1 - stat['scstdev'] * lsig)] = 0
     bpm[bpm > (1 + stat['scstdev'] * hsig)] = 0
     bpm = bpm == 0
@@ -377,8 +378,8 @@ def stripes(im, axis=0, stat=np.median, **keywords):
 
     m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
 
-    print("mean/sig/% masked = {0}/{1}/{2}".format(
-        m, sig, 1 - good.size / np.prod(im.shape).astype(float)))
+    #print("mean/sig/% masked = {0}/{1}/{2}".format(
+    #    m, sig, 1 - len(good) / np.prod(im.shape).astype(float)))
 
     mask = np.ones_like(im).astype(bool)
     mask.ravel()[good] = False

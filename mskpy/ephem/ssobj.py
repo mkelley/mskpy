@@ -40,6 +40,8 @@ class SolarSysObject(object):
     ----------
     state : State
       The object from which to retrieve positions and velocities.
+    name : string, optional
+      The name of the object.
 
     Methods
     -------
@@ -57,9 +59,13 @@ class SolarSysObject(object):
 
     """
 
-    def __init__(self, state):
+    def __init__(self, state, name=None):
         assert isinstance(state, State)
         self.state = state
+        self.name = name
+
+    def __repr__(self):
+        return '<SolarSysObject name="{}">'.format(self.name)
 
     def r(self, date):
         """Position vector.
@@ -323,7 +329,8 @@ class SolarSysObject(object):
                  date=date)
 
         if ltt:
-            date -= TimeDelta(g['delta'] / const.c.si.value, format='sec')
+            dt = (g['delta'] / const.c.si).decompose().value
+            date -= TimeDelta(dt, format='sec')
             g = self.observe(target, date, ltt=False)
 
         return g
@@ -401,7 +408,7 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     return observer.observe(target, date, ltt=ltt)
 
-def getspiceobj(obj, kernel=None):
+def getspiceobj(obj, kernel=None, name=None):
     """Create a new SolarSysObject with a SPICE kernel, for your convenience.
 
     Parameters
@@ -413,18 +420,20 @@ def getspiceobj(obj, kernel=None):
       The name of a specific SPICE planetary ephemeris kernel (SPK) to
       use for this object, or `None` to automatically search for a
       kernel through `find_kernel`.
+    name : string
+      The name of the object, or `None` to use `obj`.
 
     Returns
     -------
-    obj : SolarSysObject
+    ssobj : SolarSysObject
       A `SolarSysObject` loaded with the requested SPICE ephemeris
       file.
 
     """
 
     from .state import SpiceState
-
-    return SolarSysObject(SpiceState(obj, kernel=kernel))
+    name = str(obj) if name is None else name
+    return SolarSysObject(SpiceState(obj, kernel=kernel), name=name)
 
 def getxyz(obj, date=None, kernel=None):
     """Coordinates and velocity from an ephemeris kernel.
