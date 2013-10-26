@@ -18,6 +18,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    instruments - Cameras, spectrometers, etc. for astronomy.
    modeling    - For fitting models to data.
    models      - Surface and dust models.
+   observing   - Tools for observing preparations.
    util        - Grab bag of utility functions.
 
 """
