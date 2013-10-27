@@ -72,11 +72,14 @@ class LinPol(object):
 
     @property
     def _pth(self):
+        from astropy.coordinates import Angle
         args = self.QI, self.UI, self.sig_QI, self.sig_UI
         p = linear_pol(*args)
-        th = tuple([Angle(x * u.deg) for x in linear_pol_angle(*args)])
+        th = linear_pol_angle(*args)
+        th = (Angle(th[0] * u.deg),
+              None if th[1] is None else Angle(th[1] * u.deg))
         if self.correct:
-            return ricean_correction(p + th)
+            return ricean_correction(*(p + th))
         else:
             return p + th
 
@@ -193,14 +196,28 @@ class HalfWavePlate(LinPol):
         self.correct = correct
         self.flipU = flipU
 
+    def __getitem__(self, k):
+        if k in ['I0', 'I45', 'I90', 'I135', 'sig_I0',
+                 'sig_I45', 'sig_I90', 'sig_I135']:
+            return self.__dict__[k]
+        else:
+            raise KeyError
+
+    def __setitem__(self, k, v):
+        if k in ['I0', 'I45', 'I90', 'I135', 'sig_I0',
+                 'sig_I45', 'sig_I90', 'sig_I135']:
+            self.__dict__[k] = v
+        else:
+            raise KeyError
+
     @property
     def I(self):
         return (self.I0 + self.I45 + self.I90 + self.I135) / 2.0
 
     @property
     def sig_I(self):
-        if any(self.I0 is None, self.I45 is None,
-               self.I90 is None, self.I135 is None):
+        if any((self.sig_I0 is None, self.sig_I45 is None,
+                self.sig_I90 is None, self.sig_I135 is None)):
             return None
         else:
             return np.sqrt(self.sig_I0**2 + self.sig_I45**2 + self.sig_I90**2
@@ -212,7 +229,7 @@ class HalfWavePlate(LinPol):
 
     @property
     def sig_QI(self):
-        if any(self.I0 is None, self.I90 is None):
+        if any((self.sig_I0 is None, self.sig_I90 is None)):
             return None
         else:
             return (np.sqrt(self.sig_I0**2 + self.sig_I90**2)
@@ -225,7 +242,7 @@ class HalfWavePlate(LinPol):
 
     @property
     def sig_UI(self):
-        if any(self.I45 is None, self.I135 is None):
+        if any((self.sig_I45 is None, self.sig_I135 is None)):
             return None
         else:
             return (np.sqrt(self.sig_I45**2 + self.sig_I135**2)
