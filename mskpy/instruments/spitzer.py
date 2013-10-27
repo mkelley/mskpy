@@ -36,7 +36,7 @@ class IRAC(Camera):
     def __init__(self):
         w = [3.550, 4.493, 5.731, 7.872] * u.um
         shape = (256, 256)
-        ps = 1.22 * u.um
+        ps = 1.22 * u.arcsec
         location = Spitzer
         Camera.__init__(self, w, shape, ps, location=location)
 
