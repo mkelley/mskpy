@@ -25,15 +25,13 @@ __all__ = ['OptiPol']
 class LinPol(object):
     """Describing linear polarization, parameterized with I, QI, and UI.
 
-    pol = LinPol(I=a, QI=b, UI=c)
-    pol = LinPol(I=a, sig_I=sig_a, QI=b, sig_QI=sig_b, UI=c, sig_UI=sig_c)
-
     Parameters
     ----------
-    I : float or array, optional
+    I : float or array
       Total intensity.
-    QI, UI : float or array, optional
-      The linear polarization parameters normalized by intensity.
+    QI, UI : float or array
+      The linear polarization parameters normalized by intensity:
+      `Q/I`, `U/I`.
     sig_I, sig_QI, sig_UI : float or array, optional
       `I`, `QI` and `UI` uncertainties.
     correct : bool, optional
@@ -57,16 +55,17 @@ class LinPol(object):
 
     """
 
-    def __init__(self, **kwargs):
-        self.I = kwargs.pop('I', None)
-        self.QI = kwargs.pop('QI', None)
-        self.UI = kwargs.pop('UI', None)
+    def __init__(self, I, QI, UI, sig_I=None, sig_QI=None, sig_UI=None,
+                 correct=True):
+        self.I = I
+        self.QI = QI
+        self.UI = UI
 
-        self.sig_I = kwargs.pop('sig_I', None)
-        self.sig_QI = kwargs.pop('sig_QI', None)
-        self.sig_UI = kwargs.pop('sig_UI', None)
+        self.sig_I = sig_I
+        self.sig_QI = sig_QI
+        self.sig_UI = sig_UI
 
-        self.correct = kwargs.pop('correct', True)
+        self.correct = correct
 
     @property
     def _pth(self):
@@ -94,26 +93,102 @@ class LinPol(object):
     def sig_theta(self):
         return self._pth[3]
 
+    def rotate(self, a):
+        """Rotate the polarization vector.
+
+        """
+
 class HalfWavePlate(LinPol):
     """Linear polarimetry with a 1/2-wave plate.
-
-    pol = HalfWavePlate(I)
-    pol = HalfWavePlate(I, sig_I)
 
     Parameters
     ----------
     I : array
-      Intensities from each polarization angle: `I0`, `I45`, `I90`,
-      `I135`.  Each intensity may in turn be an array.
-    sig_I : array
+      Intensities from each polarization angle: `[I0, I45, I90,
+      I135]`.  Each intensity may in turn be an array.
+    sig_I : array, optional
       Intensity uncertainties, same form as `I`.
+    correct : bool, optional
+      Set to `False` to prevent the Ricean correction from being
+      applied.
+    flipU : bool, optional
+      Set to `True` to reverse the sense of the `U` parameter.
 
     Attributes
     ----------
+    I0, I45, I90, I135 : float or array
+      Intensities.
+    sig_I0, sig_I45, sig_I90, sig_I135 : float or array
+      Uncertainties on intensities, or `None` if not provided.
+    I, QI, UI : float or array
+      Total intensity and normalized Q and U parameters.
+    sig_I, sig_QI, sig_UI : float or array
+      Uncertainties on total intensity and normalized Q and U
+      parameters, or `None` if not provided.
+    p, sig_p : float or array
+      Total linear polarization.  Uncertainty is `None` if it cannot
+      be computed.
+    theta, sig_theta
+      Polarization position angle.  Uncertainty is `None` if it cannot
+      be computed.
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, I, sig_I=None, correct=True):
+        self.I0 = I[0]
+        self.I45 = I[1]
+        self.I90 = I[2]
+        self.I135 = I[3]
+
+        if sig_I is None:
+            self.sig_I0 = None
+            self.sig_I45 = None
+            self.sig_I90 = None
+            self.sig_I135 = None
+        else:
+            self.sig_I0 = sig_I0
+            self.sig_I45 = sig_I45
+            self.sig_I90 = sig_I90
+            self.sig_I135 = sig_I135
+
+        self.correct = correct
+        self.flipU = flipU
+
+    @property
+    def I(self):
+        return (self.I0 + self.I45 + self.I90 + self.I135) / 2.0
+
+    @property
+    def sig_I(self):
+        if any(self.I0 is None, self.I45 is None,
+               self.I90 is None, self.I135 is None):
+            return None
+        else:
+            return np.sqrt(self.sig_I0**2 + self.sig_I45**2 + self.sig_I90**2
+                           + self.sig_I135**2)
+
+    @property
+    def QI(self):
+        return (self.I0 - self.I90) / (self.I0 + self.I90)
+
+    @property
+    def sig_QI(self):
+        if any(self.I0 is None, self.I90 is None):
+            return None
+        else:
+            return np.sqrt(self.sig_I0**2 + self.sig_I90**2)
+
+    @property
+    def UI(self):
+        scale = -1 if self.flipU else 1
+        return scale * (self.I45 - self.I135) / (self.I45 + self.I135)
+
+    @property
+    def sig_QI(self):
+        if any(self.I45 is None, self.I135 is None):
+            return None
+        else:
+            return np.sqrt(self.sig_I45**2 + self.sig_I135**2)
         
 
 class OptiPol(HalfWavePlate):
