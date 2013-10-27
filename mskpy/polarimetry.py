@@ -6,8 +6,8 @@ polarimetry --- Polarization tools.
 
    Classes
    -------
-   HalfWavePlate
    LinPol
+   HalfWavePlate
 
    Functions
    ---------
@@ -20,109 +20,10 @@ polarimetry --- Polarization tools.
 import numpy as np
 import astropy.units as u
 
-try:
-    from ..ephem import Earth
-except ImportError:
-    Earth = None
-
 __all__ = [
-    'HalfWavePlate',
     'LinPol'
+    'HalfWavePlate',
 ]
-
-class HalfWavePlate(LinPol):
-    """Linear polarimetry with a 1/2-wave plate.
-
-    Parameters
-    ----------
-    I : array
-      Intensities from each polarization angle: `[I0, I45, I90,
-      I135]`.  Each intensity may in turn be an array.
-    sig_I : array, optional
-      Intensity uncertainties, same form as `I`.
-    correct : bool, optional
-      Set to `False` to prevent the Ricean correction from being
-      applied.
-    flipU : bool, optional
-      Set to `True` to reverse the sense of the `U` parameter.
-
-    Attributes
-    ----------
-    I0, I45, I90, I135 : float or array
-      Intensities.
-    sig_I0, sig_I45, sig_I90, sig_I135 : float or array
-      Uncertainties on intensities, or `None` if not provided.
-    I, QI, UI : float or array
-      Total intensity and normalized Q and U parameters.
-    sig_I, sig_QI, sig_UI : float or array
-      Uncertainties on total intensity and normalized Q and U
-      parameters, or `None` if not provided.
-    p, sig_p : float or array
-      Total linear polarization.  Uncertainty is `None` if it cannot
-      be computed.
-    theta, sig_theta
-      Polarization position angle.  Uncertainty is `None` if it cannot
-      be computed.
-
-    """
-
-    def __init__(self, I, sig_I=None, correct=True):
-        self.I0 = I[0]
-        self.I45 = I[1]
-        self.I90 = I[2]
-        self.I135 = I[3]
-
-        if sig_I is None:
-            self.sig_I0 = None
-            self.sig_I45 = None
-            self.sig_I90 = None
-            self.sig_I135 = None
-        else:
-            self.sig_I0 = sig_I0
-            self.sig_I45 = sig_I45
-            self.sig_I90 = sig_I90
-            self.sig_I135 = sig_I135
-
-        self.correct = correct
-        self.flipU = flipU
-
-    @property
-    def I(self):
-        return (self.I0 + self.I45 + self.I90 + self.I135) / 2.0
-
-    @property
-    def sig_I(self):
-        if any(self.I0 is None, self.I45 is None,
-               self.I90 is None, self.I135 is None):
-            return None
-        else:
-            return np.sqrt(self.sig_I0**2 + self.sig_I45**2 + self.sig_I90**2
-                           + self.sig_I135**2)
-
-    @property
-    def QI(self):
-        return (self.I0 - self.I90) / (self.I0 + self.I90)
-
-    @property
-    def sig_QI(self):
-        if any(self.I0 is None, self.I90 is None):
-            return None
-        else:
-            return (np.sqrt(self.sig_I0**2 + self.sig_I90**2)
-                    / (self.I0 + self.I90))
-
-    @property
-    def UI(self):
-        scale = -1 if self.flipU else 1
-        return scale * (self.I45 - self.I135) / (self.I45 + self.I135)
-
-    @property
-    def sig_UI(self):
-        if any(self.I45 is None, self.I135 is None):
-            return None
-        else:
-            return (np.sqrt(self.sig_I45**2 + self.sig_I135**2)
-                    / (self.I45 + self.I135))
         
 class LinPol(object):
     """Describing linear polarization, parameterized with I, QI, and UI.
@@ -236,6 +137,100 @@ class LinPol(object):
         return LinPol(I, QI, UI, sig_I=sig_I, sig_QI=sig_QI, sig_UI=sig_UI,
                       correct=correct)
 
+class HalfWavePlate(LinPol):
+    """Linear polarimetry with a 1/2-wave plate.
+
+    Parameters
+    ----------
+    I : array
+      Intensities from each polarization angle: `[I0, I45, I90,
+      I135]`.  Each intensity may in turn be an array.
+    sig_I : array, optional
+      Intensity uncertainties, same form as `I`.
+    correct : bool, optional
+      Set to `False` to prevent the Ricean correction from being
+      applied.
+    flipU : bool, optional
+      Set to `True` to reverse the sense of the `U` parameter.
+
+    Attributes
+    ----------
+    I0, I45, I90, I135 : float or array
+      Intensities.
+    sig_I0, sig_I45, sig_I90, sig_I135 : float or array
+      Uncertainties on intensities, or `None` if not provided.
+    I, QI, UI : float or array
+      Total intensity and normalized Q and U parameters.
+    sig_I, sig_QI, sig_UI : float or array
+      Uncertainties on total intensity and normalized Q and U
+      parameters, or `None` if not provided.
+    p, sig_p : float or array
+      Total linear polarization.  Uncertainty is `None` if it cannot
+      be computed.
+    theta, sig_theta
+      Polarization position angle.  Uncertainty is `None` if it cannot
+      be computed.
+
+    """
+
+    def __init__(self, I, sig_I=None, correct=True, flipU=False):
+        self.I0 = I[0]
+        self.I45 = I[1]
+        self.I90 = I[2]
+        self.I135 = I[3]
+
+        if sig_I is None:
+            self.sig_I0 = None
+            self.sig_I45 = None
+            self.sig_I90 = None
+            self.sig_I135 = None
+        else:
+            self.sig_I0 = sig_I0
+            self.sig_I45 = sig_I45
+            self.sig_I90 = sig_I90
+            self.sig_I135 = sig_I135
+
+        self.correct = correct
+        self.flipU = flipU
+
+    @property
+    def I(self):
+        return (self.I0 + self.I45 + self.I90 + self.I135) / 2.0
+
+    @property
+    def sig_I(self):
+        if any(self.I0 is None, self.I45 is None,
+               self.I90 is None, self.I135 is None):
+            return None
+        else:
+            return np.sqrt(self.sig_I0**2 + self.sig_I45**2 + self.sig_I90**2
+                           + self.sig_I135**2)
+
+    @property
+    def QI(self):
+        return (self.I0 - self.I90) / (self.I0 + self.I90)
+
+    @property
+    def sig_QI(self):
+        if any(self.I0 is None, self.I90 is None):
+            return None
+        else:
+            return (np.sqrt(self.sig_I0**2 + self.sig_I90**2)
+                    / (self.I0 + self.I90))
+
+    @property
+    def UI(self):
+        scale = -1 if self.flipU else 1
+        return scale * (self.I45 - self.I135) / (self.I45 + self.I135)
+
+    @property
+    def sig_UI(self):
+        if any(self.I45 is None, self.I135 is None):
+            return None
+        else:
+            return (np.sqrt(self.sig_I45**2 + self.sig_I135**2)
+                    / (self.I45 + self.I135))
+
 def linear_pol(QI, UI, sig_QI=None, sig_UI=None):
     """Compute total linear polarization.
 
@@ -335,6 +330,6 @@ def ricean_correction(p, sig_p, theta, sig_theta):
     return p, sig_p, theta, sig_theta
 
 # update module docstring
-from ..util import autodoc
+from .util import autodoc
 autodoc(globals())
 del autodoc

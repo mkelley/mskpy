@@ -82,7 +82,7 @@ class OptiPol(Camera):
         else:
             return top, bot
 
-    def readQU(qfile, ufile, dark=0, qflats=[1, 1], uflats=[1, 1], align=None):
+    def readQU(self, qfile, ufile, dark=0, qflats=[1, 1], uflats=[1, 1]):
         """Read a QU sequence from files.
 
         Parameters
@@ -105,10 +105,10 @@ class OptiPol(Camera):
         from astropy.io import fits
         from ..polarimetry import HalfWavePlate
 
-        qtb = self.read(qfile, dark=dark, flat=qflat)
-        utb = self.read(ufile, dark=dark, flat=uflat)
+        qtb = self.read(qfile, dark=dark, flats=qflats)
+        utb = self.read(ufile, dark=dark, flats=uflats)
 
-        return HalfWavePlate(qtb[0], utb[0], qtb[1], utb[1])
+        return HalfWavePlate((qtb[0], utb[0], qtb[1], utb[1]))
         
 
 # update module docstring
