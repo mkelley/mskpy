@@ -141,11 +141,11 @@ class Coma(SolarSysObject):
 
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho1.value * g['rh'].au**self.k
+            fluxd += f * self.Afrho1.value * g['rh'].to(u.au).value**self.k
 
         if thermal:
             f = self.thermal.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho1.value * g['rh'].au**self.k
+            fluxd += f * self.Afrho1.value * g['rh'].to(u.au).value**self.k
 
         return fluxd
 
@@ -340,13 +340,15 @@ def flux2Q(fgas, wave, geom, g, rap, v):
     hc = 1.9864457e-25 * u.J * u.m
 
     if rap.unit.is_equivalent(u.radian):
-        rho = (rap * geom['delta'].au * 725 * u.km / u.arcsec).decompose()
+        rho = (rap * geom['delta'].to(u.au).value
+               * 725 * u.km / u.arcsec).decompose()
     elif rap.unit.is_equivalent(u.meter):
         rho = rap
     else:
         raise ValueError("rap must have angular or length units.")
 
-    N = 4 * pi * geom['delta']**2 * fgas * wave / hc * geom['rh'].au**2 / g
+    N = (4 * pi * geom['delta']**2 * fgas * wave / hc
+         * geom['rh'].to(u.au).value**2 / g)
 
     return (2 * N * v / pi / rho).decompose()
 
@@ -395,10 +397,10 @@ def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     import astropy.constants as const
 
     try:
-        deltacm = geom['delta'].centimeter
-        rh = geom['rh'].au
+        deltacm = geom['delta'].to(u.cm).value
+        rh = geom['rh'].to(u.au).value
     except AttributeError:
-        deltacm = geom['delta'] * const.au.centimeter
+        deltacm = geom['delta'] * const.au.to(u.cm).value
         rh = geom['rh']
 
     if sun is None:
@@ -441,10 +443,10 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     import astropy.constants as const
 
     try:
-        deltacm = geom['delta'].centimeter
-        rh = geom['rh'].au
+        deltacm = geom['delta'].to(u.cm).value
+        rh = geom['rh'].to(u.au).value
     except AttributeError:
-        deltacm = geom['delta'] * const.au.centimeter
+        deltacm = geom['delta'] * const.au.to(u.cm).value
         rh = geom['rh']
 
     B = util.planck(wave, Tscale * 278. / np.sqrt(rh),

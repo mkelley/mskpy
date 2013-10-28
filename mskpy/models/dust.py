@@ -110,7 +110,7 @@ class AfrhoScattered(AfrhoRadiation):
 
         Returns
         -------
-        fluxd : Quantity
+        fluxd : Quantityu
           The flux density from the coma.
 
         Raises
@@ -124,12 +124,13 @@ class AfrhoScattered(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
+            rho = geom['delta'].to(self.Afrho.unit) * rap.to(u.rad).value
         else:
             raise ValueError("rap must have angular or length units.")
 
-        fsun = solar_flux(wave, unit=unit) / geom['rh'].au**2
-        fluxd = (self.Afrho * self.phasef(np.abs(geom['phase'].degree))
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
+        fluxd = (self.Afrho
+                 * self.phasef(np.abs(geom['phase'].to(u.deg).value))
                  * rho * fsun / 4.0 / geom['delta'].to(self.Afrho.unit)**2)
 
         return fluxd
@@ -218,11 +219,11 @@ class AfrhoThermal(AfrhoRadiation):
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
         elif rap.unit.is_equivalent(u.arcsec):
-            rho = geom['delta'].to(self.Afrho.unit) * rap.radian
+            rho = geom['delta'].to(self.Afrho.unit) * rap.to(u.rad).value
         else:
             raise ValueError("rap must have angular or length units.")
 
-        T = self.Tscale * 278 / np.sqrt(geom['rh'].au)
+        T = self.Tscale * 278 / np.sqrt(geom['rh'].to(u.au).value)
         B = planck(wave, T, unit=unit / u.sr).value
         efrho = self.Afrho * self.ef2af
         d = geom['delta'].to(self.Afrho.unit).value

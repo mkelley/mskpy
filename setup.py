@@ -42,13 +42,13 @@ if __name__ == "__main__":
     files = find_data_files()
 
     setup(name='mskpy',
-          version='2.1-dev',
+          version='2.1.0',
           description='General purpose and astronomy related tools',
           author="Michael S. Kelley",
           author_email="msk@astro.umd.edu",
           url="https://github.com/mkelley/mskpy",
           packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
-                    'mskpy.ephem', 'mskpy.instruments'],
+                    'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing'],
           data_files=files,
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
