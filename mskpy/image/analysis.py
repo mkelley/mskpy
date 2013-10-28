@@ -11,6 +11,7 @@ image.analysis --- Analyze (astronomical) images.
    apphot
    azavg
    bgfit
+   bgphot
    centroid
    gcentroid
    imstat
@@ -35,6 +36,7 @@ __all__ = [
     'apphot',
     'azavg',
     'bgfit',
+    'bgphot',
     'centroid',
     'gcentroid',
     'imstat',
@@ -270,6 +272,76 @@ def bgfit(im, unc=None, order=1, mask=True):
     bg = np.polyval(cy, yy) + np.polyval(cx, xx)
 
     return bg
+
+def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
+    """Background photometry and error analysis in an annulus.
+
+    Pixels are not sub-sampled.  The annulus is processed via
+    `util.uclip`.
+
+    Parameters
+    ----------
+    im : array or array of arrays
+      An image, cube, or array of images on which to measure
+      photometry.  For data cubes, the first axis iterates over the
+      images.  All images must have the same shape.
+    yx : array
+      The `y, x` center of the aperture.  Only one center is
+      allowed. [pixels]
+    rap : array
+      Inner and outer radii of the annulus.  [pixels]
+    ufunc : function, optional
+      The function with which to determine the background average.
+    **kwargs :
+      Keyword arguments passed to `util.uclip`.
+
+    Returns
+    -------
+    n : ndarray
+      The number of pixels per annular bin.  Same shape comment as for
+      `bg`.
+    bg : ndarray
+      The background level in the annulus.  If `im` is a set of images
+      of depth `N`, `bg` will have shape `N x len(rap)`
+    sig : ndarray
+      The standard deviation of the background pixels.  Same shape
+      comment as for `bg`.
+
+    """
+
+    from ..util import uclip
+
+    _im = np.array(im)
+    ndim = _im.ndim  # later, we will flatten the images
+
+    assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
+                            " of images are allowed.")
+
+    yx = np.array(yx, float)
+    assert yx.shape == (2,), "yx has incorrect shape."
+
+    rap = np.array(rap, float)
+    assert rap.shape == (2,), "rap has incorrect shape."
+
+    sz = _im.shape[-2:]
+
+    r = core.rarray(sz, yx=yx, subsample=4) / float(subsample)
+    annulus = (r >= rap.min()) * (r <= rap.max())
+
+    if ndim == 3:
+        n, bg, sig = np.zeros((3, _im.shape[0]))
+        for i in range(len(m)):
+            f = _im[i][annulus]
+            bg[i], j, niter = uclip(f, ufunc, full_output=True, **kwargs)
+            n[i] = len(j)
+            sig[i] = np.std(f[j])
+    else:
+        f = _im[annulus]
+        bg, j, niter = uclip(f, ufunc, full_output=True, **kwargs)
+        n = len(j)
+        sig = np.std(f[j])
+
+    return n, bg, sig
 
 def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (center of mass) of an image.
