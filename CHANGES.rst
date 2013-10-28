@@ -1,3 +1,12 @@
+2.1.1
+-----
+
+New Features
+^^^^^^^^^^^^
+
+- `image.bgphot` function.
+
+
 2.1.0
 -----
 
