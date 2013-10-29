@@ -325,7 +325,7 @@ def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
 
     sz = _im.shape[-2:]
 
-    r = core.rarray(sz, yx=yx, subsample=4) / float(subsample)
+    r = core.rarray(sz, yx=yx, subsample=4)
     annulus = (r >= rap.min()) * (r <= rap.max())
 
     if ndim == 3:
@@ -469,20 +469,23 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         ap = (slice(*yr), slice(*xr))
         y = np.arange(*yr)
         f = np.sum(im[ap], 1)
+        g.amplitude = np.nanmax(f)
         gfit(y, f)
 
-    cyx[0] = g.mean[0]
+    cyx[0] = g.mean.value
 
     g.mean = yx[1]
+    g.stdev = 3.0
     if halfbox[1] > 0:
         yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
         xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
         f = np.sum(im[ap], 0)
+        g.amplitude = np.nanmax(f)
         gfit(x, f)
 
-    cyx[1] = g.mean[0]
+    cyx[1] = g.mean.value
 
     if niter > 1:
         if shrink:
