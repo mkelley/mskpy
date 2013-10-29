@@ -1,6 +1,12 @@
 2.1.1
 -----
 
+Critical Fixes
+^^^^^^^^^^^^^^
+
+- `image.fwhm` renamed from `fwhmfit` and now actually respects the
+  `bg` keyword.
+
 New Features
 ^^^^^^^^^^^^
 
