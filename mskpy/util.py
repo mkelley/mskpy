@@ -1623,6 +1623,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     """
 
     from scipy import interpolate
+    import astropy.units as u
     from . import calib
 
     # local copies
@@ -1638,7 +1639,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _ft = np.array(ft)
     elif filter is not None:
         _fw, _ft = calib.filter_trans(filter)
-        _fw = _fw.micrometer
+        _fw = _fw.to(u.um).value
     else:
         raise ValueError("Neither fw+ft nor filter was supplied.")
 
