@@ -86,6 +86,7 @@ class Image(np.ndarray):
     apphot - Aperture photometry.
     azavg - Create an azimuthally averaged image.
     bgfit - 2D polynomial fit to the background.
+    bgphot - Background photometry in an annulus.
     centroid - Simple center of mass centroiding.
     gcentroid - Simple centroiding by Gaussian fits.
     linecut - Photometry along a line.
@@ -198,6 +199,39 @@ class Image(np.ndarray):
 
         """
         return bgfit(self, **kwargs)
+
+    def bgphot(self, rap, yx=None, **kwargs):
+        """Background photometry and error analysis in an annulus.
+
+        Pixels are not sub-sampled.  The annulus is processed via
+        `util.uclip`.
+
+        Parameters
+        ----------
+        rap : array
+          Inner and outer radii of the annulus.  [pixels]
+        yx : array, optional
+          The `y, x` center of the aperture.  Only one center is
+          allowed. If `yx` is None, `self.yx` will be used. [pixels]
+        **kwargs :
+          Any `analysis.bgphot` keywords.
+
+        Returns
+        -------
+        n : ndarray
+          The number of pixels per annular bin.  Same shape comment as for
+          `bg`.
+        bg : ndarray
+          The background level in the annulus.  If `im` is a set of images
+          of depth `N`, `bg` will have shape `N x len(rap)`
+        sig : ndarray
+          The standard deviation of the background pixels.  Same shape
+          comment as for `bg`.
+
+        """
+
+        yx = self.yx if yx is None else yx
+        return bgphot(self, yx, rap, **kwargs)
 
     def centroid(self, yx=None, **kwargs):
         """Simple center of mass centroiding.
