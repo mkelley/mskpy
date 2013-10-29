@@ -13,6 +13,7 @@ image.analysis --- Analyze (astronomical) images.
    bgfit
    bgphot
    centroid
+   fwhm
    gcentroid
    imstat
    linecut
@@ -39,6 +40,7 @@ __all__ = [
     'bgphot',
     'centroid',
     'gcentroid',
+    'fwhm',
     'imstat',
     'linecut',
     'polyfit2d',
@@ -413,6 +415,47 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     return cyx
 
+def fwhm(im, yx, bg=True, **kwargs):
+    """Compute the FWHM of an image.
+
+    Parameters
+    ----------
+    im : array
+      The image to fit.
+    yx : array
+      The center on which to fit.
+    bg : bool, optional
+      Set to `True` if there is a constant background to be
+      considered.
+    **kwargs
+      Any `radprof` keyword, e.g., `range` or `bins`.
+
+    Returns
+    -------
+    fwhm : float
+      The FHWM of the radial profile.
+
+    """
+
+    from scipy.optimize import leastsq as lsq
+    from ..util import gaussian
+
+    R, I, n = radprof(im, yx, **kwargs)
+    r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+
+    if bg:
+        def fitfunc(p, R, I):
+            return I - gaussian(R, 0, p[0]) * p[1] + p[2]
+        guess = (r, I.max(), I.min())
+    else:
+        def fitfunc(p, R, I):
+            return I - gaussian(R, 0, p[0]) * p[1]
+        guess = (r, I.max())
+
+    fit = lsq(fitfunc, guess, args=(R, I))[0]
+
+    return abs(fit[0]) * 2.35
+
 def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
 
@@ -741,6 +784,7 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     from ..util import takefrom
 
     if range is None:
+        yx = np.array(yx)
         rmax = np.sqrt(max(
                 sum(yx**2),
                 sum((yx - np.r_[0, im.shape[1]])**2),

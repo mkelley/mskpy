@@ -10,7 +10,6 @@ image.process --- Process (astronomical) images.
    columnpull
    crclean
    fixpix
-   fwhmfit
    mkflat
    psfmatch
    stripes
@@ -30,7 +29,6 @@ __all__ = [
     'columnpull',
     'crclean',
     'fixpix',
-    'fwhmfit',
     'mkflat',
     'psfmatch',
     'stripes'
@@ -195,42 +193,6 @@ def fixpix(im, mask):
         cleaned[i * mask] = subim[subgood].mean()
 
     return cleaned
-
-def fwhmfit(im, yx, bg=True, **kwargs):
-    """Compute the FWHM of an image.
-
-    Parameters
-    ----------
-    im : array
-      The image to fit.
-    yx : array
-      The center on which to fit.
-    bg : bool, optional
-      Set to `True` if there is a constant background to be
-      considered.
-    **kwargs
-      Any `radprof` keyword, e.g., `range` or `bins`.
-
-    Returns
-    -------
-    fwhm : float
-      The FHWM of the radial profile.
-
-    """
-
-    from scipy.optimize import leastsq as lsq
-    from ..util import gaussian
-
-    def fitfunc(p, R, I):
-        return I - gaussian(R, 0, p[0]) * p[1] + p[2]
-
-    R, I, n = analysis.radprof(im, yx, **keywords)
-    r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
-    fit = lsq(fitfunc, (r, I.max(), I.min()), args=(R, I))[0]
-    fit = abs(fit)
-
-    return fit[0] * 2.35
-
 
 def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
     """Flat field correction and bad pixel mask from a set of images.
