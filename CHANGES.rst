@@ -1,3 +1,8 @@
+2.1.2
+-----
+
+- Fix `observing` crash for JD to `astropy` `Time` conversion.
+
 2.1.1
 -----
 
