@@ -186,14 +186,14 @@ class Observer(object):
 
         from datetime import timedelta
         import matplotlib.pyplot as plt
-        from astropy.time import Time
+        from ..util import jd2time
 
         if ax is None:
             ax = plt.gca()
         label = kwargs.pop('label', target.name)
 
         # round to nearest day
-        date = Time(round(self.date.jd - 0.5) + 0.5)
+        date = jd2time(round(self.date.jd - 0.5) + 0.5)
 
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
