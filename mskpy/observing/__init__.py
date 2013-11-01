@@ -277,10 +277,13 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
 
     """
 
+    import itertools
     import matplotlib.pyplot as plt
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
+
+    linestyles = itertools.product(['-', ':', '--', '-.'], 'bgrcmyk')
 
     if fig is None:
         fig = plt.gcf()
@@ -297,7 +300,8 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
                                        name='Civil twilight')
 
     for target in targets:
-        observer.plot_am(target, **kwargs)
+        ls, color = linestyles.next()
+        observer.plot_am(target, color=color, ls=ls, **kwargs)
         observer.rts(target, limit=25)
 
     print()

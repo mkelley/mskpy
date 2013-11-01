@@ -1,3 +1,9 @@
+2.1.3
+-----
+
+- `observing` airmass charts now use different line styles, as well as
+  different colors.
+
 2.1.2
 -----
 
