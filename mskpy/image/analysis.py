@@ -66,7 +66,8 @@ def anphot(im, yx, rap, subsample=4):
       The `y, x` center of the aperture(s).  Only one center is
       allowed. [pixels]
     rap : float or array
-      Aperture radii.  [pixels]
+      Aperture radii.  The inner-most aperture will be the annulus 0
+      to `min(rap)`.  [pixels]
     subsample : int, optional
       The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
       This will sub-sample the entire image.
@@ -89,6 +90,9 @@ def anphot(im, yx, rap, subsample=4):
 
     yx = np.array(yx, float)
     assert yx.shape == (2,), "yx has incorrect shape."
+
+    if not np.iterable(rap):
+        rap = np.array([rap])
 
     if subsample > 1:
         if ndim == 3:
@@ -164,8 +168,6 @@ def apphot(im, yx, rap, subsample=4):
       `N`, `f` will have shape `N x len(rap)`.
       
     """
-    if not np.iterable(rap):
-        rap = np.array([rap])
     n, f = anphot(im, yx, rap, subsample=subsample)
     return n.cumsum(-1), f.cumsum(-1)
 
