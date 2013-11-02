@@ -459,6 +459,8 @@ def fwhm(im, yx, bg=True, **kwargs):
 def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
 
+    The best-fit should be bounded within `box`.
+
     Parameters
     ----------
     im : ndarray
