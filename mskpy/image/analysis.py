@@ -511,6 +511,7 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
         ap = (slice(*yr), slice(*xr))
         y = np.arange(*yr)
+        g.mean.bounds = yr
         f = np.sum(im[ap], 1)
         g.amplitude = np.nanmax(f)
         gfit(y, f)
@@ -524,6 +525,7 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
+        g.mean.bounds = xr
         f = np.sum(im[ap], 0)
         g.amplitude = np.nanmax(f)
         gfit(x, f)
