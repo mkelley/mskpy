@@ -506,8 +506,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     halfbox = np.round(box / 2).astype(int)
 
-    g = models.Gaussian1DModel(1, stddev=3, mean=yx[0])
-    gfit = fitting.NonLinearLSQFitter(g)
+    g_init = models.Gaussian1D(1, stddev=3, mean=yx[0])
+    fit = fitting.NonLinearLSQFitter()
     cyx = np.zeros(2)  # return variable
     
     if halfbox[0] > 0:
@@ -515,24 +515,23 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
         ap = (slice(*yr), slice(*xr))
         y = np.arange(*yr)
-        g.mean.bounds = yr
+        g_init.mean.bounds = yr
         f = np.sum(im[ap], 1)
-        g.amplitude = np.nanmax(f)
-        gfit(y, f)
+        g_init.amplitude = np.nanmax(f)
+        g = fit(g_init, y, f)
 
     cyx[0] = g.mean.value
 
-    g.mean = yx[1]
-    g.stdev = 3.0
+    g_init.mean = yx[1]
     if halfbox[1] > 0:
         yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
         xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
-        g.mean.bounds = xr
+        g_init.mean.bounds = xr
         f = np.sum(im[ap], 0)
-        g.amplitude = np.nanmax(f)
-        gfit(x, f)
+        g_init.amplitude = np.nanmax(f)
+        g = fit(g_init, x, f)
 
     cyx[1] = g.mean.value
 
