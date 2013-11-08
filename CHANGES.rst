@@ -1,3 +1,14 @@
+2.1.4
+-----
+
+- `image.gcentroid`
+
+  - Fixes for new `astropy.modeling` API.
+
+  - Contrain fits to within the box.
+
+- Bug fix in `anphot` for single apertures.
+
 2.1.3
 -----
 
