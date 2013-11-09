@@ -1,3 +1,11 @@
+2.1.5
+-----
+
+- New `image.combine`, more efficient than `util.meanclip` for 2D
+  arrays.
+
+- Re-write `image.mkflat` to only do the normalization.
+
 2.1.4
 -----
 
