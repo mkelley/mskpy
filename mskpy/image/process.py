@@ -8,16 +8,12 @@ image.process --- Process (astronomical) images.
    :toctree: generated/
 
    columnpull
+   combine
    crclean
    fixpix
    mkflat
    psfmatch
    stripes
-
-.. todo:: Re-write anphot to generate pixel weights via rarray, rather
-   than sub-sampling the images.  Update apphot and azavg, if needed.
-
-.. todo:: Re-write linecut to generate pixel weights via xarray?
 
 """
 
@@ -27,6 +23,7 @@ from . import core, analysis
 
 __all__ = [
     'columnpull',
+    'combine',
     'crclean',
     'fixpix',
     'mkflat',
@@ -68,6 +65,50 @@ def columnpull(column, index, bg, stdev):
         pull[index:] = m2
 
     return pull
+
+
+def combine(images, axis=0, func=np.mean, niter=0, lsig=3, hsig=3):
+    """Combine a set of images, clipping as necessary.
+
+    Parameters
+    ----------
+    images : array
+      The set of images.  May be a `MaskedArray`.
+    axis : int
+      If images is an n-dimensional array, this is the axis which
+      iterates over each image.
+    func : function
+      The function to use to combine the clipped data.  Must be able
+      to accept a `MaskedArray`, and must be able to accept the `axis`
+      keyword.
+    niter : int
+      Number of clipping iterations.
+    lsig, hsig : float
+      Lower- and upper-sigma clipping limits.
+
+    Returns
+    -------
+    comb : ndarray
+      The combined data set.
+
+    """
+
+    print('[Combine] Remaining iterations: ', niter)
+    if not isinstance(images, np.ma.MaskedArray):
+        images = np.ma.MaskedArray(images)
+
+    print('  Median')
+    m = np.median(images, axis=axis)
+    print('  Standard deviation')
+    s = np.std(images, axis=axis)
+    d = (images - m) / s
+    images.mask += (d < -lsig) + (d > hsig)
+    if niter <= 0:
+        print('  Combining')
+        return func(images, axis=axis)
+    else:
+        return combine(images, axis=axis, func=func, niter=niter-1,
+                       lsig=lsig, hsig=hsig)
 
 def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     """Clean cosmic rays from an image.
@@ -194,55 +235,37 @@ def fixpix(im, mask):
 
     return cleaned
 
-def mkflat(images, bias, func=np.mean, lsig=3., hsig=3., **kwargs):
-    """Flat field correction and bad pixel mask from a set of images.
+def mkflat(flat, **kwargs):
+    """Flat field correction and bad pixel mask from an image.
 
     Parameters
     ----------
-    images : array
-      Images to combine into a flat field.  The first axis defines the
-      set of images.
-    bias : array
-      Bias frame(s) to subtract from each image.
-    func : function, optional
-      The combining function.
-    lsig, hsig : float
-      The lower- and upper-sigma limits used to define bad pixels.
-    mask : bool
-      `True` over areas of the array where pixels are already known to
-      be good.  This will be incorporated into the bad pixel mask.
-    **kwargs, optional
-      Any `core.uclip` keyword.
+    im : array
+      The image of sky, screen, dome, etc.  May be a `MaskedArray`.
+    kwargs : dict
+      Any `util.meanclip` keyword, except `full_output`.
 
     Returns
     -------
-    flat : ndarray
-      The flat field correction.
-    bpm : ndarray
-      `True` for bad pixels.
+    flat : numpy MaskedArray
+      The flat-field correction and bad pixel mask.
 
     """
 
-    from ..util import uclip
-    from .analysis import imstat
+    from ..util import meanclip
 
-    flat = np.apply_along_axis(lambda a: uclip(a, func, **kwargs), 0, images)
+    if not isinstance(flat, np.ma.MaskedArray):
+        flat = np.ma.MaskedArray(flat)
 
-    lhsig = dict(lsig=lsig, hsig=hsig)
+    mc = meanclip(flat, full_output=True, **kwargs)
+    mask = np.ones(flat.shape, dtype=bool).ravel()
+    mask[mc[2]] = False
+    mask = mask.reshape(flat.shape)
 
-    stat = imstat(flat[mask], **lhsig)
-    flat /= stat['scmean']
-    bpm = flat.copy() * mask
+    flat /= mc[0]
+    flat.mask += mask
 
-    stat = imstat(bpm[mask], **lhsig)
-    bpm[bpm < (1 - stat['scstdev'] * lsig)] = 0
-    bpm[bpm > (1 + stat['scstdev'] * hsig)] = 0
-    bpm = bpm == 0
-
-    stat = imstat(flat[~bpm], **lhsig)
-    flat /= stat['scmean']
-
-    return flat, bpm
+    return flat
 
 def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
     """Generate a convolution kernel to match the PSFs of two images.
