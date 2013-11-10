@@ -2097,8 +2097,8 @@ def date_len(date):
 
     Parameters
     ----------
-    date : string, float, astropy Time, datetime, or array
-      Some time-like thingy, or `None` to return the current date.
+    date : string, float, astropy Time, datetime, array, None
+      Some time-like thingy, or `None`.
 
     Returns
     -------
@@ -2115,6 +2115,8 @@ def date_len(date):
             return 0
         else:
             return len(date)
+    elif date is None:
+        return 0
     elif np.isscalar(date):
         return 0
     else:
