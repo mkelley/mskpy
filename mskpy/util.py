@@ -2116,7 +2116,7 @@ def date_len(date):
         else:
             return len(date)
     elif np.isscalar(date):
-        return 1
+        return 0
     else:
         return len(date)
 
