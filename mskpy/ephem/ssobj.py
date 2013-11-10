@@ -23,7 +23,6 @@ import astropy.units as u
 from astropy.time import Time
 
 from . import core
-from .state import State
 
 __all__ = [
     'SolarSysObject',
@@ -60,6 +59,7 @@ class SolarSysObject(object):
     """
 
     def __init__(self, state, name=None):
+        from .state import State
         assert isinstance(state, State)
         self.state = state
         self.name = name
@@ -465,7 +465,8 @@ def getxyz(obj, date=None, kernel=None):
 
     """
 
-    obj = SpiceObject(obj, kernel=kernel)
+    from .state import SpiceState
+    obj = SpiceState(obj, kernel=kernel)
     return obj.r(date), obj.v(date)
 
 def summarizegeom(*args, **kwargs):
