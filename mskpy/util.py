@@ -2115,6 +2115,8 @@ def date_len(date):
             return 0
         else:
             return len(date)
+    else:
+        return len(date)
 
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
