@@ -1,3 +1,10 @@
+2.1.6
+-----
+
+- `util.date_len` bug fixes.
+
+- `ephem.ssobj.getxyz` fix: wasn't running at all.
+
 2.1.5
 -----
 
