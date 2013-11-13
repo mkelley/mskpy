@@ -35,6 +35,7 @@ util --- Short and sweet functions, generic algorithms
    Spherical/Celestial/vectorial geometry
    --------------------------------------
    ec2eq
+   lb2xyz
    projected_vector_angle
    spherical_coord_rotate
    state2orbit
@@ -114,6 +115,7 @@ __all__ = [
     'whist',
 
     'ec2eq',
+    'lb2xyz',
     'projected_vector_angle',
     'spherical_coord_rotate',
     'state2orbit',
@@ -912,6 +914,33 @@ def ec2eq(lam, bet):
 
     return np.degrees(ra), np.degrees(dec)
 
+def lb2xyz(lam, bet=None):
+    """Transform longitude and latitude to a unit vector.
+
+    Parameters
+    ----------
+    lam : float, array, or 2xN array
+      The longitude(s), or an array of longitudes and
+      latitudes. [degrees]
+    bet : float or array, optional
+      The latitude(s). [degrees]
+
+    Returns
+    -------
+    xyz : array or 3xN array
+      The unit vectors.
+
+    """
+    _lam = np.array(lam).squeeze()
+    if bet is None:
+        return lb2xyz(_lam[0], _lam[1])
+
+    lamr = np.radians(_lam)
+    betr = np.radians(np.array(bet).squeeze())
+    return np.array((np.cos(betr) * np.cos(lamr),
+                     np.cos(betr) * np.sin(lamr),
+                     np.sin(betr)))
+
 def projected_vector_angle(r, rot, ra, dec):
     """Position angle of a vector projected onto the observing plane.
 
@@ -1141,7 +1170,7 @@ def vector_rotate(r, n, th):
                 nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
                 np.cross(r, nhat) * np.sin(-theta))
 
-    if th.size == 1:
+    if np.size(th) == 1:
         return rot(r, nhat, th)
     else:
         return np.array([rot(r, nhat, t) for t in th])
