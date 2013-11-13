@@ -1,3 +1,13 @@
+2.1.7
+-----
+
+- New `util.lb2xyz`.
+
+- New `ephem.state.KeplerState`.
+
+- Optimize `ephem.state.State` with `rv` method.
+
+
 2.1.6
 -----
 
