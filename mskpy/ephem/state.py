@@ -7,6 +7,7 @@ state --- Position and velocity vector classes.
    -------
    State
    FixedState
+   KeplerState
    SpiceState
 
    Exceptions
@@ -18,6 +19,7 @@ state --- Position and velocity vector classes.
 __all__ = [
     'State',
     'FixedState',
+    'KeplerState',
     'SpiceState',
 
     'ObjectError'
@@ -41,14 +43,33 @@ class State(object):
     -------
     r : Position vector.
     v : Velocity vector.
+    rv : Both vectors.
 
     Notes
     -----
-    Inheriting classes should override `r` and `v`.
+    Inheriting classes should override `rv`.
 
     """
 
     def __init__(self):
+        pass
+
+    def rv(self, date):
+        """Position and velocity vectors.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime
+          Processed via `util.date2time`.
+
+        Returns
+        -------
+        r : ndarray
+          Position vector. [km]
+        v : ndarray
+          Velocity vector. [km/s]
+       
+        """
         pass
 
     def r(self, date):
@@ -65,7 +86,11 @@ class State(object):
           Position vector (3-element or Nx3 element array). [km]
        
         """
-        pass
+        from .. import util
+        N = util.date_len(date)
+        if N > 0:
+            return np.array([self.r(d) for d in date])
+        return self.rv(date)[0]
 
     def v(self, date):
         """Velocity vector.
@@ -81,7 +106,11 @@ class State(object):
           Velocity vector (3-element or Nx3 element array). [km/s]
        
         """
-        pass
+        from .. import util
+        N = util.date_len(date)
+        if N > 0:
+            return np.array([self.r(d) for d in date])
+        return self.rv(date)[1]
 
 class FixedState(State):
     """A fixed point in space.
@@ -96,6 +125,7 @@ class FixedState(State):
     -------
     r : Position vector.
     v : Velocity vector.
+    rv : Position and velocity vectors.
 
     Raises
     ------
@@ -108,53 +138,107 @@ class FixedState(State):
         if self.xyz.shape != (3,):
             raise ValueError("xyz must be a 3-element vector.")
 
-    def r(self, date=None):
-        """Position vector.
+    def rv(self, date=None):
+        """Position and velocity vectors.
 
         Parameters
         ----------
-        date : string, float, astropy Time, datetime, or array, optional
-          Mosty ignored, since the position is fixed, but if an array,
-          then r will be an array of positions.
+        date : string, float, astropy Time, datetime, optional
+          Ignored, since the position is fixed.
 
         Returns
         -------
         r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
+          Position vector. [km]
+        v : ndarray
+          Velocity vector. [km/s]
        
         """
+        return self.xyz, np.zeros(3)
 
-        from .. import util
-        N = util.date_len(date)
-        if N != 0:
-            return np.tile(self.xyz, N).reshape(N, 3)
+class KeplerState(State):
+    """A moving object state based on a two-body solution.
+
+    obj = KeplerState(r_i, v_i, date)
+    obj = KeplerState(state, date)
+
+    Parameters
+    ----------
+    r_i : array
+      The initial position vector. [km]
+    v_i : array
+      The initial velocity vector. [km/s]
+
+    state : State or simlar
+      Create a KeplerState based on another solution.  `state` must
+      have callable `r` and `v` methods.
+
+    date : various
+      The date at which `r_i` and `v_i` are valid, processed with
+      `util.date2time`.
+    GM : float, optional
+      Gravity of the central mass. [km**3/s**2]
+    name : string, optional
+      The object's name.
+
+    Attributes
+    ----------
+    jd : `date` as a Julian date.
+
+    Methods
+    -------
+    r : Position vector.
+    v : Velocity vector.
+    rv : Both vectors.
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        from ..util import date2time
+
+        self.name = kwargs.pop('name', None)
+        if hasattr(args[0], 'r') and hasattr(args[0], 'v'):
+            self.date = date2time(args[1])
+            self.r_i = args[0].r(self.date)
+            self.v_i = args[0].v(self.date)
+            if (self.name is not None) and hasattr(args[0], 'name'):
+                self.name = args[0].name
         else:
-            return self.xyz
+            self.r_i = np.array(args[0])
+            self.v_i = np.array(args[1])
+            self.date = date2time(args[2])
 
-    def v(self, date=None):
-        """Velocity vector.
+        self.GM = kwargs.pop('GM', 132749351440.0)  # km**3/s**2
+        self.jd = self.date.jd
+        self.rv_i = np.r_[self.r_i, self.v_i]  # km, km/s
+
+    def __str__(self):
+        if self.name is None:
+            return '<KeplerState>'
+        else:
+            return '<KeplerState name="{}">'.format(self.name)
+
+    def rv(self, date):
+        """Position and velocity vectors.
 
         Parameters
         ----------
-        date : string, float, astropy Time, datetime, or array, optional
-          Mosty ignored, since the position is fixed, but if an array,
-          then r will be an array of positions.
+        date : string, float, astropy Time, or datetime
+          Processed via `util.date2time`.
 
         Returns
         -------
+        r : ndarray
+          Position vector. [km]
         v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
-       
+          Velocity vector. [km/s]
+
         """
-
         from .. import util
-        N = util.date_len(date)
-        if N != 0:
-            shape = (N, 3)
-        else:
-            shape = (3,)
-
-        return np.zeros(shape)
+        jd = util.date2time(date).jd
+        dt = (jd - self.jd) * 86400.0
+        rv = np.array(spice.prop2b(self.GM, self.rv_i, dt))
+        return rv[:3], rv[3:]
 
 class SpiceState(State):
     """A moving object saved in a SPICE planetary ephemeris kernel.
@@ -173,6 +257,7 @@ class SpiceState(State):
     -------
     r : Position vector.
     v : Velocity vector.
+    rv : Both vectors.
 
     """
 
@@ -196,55 +281,25 @@ class SpiceState(State):
         self.obj = obj
         self.naifid = naifid
 
-    def r(self, date):
-        """Position vector.
+    def rv(self, date):
+        """Position and velocity vectors.
 
         Parameters
         ----------
-        date : string, float, astropy Time, datetime, or array
+        date : string, float, astropy Time, datetime
           Processed via `util.date2time`.
 
         Returns
         -------
         r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
-       
-        """
-
-        from .. import util
-        N = util.date_len(date)
-        if N > 0:
-            return np.array([self.r(d) for d in date])
-
-        et = core.date2et(date)
-
-        # no light corrections, sun = 10
-        state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[:3])
-
-    def v(self, date):
-        """Velocity vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array
-          Processed via `util.date2time`.
-
-        Returns
-        -------
+          Position vector. [km]
         v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
+          Velocity vector. [km/s]
        
         """
 
         from .. import util
-        N = util.date_len(date)
-        if N > 0:
-            return np.array([self.v(d) for d in date])
-
         et = core.date2et(date)
-
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
-        return np.array(state[3:])
-
+        return np.array(state[:3]), np.array(state[3:])
