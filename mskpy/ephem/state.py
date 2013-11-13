@@ -201,7 +201,7 @@ class KeplerState(State):
             self.date = date2time(args[1])
             self.r_i = args[0].r(self.date)
             self.v_i = args[0].v(self.date)
-            if (self.name is not None) and hasattr(args[0], 'name'):
+            if (self.name is None) and hasattr(args[0], 'name'):
                 self.name = args[0].name
         else:
             self.r_i = np.array(args[0])
