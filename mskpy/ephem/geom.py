@@ -24,14 +24,17 @@ class Geom(object):
 
     Parameters
     ----------
-    ro : Quantity
-      The observer's coordinates, shape must be (3,) or (N, 3).
-    rt : Quantity
-      The target's coordinates.
-    vo : Quantity, optional
-      The observer's velocity, shape must be the same as `ro`.
-    vt : Quantity, optional
-      The target's velocity, shape must be the same as `rt`.
+    ro : Quantity or array
+      The observer's coordinates, shape must be (3,) or (N,
+      3). [array: km]
+    rt : Quantity or array
+      The target's coordinates. [array: km]
+    vo : Quantity or array, optional
+      The observer's velocity, shape must be the same as `ro`. [array:
+      km/s]
+    vt : Quantity or array, optional
+      The target's velocity, shape must be the same as `rt`. [array:
+      km/s]
     date : astropy Time, optional
       The date of the observation.
 
@@ -96,8 +99,15 @@ class Geom(object):
         from astropy.coordinates import Angle
         from .. import util
 
-        self._ro = ro.to(u.km).value
-        self._rt = rt.to(u.km).value
+        if isinstance(ro, u.Quantity):
+            self._ro = ro.to(u.km).value
+        else:
+            self._ro = ro
+
+        if isinstance(rt, u.Quantity):
+            self._rt = rt.to(u.km).value
+        else:
+            self._rt = rt
 
         if (self._ro.shape[-1] != 3) or (self._ro.ndim > 2):
             raise ValueError("Incorrect shape for ro.  Must be (3,) or (N, 3).")
@@ -111,12 +121,18 @@ class Geom(object):
             self._len = self._ro.shape[0]
 
         if vo is not None:
-            self._vo = vo.to(u.km / u.s).value
+            if isinstance(vo, u.Quantity):
+                self._vo = vo.to(u.km / u.s).value
+            else:
+                self._vo = vo
             if self._vo.shape != self._ro.shape:
                 raise ValueError("The shape of vo and ro must agree.")
 
         if vt is not None:
-            self._vt = vt.to(u.km / u.s).value
+            if isinstance(vt, u.Quantity):
+                self._vt = vt.to(u.km / u.s).value
+            else:
+                self._vt = vt
             if self._vt.shape != self._rt.shape:
                 raise ValueError("The shape of vt and rt must agree.")
 
@@ -257,6 +273,15 @@ class Geom(object):
         return np.sqrt(np.sum(self._vt**2, -1)) * u.km / u.s
 
     @property
+    def _lambet(self):
+        """Lower overhead ecliptic longitude and latitude. [deg]"""
+        from astropy.coordinates import Angle
+        lam = np.arctan2(self._rot.T[1], self._rot.T[0])
+        bet = np.arctan2(self._rot.T[2],
+                         np.sqrt(self._rot.T[0]**2 + self._rot.T[1]**2))
+        return np.degrees(lam), np.degrees(bet)
+
+    @property
     def lambet(self):
         """Ecliptic longitude and latitude."""
         from astropy.coordinates import Angle
@@ -274,6 +299,13 @@ class Geom(object):
     def bet(self):
         """Ecliptic latitude."""
         return self.lambet[1]
+
+    @property
+    def _radec(self):
+        """Lower overhead RA and Dec. [deg]"""
+        from ..util import ec2eq
+        lam, bet = self._lambet
+        return ec2eq(lam, bet)
 
     @property
     def radec(self):
