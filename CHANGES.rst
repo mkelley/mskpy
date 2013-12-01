@@ -1,3 +1,9 @@
+2.1.8
+-----
+
+Bug fixes: `Geom` crash, `KeplerState` comet name from `SpiceState`,
+scripts/ephemeris to use correct end date.
+
 2.1.7
 -----
 
