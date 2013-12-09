@@ -78,6 +78,7 @@ util --- Short and sweet functions, generic algorithms
    hms2dh
    jd2doy
    jd2time
+   timestamp
    tz2utc
 
    Other
@@ -152,6 +153,7 @@ __all__ = [
     'hms2dh',
     'jd2doy',
     'jd2time',
+    'timestamp',
     'tz2utc',
 
     'asAngle',
@@ -2342,6 +2344,17 @@ def jd2time(jd, jd2=None, scale='utc'):
     from astropy.time import Time
     return Time(jd, val2=jd2, format='jd', scale=scale)
 
+def timestamp(format='%Y%m%d'):
+    """The current date/time as a string.
+
+    Parameters
+    ----------
+    format : string
+      The time format.
+
+    """
+    from datetime import datetime
+    return datetime.utcnow().strftime(format)
 
 def tz2utc(date, tz):
     """Offset between local time and UTC.
