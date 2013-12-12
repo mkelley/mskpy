@@ -489,7 +489,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     """
 
-    from astropy.modeling import models, fitting
+    from scipy.optimize import minimize
+    from ..util import gaussian
 
     if yx is None:
         yx = np.unravel_index(np.nanargmax(im), im.shape)
@@ -506,34 +507,33 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     halfbox = np.round(box / 2).astype(int)
 
-    g_init = models.Gaussian1D(1, stddev=3, mean=yx[0])
-    fit = fitting.NonLinearLSQFitter()
-    cyx = np.zeros(2)  # return variable
+    cyx = np.array(yx)  # return variable
+
+    def gfit(p, x, f):
+        amplitude, mu, sigma = p
+        return np.sum((amplitude * gaussian(x, mu, sigma) - f)**2)
     
     if halfbox[0] > 0:
         yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
         xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
         ap = (slice(*yr), slice(*xr))
         y = np.arange(*yr)
-        g_init.mean.bounds = yr
         f = np.sum(im[ap], 1)
-        g_init.amplitude = np.nanmax(f)
-        g = fit(g_init, y, f)
+        fit = minimize(gfit, (np.nanmax(f), yx[0], 2.5), args=(y, f),
+                       method='L-BFGS-B',
+                       bounds=((0, None), yr, (0, box[0])))
+        cyx[0] = fit['x'][1]
 
-    cyx[0] = g.mean.value
-
-    g_init.mean = yx[1]
     if halfbox[1] > 0:
         yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
         xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
-        g_init.mean.bounds = xr
         f = np.sum(im[ap], 0)
-        g_init.amplitude = np.nanmax(f)
-        g = fit(g_init, x, f)
-
-    cyx[1] = g.mean.value
+        fit = minimize(gfit, (np.nanmax(f), yx[1], 2.5), args=(x, f),
+                       method='L-BFGS-B',
+                       bounds=((0, None), xr, (0, box[1])))
+        cyx[1] = fit['x'][1]
 
     if niter > 1:
         if shrink:
