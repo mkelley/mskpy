@@ -2268,8 +2268,8 @@ def hms2dh(hms):
       Decimal hours.
 
     """
-    if (isinstance(hms, [list, tuple, np.ndarray])
-        and isinstance(hms[0], [list, tuple, np.ndarray, str])):
+    if (isinstance(hms, (list, tuple, np.ndarray))
+        and isinstance(hms[0], (list, tuple, np.ndarray, str))):
         return [hms2dh(x) for x in hms]
 
     def a2space(c):
