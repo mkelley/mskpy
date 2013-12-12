@@ -1,3 +1,11 @@
+2.1.9
+-----
+
+- Bug fix `gcentroid`: drop `astropy.modeling` and use
+  `scipy.optimize`.
+
+- New `util.timestamp`.
+
 2.1.8
 -----
 
