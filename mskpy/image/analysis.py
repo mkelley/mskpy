@@ -48,6 +48,9 @@ __all__ = [
     'trace'
 ]
 
+class UnableToCenter(Exception):
+    pass
+
 def anphot(im, yx, rap, subsample=4):
     """Simple annular aperture photometry.
 
@@ -517,11 +520,14 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
         xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
         ap = (slice(*yr), slice(*xr))
-        y = np.arange(*yr)
+        y = np.arange(*yr, dtype=float)
         f = np.sum(im[ap], 1)
-        fit = minimize(gfit, (np.nanmax(f), yx[0], 2.5), args=(y, f),
+        scale = np.nanmax(f)
+        fit = minimize(gfit, (1.0, yx[0], 2.5), args=(y, f / scale),
                        method='L-BFGS-B',
                        bounds=((0, None), yr, (0, box[0])))
+        if not fit['success']:
+            raise UnableToCenter("y-fit results = \n{}".format(str(fit)))
         cyx[0] = fit['x'][1]
 
     if halfbox[1] > 0:
@@ -530,9 +536,12 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
         f = np.sum(im[ap], 0)
-        fit = minimize(gfit, (np.nanmax(f), yx[1], 2.5), args=(x, f),
+        scale = np.nanmax(f)
+        fit = minimize(gfit, (1.0, yx[1], 2.5), args=(x, f / scale),
                        method='L-BFGS-B',
                        bounds=((0, None), xr, (0, box[1])))
+        if not fit['success']:
+            raise UnableToCenter("x-fit results = \n{}".format(str(fit)))
         cyx[1] = fit['x'][1]
 
     if niter > 1:

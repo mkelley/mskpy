@@ -415,6 +415,9 @@ def file2targets(filename):
 #        self.observer = obj
 
 mlof = Observer(Angle(-110.791667, u.deg), Angle(32.441667, u.deg), -7.0, None)
+lowell = Observer(Angle(-111.5358, u.deg), Angle(35.0969, u.deg), -7.0, None)
+mko = Observer(Angle('-155 28 19', u.deg), Angle('19 49 34', u.deg),
+               -11.0, None)
 
 # update module docstring
 from ..util import autodoc
