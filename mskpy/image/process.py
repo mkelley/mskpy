@@ -123,7 +123,7 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     im : array
       The image to filter.
     thresh : float
-      The rejection threshold in number of sigma.  [DN]
+      The rejection threshold in number of sigma.
     niter : int
       Number of iterations to apply the filter.
     unc : array, optional
@@ -150,6 +150,7 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     from scipy.ndimage import convolve, median_filter
 
     if niter > 1:
+        print('[crclean] Iteration {}'.format(niter))
         im = crclean(im, thresh, niter=niter-1, unc=unc, gain=gain, rn=rn)
 
     # subsample the image by a factor of 2 to avoid contamination from
@@ -164,7 +165,7 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     Lim2[Lim2 < 0] = 0
 
     # Back to the original resolution
-    Lim = 0.25 * rebin(Lim2, -2)
+    Lim = 0.25 * core.rebin(Lim2, -2)
 
     if unc is None:
         # Determine the noise in the original image
