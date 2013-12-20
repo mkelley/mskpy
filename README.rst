@@ -4,7 +4,7 @@ mskpy
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: numpy, scipy, astropy (v0.3 development version).
+Requires: numpy, scipy, astropy v0.3.
 
 Recommended: pyspice, matplotlib.
 
