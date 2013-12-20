@@ -644,6 +644,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
       
     """
 
+    from ..util import midstep
+
     _im = np.array(im)
     ndim = _im.ndim  # later, we will flatten the images
     assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
@@ -665,8 +667,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
     # x is parallel to length, y is perpendicular to it
     a = np.radians(pa)
 
-    x = xarray(sz, yx, rot=a, dtype=float) / subsample
-    y = np.abs(yarray(sz, yx, rot=a, dtype=float) / subsample)
+    x = core.xarray(sz, yx, rot=a, dtype=float) / subsample
+    y = np.abs(core.yarray(sz, yx, rot=a, dtype=float) / subsample)
 
     if np.iterable(length):
         Nbins = len(length) - 1
@@ -708,8 +710,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
             n[i] = len(j)
             f[i] = np.sum(_im[j])
 
-    n /= float(sample**2)
-    return math.midstep(xap), n, f
+    n /= float(subsample**2)
+    return midstep(xap), n, f
 
 def polyfit2d(f, y, x, unc=None, order=1):
     """Fit a polynomial surface to 2D data.
