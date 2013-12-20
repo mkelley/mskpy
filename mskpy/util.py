@@ -686,23 +686,22 @@ def linefit(x, y, err, guess, covar=False):
 
     """
 
-    from numpy import array
     from scipy.optimize import leastsq
 
     def chi(p, x, y, err):
         m, b = p
-        model = m * array(x) + b
-        chi = (array(y) - model) / array(err)
+        model = m * np.array(x) + b
+        chi = (np.array(y) - model) / np.array(err)
         return chi
 
     if err is None:
-        err = numpy.ones(len(y))
+        err = np.ones(len(y))
 
     output = leastsq(chi, guess, args=(x, y, err), full_output=True,
                      epsfcn=1e-3)
     fit = output[0]
     cov = output[1]
-    err = numpy.sqrt(numpy.diag(cov))
+    err = np.sqrt(np.diag(cov))
 
     if covar:
         return fit, cov
