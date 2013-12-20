@@ -1,3 +1,17 @@
+2.1.10
+------
+
+- Bug fix `hms2dh` crash for any input.
+
+- Add `lowell` and `mko` observers to `observing`.
+
+- Fix `crclean` fatal crash.  I'm not sure algorithm is working
+  properly, though.
+
+- Added `linefit` to `util`.
+
+- Let `image.stack2grid` work for any number of images.
+
 2.1.9
 -----
 
