@@ -191,12 +191,13 @@ def stack2grid(stack):
 
     """
     n = int(np.sqrt(stack.shape[0]))
-    if n**2 != stack.shape[0]:
-        raise RuntimeError("Cannot make a square grid from a stack of "
-                           "depth {}".format(stack.shape[0]))
-    grid = stack.reshape(n, n, stack.shape[1], stack.shape[2])
+    if n**2 < stack.shape[0]:
+        n += 1
+    _stack = np.zeros((n**2, stack.shape[1], stack.shape[2]))
+    _stack[:stack.shape[0]] = stack
+    grid = _stack.reshape(n, n, _stack.shape[1], _stack.shape[2])
     grid = grid.swapaxes(1, 2)
-    grid = grid.reshape(n * stack.shape[1], -1)
+    grid = grid.reshape(n * _stack.shape[1], -1)
     return grid
 
 def tarray(shape, yx=None, subsample=0, dtype=float):
