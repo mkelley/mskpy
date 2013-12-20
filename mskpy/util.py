@@ -23,6 +23,10 @@ util --- Short and sweet functions, generic algorithms
    fitslog
    getrot
 
+   Optimizations
+   -------------
+   linefit
+
    Searching, sorting
    ------------------
    between
@@ -654,6 +658,54 @@ def getrot(h):
             cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
 
     return cdelt * 3600.0, np.degrees(rot1)
+
+def linefit(x, y, err, guess, covar=False):
+    """A quick line fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple (double, double)
+      `(m, b)` a guess for the slope, `m`, and y-axis intercept `b`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple (double, double)
+      `(m, b)` the best-fit slope, `m`, and y-axis intercept `b`.
+    err or cov : tuple (double, double) or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from numpy import array
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        m, b = p
+        model = m * array(x) + b
+        chi = (array(y) - model) / array(err)
+        return chi
+
+    if err is None:
+        err = numpy.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-3)
+    fit = output[0]
+    cov = output[1]
+    err = numpy.sqrt(numpy.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
