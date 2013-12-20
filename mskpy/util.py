@@ -112,6 +112,8 @@ __all__ = [
     'fitslog',
     'getrot',
 
+    'linefit',
+
     'between',
     'groupby',
     'leading_num_key',
