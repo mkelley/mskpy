@@ -399,7 +399,7 @@ def gaussian2d(shape, sigma, theta=0):
     x -= (shape[1] - 1) / 2.0
 
     G = np.exp(-(a * x**2 + 2 * b * x * y + c * y**2))
-    G /= 2.0 * pi * sx * sy
+    G /= 2.0 * np.pi * sx * sy
     return G
 
 def hav(th):
