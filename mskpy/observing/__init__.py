@@ -314,7 +314,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         fig.set_size_inches(11, 8.5, forward=True)
         fig.subplots_adjust(left=0.06, right=0.94, bottom=0.1, top=0.9)
 
-    ax = fig1.gca()
+    ax = fig.gca()
     plt.minorticks_on()
 
     astro_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
@@ -360,11 +360,12 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     tax = ax.twiny()
     tax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
     plt.minorticks_on()
-    plt.setp(tax, xlim=ax.get_xlim(), xlabel=str(observer))
+    plt.setp(tax, xlim=ax.get_xlim(), xlabel='LST ' + str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
     graphics.nicelegend(frameon=False, loc='upper left')
+    plt.draw()
 
 def file2targets(filename):
     """Create a list of targets from a file.
