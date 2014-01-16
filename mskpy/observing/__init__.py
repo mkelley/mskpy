@@ -66,6 +66,8 @@ class Observer(object):
     date : string, float, astropy Time, datetime, or array
       The current date (civil time), passed to `util.date2time`.  If
       `None`, `date` will be set to now.
+    name : string
+      The name of the observer/observatory.
 
     Properties
     ----------
@@ -83,19 +85,31 @@ class Observer(object):
 
     """
 
-    def __init__(self, lon, lat, tz, date):
+    def __init__(self, lon, lat, tz, date, name=None):
         from .. import util
         self.lon = Angle(lon)
         self.lat = Angle(lat)
         self.tz = tz
         if date is None:
             self.date = util.date2time(None)
-            if isinstance(tz, float):
-                self.date += tz * u.hr
-            else:
-                self.date += util.tz2utc(self.date, tz).total_seconds() * u.s
         else:
             self.date = util.date2time(date)
+        self.name = name
+
+    @property
+    def date(self):
+        """Observation date"""
+        return self._date
+
+    @date.setter
+    def date(self, d):
+        """Observation date"""
+        from .. import util
+        self._date = util.date2time(d)
+        if isinstance(self.tz, float):
+            self._date += self.tz * u.hr
+        else:
+            self._date += util.tz2utc(self.date, self.tz).total_seconds() * u.s
 
     @property
     def lst(self):
@@ -108,6 +122,15 @@ class Observer(object):
         """Local sidereal time at nearest midnight."""
         return Angle(core.ct2lst0(self.date, self.lon.degree, self.tz),
                      unit=u.hr)
+
+    def __repr__(self):
+        if self.name is not None:
+            return '<Observer ({}): {}, {}>'.format(
+                self.name, self.lon.degree, self.lat.degree)
+        else:
+            return '<Observer: {}, {}>'.format(
+                self.lon.degree, self.lat.degree)
+
 
     def _radec(self, target, date):
         from ..ephem import Earth, SolarSysObject
@@ -414,10 +437,15 @@ def file2targets(filename):
 #    def __init__(self, obj):
 #        self.observer = obj
 
-mlof = Observer(Angle(-110.791667, u.deg), Angle(32.441667, u.deg), -7.0, None)
-lowell = Observer(Angle(-111.5358, u.deg), Angle(35.0969, u.deg), -7.0, None)
-mko = Observer(Angle('-155 28 19', u.deg), Angle('19 49 34', u.deg),
-               -11.0, None)
+mlof = Observer(Angle(-110.791667, u.deg),
+                Angle(32.441667, u.deg),
+                -7.0, None, name='MLOF')
+lowell = Observer(Angle(-111.5358, u.deg),
+                  Angle(35.0969, u.deg),
+                  -7.0, None, name='Lowell')
+mko = Observer(Angle('-155 28 19', u.deg),
+               Angle('19 49 34', u.deg),
+               -11.0, None, name='MKO')
 
 # update module docstring
 from ..util import autodoc
