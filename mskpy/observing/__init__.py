@@ -291,7 +291,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         fig.set_size_inches(11, 8.5, forward=True)
         fig.subplots_adjust(left=0.06, right=0.94, bottom=0.1, top=0.9)
 
-    ax = plt.gca()
+    ax = fig1.gca()
     plt.minorticks_on()
 
     astro_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
