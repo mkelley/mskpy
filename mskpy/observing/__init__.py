@@ -360,7 +360,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     tax = ax.twiny()
     tax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
     plt.minorticks_on()
-    plt.setp(tax, xlim=ax.get_xlim(), xlabel='LST')
+    plt.setp(tax, xlim=ax.get_xlim(), xlabel=str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
