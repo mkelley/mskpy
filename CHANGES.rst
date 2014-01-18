@@ -1,3 +1,22 @@
+2.1.11
+------
+
+- `observing`
+
+  - Fix `am_plot` crash, draw plot at the end, add Observer to the LST
+    axis label, respect `fig` keyword.
+
+  - `Observer`: add name, make `date` a property that can be set at
+    any time.
+
+  - Fix `gaussian` crash.
+
+  - Add `hst.wfc3uvis`
+
+  - Fix `spitzer.irac.ps` units
+
+  - Fix `linecut` fatal crash.
+
 2.1.10
 ------
 
