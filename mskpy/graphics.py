@@ -6,6 +6,7 @@ graphics --- Helper functions for making plots.
    arrows
    axcolor
    circle
+   ds9
    harrows
    jdaxis2date
    ksplot
@@ -17,6 +18,22 @@ graphics --- Helper functions for making plots.
    tplot_setup
 
 """
+
+__all__ = [
+   'arrows',
+   'axcolor',
+   'circle',
+   'ds9',
+   'harrows',
+   'jdaxis2date',
+   'ksplot',
+   'nicelegend',
+   'niceplot',
+   'noborder',
+   'remaxes',
+   'tplot',
+   'tplot_setup'
+]
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -120,6 +137,21 @@ def circle(x, y, r, segments=100, **kwargs):
         xx = r * np.sin(th) + x
         yy = r * np.cos(th) + y
         plt.plot(xx, yy, **keywords)
+
+def ds9(**kwargs):
+    """Return a DS9 instance with a `view` method.
+
+    `view` is a copy of `set_np2arr` for convenience.
+
+    """
+    try:
+        import ds9
+    except ImportError:
+        print "Requires pyds9."
+        raise
+    disp = ds9.ds9(**kwargs)
+    disp.view = disp.set_np2arr
+    return disp
 
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
