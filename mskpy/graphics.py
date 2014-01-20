@@ -138,20 +138,37 @@ def circle(x, y, r, segments=100, **kwargs):
         yy = r * np.cos(th) + y
         plt.plot(xx, yy, **keywords)
 
-def ds9(**kwargs):
-    """Return a DS9 instance with a `view` method.
+try:
+    import ds9 as _ds9
 
-    `view` is a copy of `set_np2arr` for convenience.
+    class ds9(_ds9.ds9):
+        """Return a DS9 instance with a `view` method.
+        """
 
-    """
-    try:
-        import ds9
-    except ImportError:
-        print "Requires pyds9."
-        raise
-    disp = ds9.ds9(**kwargs)
-    disp.view = disp.set_np2arr
-    return disp
+        def view(self, im, frame=None):
+            """View an array or FITS file.
+
+            Parameters
+            ----------
+            im : array, or astropy HDUList
+              The image to display.
+            frame : int, optional
+              Display the image on this frame.
+
+            """
+
+            from astropy.io import fits
+
+            if frame is not None:
+                self.set('frame {}'.format(frame))
+
+            if isinstance(im, fits.HDUList):
+                return self.set_pyfits(im)
+            else:
+                return self.set_np2arr(np.array(im))
+
+except ImportError:
+    pass
 
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
