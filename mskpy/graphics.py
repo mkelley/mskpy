@@ -168,7 +168,7 @@ try:
                 return self.set_np2arr(np.array(im))
 
 except ImportError:
-    pass
+    del __all__[__all__.index('ds9')]
 
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
