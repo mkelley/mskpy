@@ -8,6 +8,8 @@ Requires: numpy, scipy, astropy v0.3.
 
 Recommended: pyspice, matplotlib.
 
+Optional: pyds9.
+
 
 Caution
 =======
