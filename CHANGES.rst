@@ -1,3 +1,14 @@
+2.1.12
+------
+
+- New `graphics.ds9`: if pyds9 is installed, `graphics.ds9` will
+  return a `ds9.ds9` instance with a `view` method for more lazy
+  display calls.
+
+- `ephem`: Fix some planet NAIF IDs.
+
+- Fix `graphics` importing.
+
 2.1.11
 ------
 
