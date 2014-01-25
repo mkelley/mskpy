@@ -259,19 +259,23 @@ def nicelegend(*args, **kwargs):
     leg : matplotlib.legend.Legend
       The drawn legend.
 
+    Notes
+    -----
+    Remember that font properties are passed as a dictionary via the
+    `prop` keyword.
+
     """
 
-    from matplotlib.font_manager import FontProperties
-
     axis = kwargs.pop('axis', None)
-    numpoints = kwargs.pop('numpoints', 1)
-    fontsize = kwargs.pop('fontsize', 'medium')
+
+    kwargs['numpoints'] = kwargs.pop('numpoints', 1)
+
+    prop = dict(size='medium')
+    prop.update(kwargs.pop('prop', dict()))
+    kwargs['prop'] = prop
 
     if axis is not None:
         plt.sca(axis)
-
-    kwargs['prop'] = FontProperties(size=fontsize)
-    kwargs['numpoints'] = numpoints
 
     return plt.legend(*args, **kwargs)
 
