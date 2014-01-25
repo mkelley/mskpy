@@ -364,7 +364,10 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
-    graphics.nicelegend(frameon=False, loc='upper left')
+
+    fontprop = dict(family='monospace')
+    graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
+
     plt.draw()
 
 def file2targets(filename):
