@@ -350,7 +350,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         x = [12, twilight[0].value, twilight[0].value, 12]
         ax.fill(x, y, color=c)
 
-    plt.setp(ax, xlim=xlim, ylim=ylim, ylabel='Airmass',
+    plt.setp(ax, ylim=ylim, ylabel='Airmass',
              xlabel='Time (Civil Time)')
 
     # civil time labels
@@ -365,7 +365,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     tax = plt.twiny()
     tax.xaxis.set_major_formatter(FuncFormatter(lstformatter))
     plt.minorticks_on()
-    plt.setp(tax, xlim=xlim, xlabel='LST ' + str(observer))
+    plt.setp(tax, xlabel='LST ' + str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
