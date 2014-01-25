@@ -298,10 +298,16 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     -------
     None
 
+    Notes
+    -----
+    To change the x-axis limits, use:
+      `plt.setp(fig.axes, xlim=[min, max])`
+
     """
 
     import itertools
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
@@ -344,23 +350,22 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         x = [12, twilight[0].value, twilight[0].value, 12]
         ax.fill(x, y, color=c)
 
-    plt.setp(ax, xlim=[-8, 8], ylim=ylim, ylabel='Airmass',
-             xlabel='Time (CT)')
+    plt.setp(ax, xlim=xlim, ylim=ylim, ylabel='Airmass',
+             xlabel='Time (Civil Time)')
 
     # civil time labels
-    xts = np.array(ax.get_xticks())
-    if any(xts < 0):
-        xts[xts < 0] += 24.0
-    ax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
+    def ctformatter(x, pos):
+        return dh2hms(x % 24.0, '{:02d}:{:02d}')
+    ax.xaxis.set_major_formatter(FuncFormatter(ctformatter))
 
     # LST labels
-    xts = np.array(ax.get_xticks()) + observer.lst0.hour
-    if any(xts < 0):
-        xts[xts < 0] += 24.0
-    tax = ax.twiny()
-    tax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
+    def lstformatter(x, pos, lst0=observer.lst0.hour):
+        return dh2hms(((x + lst0) % 24.0), '{:02d}:{:02d}')
+
+    tax = plt.twiny()
+    tax.xaxis.set_major_formatter(FuncFormatter(lstformatter))
     plt.minorticks_on()
-    plt.setp(tax, xlim=ax.get_xlim(), xlabel='LST ' + str(observer))
+    plt.setp(tax, xlim=xlim, xlabel='LST ' + str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
