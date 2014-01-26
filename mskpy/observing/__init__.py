@@ -454,7 +454,7 @@ lowell = Observer(Angle(-111.5358, u.deg),
                   -7.0, None, name='Lowell')
 mko = Observer(Angle('-155 28 19', u.deg),
                Angle('19 49 34', u.deg),
-               -11.0, None, name='MKO')
+               -10.0, None, name='MKO')
 
 # update module docstring
 from ..util import autodoc
