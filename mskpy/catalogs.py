@@ -50,7 +50,6 @@ def match_cat(cat0, cat1, tol=0.01, verbose=True):
     """
 
     from scipy.spatial.ckdtree import cKDTree
-    from scipy.sparse import lil_matrix
 
     v0, s0 = triangles(*cat0)
     v1, s1 = triangles(*cat1)
@@ -65,7 +64,7 @@ def match_cat(cat0, cat1, tol=0.01, verbose=True):
     
     matched = np.zeros((len(cat0[0]), len(cat1[0])), int)
     for k, j in enumerate(i):
-        if d[j] <= tol:
+        if d[k] <= tol:
             matched[v0[j][0], v1[k][0]] += 1
             matched[v0[j][1], v1[k][1]] += 1
             matched[v0[j][2], v1[k][2]] += 1
