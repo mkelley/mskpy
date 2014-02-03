@@ -1,4 +1,24 @@
-2.1.12
+2.1.13
+------
+
+- New `catalogs`, currently for matching lists of sources together.
+
+- Fix `observing.mko` timezone.
+
+- `observing.am_plot`
+
+  - Better handles x-axis ticks, which will automatically update after
+    changing axis limits.
+
+  - The legend now uses a monospace font.
+
+- `graphics.nicelegend` now handles font properties via `prop`
+  keyword.
+
+- Fix import crash when pyds9 is not installed.
+
+
+2.1a.12
 ------
 
 - New `graphics.ds9`: if pyds9 is installed, `graphics.ds9` will
