@@ -7,20 +7,20 @@ catalogs - Tools for working with lists of stars
 .. autosummary::
    :toctree: generated/
 
-   match_cat
+   spatial_match
    triangles
 
 """
 
 __all__ = [
-    'match_cat',
+    'spatial_match',
     'triangles'
 ]
 
 import numpy as np
 
-def match_cat(cat0, cat1, tol=0.01, full_output=False, verbose=True):
-    """Find matching stars between two catalogs.
+def spatial_match(cat0, cat1, tol=0.01, full_output=False, verbose=True):
+    """Find spatially matching sourse between two lists.
 
     Parameters
     ----------
@@ -65,9 +65,9 @@ def match_cat(cat0, cat1, tol=0.01, full_output=False, verbose=True):
     d, i = tree.query(s1)  # nearest matches between triangles
 
     if verbose:
-        print ("""[match_cat] cat0 = {} triangles, cat1 = {} triangles
-[match_cat] Best match score = {:.2g}, worst match sorce = {:.2g}
-[match_cat] {} triangle pairs at or below given tolerance ({})""".format(
+        print ("""[spatial_match] cat0 = {} triangles, cat1 = {} triangles
+[spatial_match] Best match score = {:.2g}, worst match sorce = {:.2g}
+[spatial_match] {} triangle pairs at or below given tolerance ({})""".format(
                 len(v0), len(v1), min(d), max(d), sum(d <= tol), tol))
 
     match_matrix = np.zeros((N0, N1), int)
