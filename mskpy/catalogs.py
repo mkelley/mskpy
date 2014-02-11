@@ -19,7 +19,8 @@ __all__ = [
 
 import numpy as np
 
-def spatial_match(cat0, cat1, tol=0.01, full_output=False, verbose=True):
+def spatial_match(cat0, cat1, tol=0.01, min_score=0, full_output=False,
+                  verbose=True):
     """Find spatially matching sourse between two lists.
 
     Parameters
@@ -28,6 +29,8 @@ def spatial_match(cat0, cat1, tol=0.01, full_output=False, verbose=True):
       Each catalog is an 2xN array of (y, x) positions.
     tol : float, optional
       The match tolerance.
+    min_score : float, optional
+      Only return matches with scores greater than `min_score`.
     full_output : bool, optional
       Set to `True` to also return `match_matrix`.
     verbose : bool, optional
@@ -37,8 +40,8 @@ def spatial_match(cat0, cat1, tol=0.01, full_output=False, verbose=True):
     -------
     matches : dictionary
       The best match for star `i` of `cat0` is `matches[i]` in `cat1`.
-      Stars that are matched multiple times, or not matched at all,
-      are not returned.
+      Stars that are matched multiple times, not matched at all, or
+      with scores less than `min_score` are not returned.
     score : dictionary
       Fraction of times star `i` matched star `matches[i]` out of all
       times stars `i` and `matches[i]` were matched to any star.
@@ -87,6 +90,10 @@ def spatial_match(cat0, cat1, tol=0.01, full_output=False, verbose=True):
             peak = match_matrix[i, m0[i]] * 2
             total = match_matrix[i, :].sum() + match_matrix[:, m0[i]].sum()
             scores[i] = peak / float(total)
+
+    for k in matches.keys():
+        if scores[k] < min_score:
+            del matches[k], scores[k]
 
     if full_output:
         return matches, scores, match_matrix
