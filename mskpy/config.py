@@ -35,6 +35,9 @@ def _create_config(fn):
     config.add_section('calib')
     config.set('calib', 'cohen_path',
                os.path.sep.join([home, 'data', 'mid-ir']))
+    config.add_section('spex')
+    config.set('spex', 'spextool_path',
+               os.path.sep.join([home, 'local', 'idl', 'irtf', 'Spextool']))
 
     with open(fn, 'w') as outf:
         config.write(outf)
