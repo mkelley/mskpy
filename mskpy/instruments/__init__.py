@@ -15,11 +15,13 @@ Instruments can be used observe a `SolarSysObject`.
 """
 
 from . import instrument
-from . import midir
+from . import hst
+from . import irtf
 from . import spitzer
 
 from instrument import *
-from midir import *
+from hst import *
+from irtf import *
 from spitzer import *
 
 # update module docstring
