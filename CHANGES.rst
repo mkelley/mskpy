@@ -1,3 +1,11 @@
+2.1.14
+------
+
+- Handle RuntimeError when importing `graphics`.
+
+- Add min_score parameter to `spatial_match`.
+
+
 2.1.13
 ------
 
