@@ -1,3 +1,151 @@
+2.1.14
+------
+
+- Handle RuntimeError when importing `graphics`.
+
+- Add min_score parameter to `spatial_match`.
+
+
+2.1.13
+------
+
+- New `catalogs`, currently for matching lists of sources together.
+
+- Fix `observing.mko` timezone.
+
+- `observing.am_plot`
+
+  - Better handles x-axis ticks, which will automatically update after
+    changing axis limits.
+
+  - The legend now uses a monospace font.
+
+- `graphics.nicelegend` now handles font properties via `prop`
+  keyword.
+
+- Fix import crash when pyds9 is not installed.
+
+
+2.1a.12
+------
+
+- New `graphics.ds9`: if pyds9 is installed, `graphics.ds9` will
+  return a `ds9.ds9` instance with a `view` method for more lazy
+  display calls.
+
+- `ephem`: Fix some planet NAIF IDs.
+
+- Fix `graphics` importing.
+
+2.1.11
+------
+
+- `observing`
+
+  - Fix `am_plot` crash, draw plot at the end, add Observer to the LST
+    axis label, respect `fig` keyword.
+
+  - `Observer`: add name, make `date` a property that can be set at
+    any time.
+
+  - Fix `gaussian` crash.
+
+  - Add `hst.wfc3uvis`
+
+  - Fix `spitzer.irac.ps` units
+
+  - Fix `linecut` fatal crash.
+
+2.1.10
+------
+
+- Bug fix `hms2dh` crash for any input.
+
+- Add `lowell` and `mko` observers to `observing`.
+
+- Fix `crclean` fatal crash.  I'm not sure algorithm is working
+  properly, though.
+
+- Added `linefit` to `util`.
+
+- Let `image.stack2grid` work for any number of images.
+
+2.1.9
+-----
+
+- Bug fix `gcentroid`: drop `astropy.modeling` and use
+  `scipy.optimize`.
+
+- New `util.timestamp`.
+
+2.1.8
+-----
+
+Bug fixes: `Geom` crash, `KeplerState` comet name from `SpiceState`,
+scripts/ephemeris to use correct end date.
+
+2.1.7
+-----
+
+- New `util.lb2xyz`.
+
+- New `ephem.state.KeplerState`.
+
+- Optimize `ephem.state.State` with `rv` method.
+
+
+2.1.6
+-----
+
+- `util.date_len` bug fixes.
+
+- `ephem.ssobj.getxyz` fix: wasn't running at all.
+
+2.1.5
+-----
+
+- New `image.combine`, more efficient than `util.meanclip` for 2D
+  arrays.
+
+- Re-write `image.mkflat` to only do the normalization.
+
+2.1.4
+-----
+
+- `image.gcentroid`
+
+  - Fixes for new `astropy.modeling` API.
+
+  - Contrain fits to within the box.
+
+- Bug fix in `anphot` for single apertures.
+
+2.1.3
+-----
+
+- `observing` airmass charts now use different line styles, as well as
+  different colors.
+
+2.1.2
+-----
+
+- Fix `observing` crash for JD to `astropy` `Time` conversion.
+
+2.1.1
+-----
+
+Critical Fixes
+^^^^^^^^^^^^^^
+
+- `image.fwhm` renamed from `fwhmfit` and now actually respects the
+  `bg` keyword.
+
+New Features
+^^^^^^^^^^^^
+
+- `image.bgphot` function.
+
+
 2.1.0
 -----
 

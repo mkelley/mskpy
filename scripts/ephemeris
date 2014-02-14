@@ -11,16 +11,18 @@ parser.add_argument('target', type=str, action='store', nargs='*',
                     help='The name of the target')
 parser.add_argument('--start', type=str, action='store',
                     default=today.isoformat(),
-                    help='The first day of the ephemeris [today].')
+                    help='The first day of the ephemeris, YYYY-MM-DD [today].')
 parser.add_argument('--end', type=str, action='store', default=None,
-                    help='The last day of the ephemeris [today + n].')
+                    help='The last day of the ephemeris, YYYY-MM-DD [today + n].')
 parser.add_argument('-n', type=int, action='store', default=30,
                     help='The number of days for the ephemeris.')
 
 args = parser.parse_args()
 
 if args.end is None:
-    end = datetime.date.fromordinal(today.toordinal() + args.n).isoformat()
+    ymd = [int(x) for x in args.start.split('-')]
+    start = datetime.date(*ymd).toordinal()
+    end = datetime.date.fromordinal(start + args.n).isoformat()
     n = args.n + 1
 else:
     end = args.end

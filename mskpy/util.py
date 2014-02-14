@@ -23,6 +23,10 @@ util --- Short and sweet functions, generic algorithms
    fitslog
    getrot
 
+   Optimizations
+   -------------
+   linefit
+
    Searching, sorting
    ------------------
    between
@@ -35,6 +39,7 @@ util --- Short and sweet functions, generic algorithms
    Spherical/Celestial/vectorial geometry
    --------------------------------------
    ec2eq
+   lb2xyz
    projected_vector_angle
    spherical_coord_rotate
    state2orbit
@@ -77,6 +82,7 @@ util --- Short and sweet functions, generic algorithms
    hms2dh
    jd2doy
    jd2time
+   timestamp
    tz2utc
 
    Other
@@ -106,6 +112,8 @@ __all__ = [
     'fitslog',
     'getrot',
 
+    'linefit',
+
     'between',
     'groupby',
     'leading_num_key',
@@ -114,6 +122,7 @@ __all__ = [
     'whist',
 
     'ec2eq',
+    'lb2xyz',
     'projected_vector_angle',
     'spherical_coord_rotate',
     'state2orbit',
@@ -150,6 +159,7 @@ __all__ = [
     'hms2dh',
     'jd2doy',
     'jd2time',
+    'timestamp',
     'tz2utc',
 
     'asAngle',
@@ -389,7 +399,7 @@ def gaussian2d(shape, sigma, theta=0):
     x -= (shape[1] - 1) / 2.0
 
     G = np.exp(-(a * x**2 + 2 * b * x * y + c * y**2))
-    G /= 2.0 * pi * sx * sy
+    G /= 2.0 * np.pi * sx * sy
     return G
 
 def hav(th):
@@ -650,6 +660,53 @@ def getrot(h):
             cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
 
     return cdelt * 3600.0, np.degrees(rot1)
+
+def linefit(x, y, err, guess, covar=False):
+    """A quick line fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple (double, double)
+      `(m, b)` a guess for the slope, `m`, and y-axis intercept `b`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple (double, double)
+      `(m, b)` the best-fit slope, `m`, and y-axis intercept `b`.
+    err or cov : tuple (double, double) or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        m, b = p
+        model = m * np.array(x) + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-3)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
@@ -912,6 +969,33 @@ def ec2eq(lam, bet):
 
     return np.degrees(ra), np.degrees(dec)
 
+def lb2xyz(lam, bet=None):
+    """Transform longitude and latitude to a unit vector.
+
+    Parameters
+    ----------
+    lam : float, array, or 2xN array
+      The longitude(s), or an array of longitudes and
+      latitudes. [degrees]
+    bet : float or array, optional
+      The latitude(s). [degrees]
+
+    Returns
+    -------
+    xyz : array or 3xN array
+      The unit vectors.
+
+    """
+    _lam = np.array(lam).squeeze()
+    if bet is None:
+        return lb2xyz(_lam[0], _lam[1])
+
+    lamr = np.radians(_lam)
+    betr = np.radians(np.array(bet).squeeze())
+    return np.array((np.cos(betr) * np.cos(lamr),
+                     np.cos(betr) * np.sin(lamr),
+                     np.sin(betr)))
+
 def projected_vector_angle(r, rot, ra, dec):
     """Position angle of a vector projected onto the observing plane.
 
@@ -1141,7 +1225,7 @@ def vector_rotate(r, n, th):
                 nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
                 np.cross(r, nhat) * np.sin(-theta))
 
-    if th.size == 1:
+    if np.size(th) == 1:
         return rot(r, nhat, th)
     else:
         return np.array([rot(r, nhat, t) for t in th])
@@ -1623,6 +1707,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     """
 
     from scipy import interpolate
+    import astropy.units as u
     from . import calib
 
     # local copies
@@ -1638,7 +1723,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         _ft = np.array(ft)
     elif filter is not None:
         _fw, _ft = calib.filter_trans(filter)
-        _fw = _fw.micrometer
+        _fw = _fw.to(u.um).value
     else:
         raise ValueError("Neither fw+ft nor filter was supplied.")
 
@@ -2096,8 +2181,8 @@ def date_len(date):
 
     Parameters
     ----------
-    date : string, float, astropy Time, datetime, or array
-      Some time-like thingy, or `None` to return the current date.
+    date : string, float, astropy Time, datetime, array, None
+      Some time-like thingy, or `None`.
 
     Returns
     -------
@@ -2114,6 +2199,12 @@ def date_len(date):
             return 0
         else:
             return len(date)
+    elif date is None:
+        return 0
+    elif np.isscalar(date):
+        return 0
+    else:
+        return len(date)
 
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
@@ -2230,8 +2321,8 @@ def hms2dh(hms):
       Decimal hours.
 
     """
-    if (isinstance(hms, [list, tuple, np.ndarray])
-        and isinstance(hms[0], [list, tuple, np.ndarray, str])):
+    if (isinstance(hms, (list, tuple, np.ndarray))
+        and isinstance(hms[0], (list, tuple, np.ndarray, str))):
         return [hms2dh(x) for x in hms]
 
     def a2space(c):
@@ -2306,6 +2397,17 @@ def jd2time(jd, jd2=None, scale='utc'):
     from astropy.time import Time
     return Time(jd, val2=jd2, format='jd', scale=scale)
 
+def timestamp(format='%Y%m%d'):
+    """The current date/time as a string.
+
+    Parameters
+    ----------
+    format : string
+      The time format.
+
+    """
+    from datetime import datetime
+    return datetime.utcnow().strftime(format)
 
 def tz2utc(date, tz):
     """Offset between local time and UTC.

@@ -66,6 +66,8 @@ class Observer(object):
     date : string, float, astropy Time, datetime, or array
       The current date (civil time), passed to `util.date2time`.  If
       `None`, `date` will be set to now.
+    name : string
+      The name of the observer/observatory.
 
     Properties
     ----------
@@ -83,19 +85,31 @@ class Observer(object):
 
     """
 
-    def __init__(self, lon, lat, tz, date):
+    def __init__(self, lon, lat, tz, date, name=None):
         from .. import util
         self.lon = Angle(lon)
         self.lat = Angle(lat)
         self.tz = tz
         if date is None:
             self.date = util.date2time(None)
-            if isinstance(tz, float):
-                self.date += tz * u.hr
-            else:
-                self.date += util.tz2utc(self.date, tz).total_seconds() * u.s
         else:
             self.date = util.date2time(date)
+        self.name = name
+
+    @property
+    def date(self):
+        """Observation date"""
+        return self._date
+
+    @date.setter
+    def date(self, d):
+        """Observation date"""
+        from .. import util
+        self._date = util.date2time(d)
+        if isinstance(self.tz, float):
+            self._date += self.tz * u.hr
+        else:
+            self._date += util.tz2utc(self.date, self.tz).total_seconds() * u.s
 
     @property
     def lst(self):
@@ -108,6 +122,15 @@ class Observer(object):
         """Local sidereal time at nearest midnight."""
         return Angle(core.ct2lst0(self.date, self.lon.degree, self.tz),
                      unit=u.hr)
+
+    def __repr__(self):
+        if self.name is not None:
+            return '<Observer ({}): {}, {}>'.format(
+                self.name, self.lon.degree, self.lat.degree)
+        else:
+            return '<Observer: {}, {}>'.format(
+                self.lon.degree, self.lat.degree)
+
 
     def _radec(self, target, date):
         from ..ephem import Earth, SolarSysObject
@@ -186,14 +209,14 @@ class Observer(object):
 
         from datetime import timedelta
         import matplotlib.pyplot as plt
-        from astropy.time import Time
+        from ..util import jd2time
 
         if ax is None:
             ax = plt.gca()
         label = kwargs.pop('label', target.name)
 
         # round to nearest day
-        date = Time(round(self.date.jd - 0.5) + 0.5)
+        date = jd2time(round(self.date.jd - 0.5) + 0.5)
 
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
@@ -275,12 +298,21 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     -------
     None
 
+    Notes
+    -----
+    To change the x-axis limits, use:
+      `plt.setp(fig.axes, xlim=[min, max])`
+
     """
 
+    import itertools
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FuncFormatter
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
+
+    linestyles = itertools.product(['-', ':', '--', '-.'], 'bgrcmyk')
 
     if fig is None:
         fig = plt.gcf()
@@ -288,7 +320,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         fig.set_size_inches(11, 8.5, forward=True)
         fig.subplots_adjust(left=0.06, right=0.94, bottom=0.1, top=0.9)
 
-    ax = plt.gca()
+    ax = fig.gca()
     plt.minorticks_on()
 
     astro_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
@@ -297,7 +329,8 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
                                        name='Civil twilight')
 
     for target in targets:
-        observer.plot_am(target, **kwargs)
+        ls, color = linestyles.next()
+        observer.plot_am(target, color=color, ls=ls, **kwargs)
         observer.rts(target, limit=25)
 
     print()
@@ -317,27 +350,30 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         x = [12, twilight[0].value, twilight[0].value, 12]
         ax.fill(x, y, color=c)
 
-    plt.setp(ax, xlim=[-8, 8], ylim=ylim, ylabel='Airmass',
-             xlabel='Time (CT)')
+    plt.setp(ax, ylim=ylim, ylabel='Airmass',
+             xlabel='Time (Civil Time)')
 
     # civil time labels
-    xts = np.array(ax.get_xticks())
-    if any(xts < 0):
-        xts[xts < 0] += 24.0
-    ax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
+    def ctformatter(x, pos):
+        return dh2hms(x % 24.0, '{:02d}:{:02d}')
+    ax.xaxis.set_major_formatter(FuncFormatter(ctformatter))
 
     # LST labels
-    xts = np.array(ax.get_xticks()) + observer.lst0.hour
-    if any(xts < 0):
-        xts[xts < 0] += 24.0
-    tax = ax.twiny()
-    tax.set_xticklabels([dh2hms(t, '{:02d}:{:02d}') for t in xts])
+    def lstformatter(x, pos, lst0=observer.lst0.hour):
+        return dh2hms(((x + lst0) % 24.0), '{:02d}:{:02d}')
+
+    tax = plt.twiny()
+    tax.xaxis.set_major_formatter(FuncFormatter(lstformatter))
     plt.minorticks_on()
-    plt.setp(tax, xlim=ax.get_xlim(), xlabel='LST')
+    plt.setp(tax, xlabel='LST ' + str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
-    graphics.nicelegend(frameon=False, loc='upper left')
+
+    fontprop = dict(family='monospace')
+    graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
+
+    plt.draw()
 
 def file2targets(filename):
     """Create a list of targets from a file.
@@ -410,7 +446,15 @@ def file2targets(filename):
 #    def __init__(self, obj):
 #        self.observer = obj
 
-mlof = Observer(Angle(-110.791667, u.deg), Angle(32.441667, u.deg), -7.0, None)
+mlof = Observer(Angle(-110.791667, u.deg),
+                Angle(32.441667, u.deg),
+                -7.0, None, name='MLOF')
+lowell = Observer(Angle(-111.5358, u.deg),
+                  Angle(35.0969, u.deg),
+                  -7.0, None, name='Lowell')
+mko = Observer(Angle('-155 28 19', u.deg),
+               Angle('19 49 34', u.deg),
+               -10.0, None, name='MKO')
 
 # update module docstring
 from ..util import autodoc

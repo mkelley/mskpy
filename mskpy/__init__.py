@@ -56,6 +56,7 @@ if spice is not None:
 # depends on matplotlib
 try:
     from . import graphics
-except:
+    from .graphics import *
+except (ImportError, RuntimeError):
     pass
 # end matplotlib

@@ -6,6 +6,7 @@ graphics --- Helper functions for making plots.
    arrows
    axcolor
    circle
+   ds9
    harrows
    jdaxis2date
    ksplot
@@ -17,6 +18,22 @@ graphics --- Helper functions for making plots.
    tplot_setup
 
 """
+
+__all__ = [
+   'arrows',
+   'axcolor',
+   'circle',
+   'ds9',
+   'harrows',
+   'jdaxis2date',
+   'ksplot',
+   'nicelegend',
+   'niceplot',
+   'noborder',
+   'remaxes',
+   'tplot',
+   'tplot_setup'
+]
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -121,6 +138,38 @@ def circle(x, y, r, segments=100, **kwargs):
         yy = r * np.cos(th) + y
         plt.plot(xx, yy, **keywords)
 
+try:
+    import ds9 as _ds9
+
+    class ds9(_ds9.ds9):
+        """Return a DS9 instance with a `view` method.
+        """
+
+        def view(self, im, frame=None):
+            """View an array or FITS file.
+
+            Parameters
+            ----------
+            im : array, or astropy HDUList
+              The image to display.
+            frame : int, optional
+              Display the image on this frame.
+
+            """
+
+            from astropy.io import fits
+
+            if frame is not None:
+                self.set('frame {}'.format(frame))
+
+            if isinstance(im, fits.HDUList):
+                return self.set_pyfits(im)
+            else:
+                return self.set_np2arr(np.array(im))
+
+except ImportError:
+    del __all__[__all__.index('ds9')]
+
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
     
@@ -210,19 +259,23 @@ def nicelegend(*args, **kwargs):
     leg : matplotlib.legend.Legend
       The drawn legend.
 
+    Notes
+    -----
+    Remember that font properties are passed as a dictionary via the
+    `prop` keyword.
+
     """
 
-    from matplotlib.font_manager import FontProperties
-
     axis = kwargs.pop('axis', None)
-    numpoints = kwargs.pop('numpoints', 1)
-    fontsize = kwargs.pop('fontsize', 'medium')
+
+    kwargs['numpoints'] = kwargs.pop('numpoints', 1)
+
+    prop = dict(size='medium')
+    prop.update(kwargs.pop('prop', dict()))
+    kwargs['prop'] = prop
 
     if axis is not None:
         plt.sca(axis)
-
-    kwargs['prop'] = FontProperties(size=fontsize)
-    kwargs['numpoints'] = numpoints
 
     return plt.legend(*args, **kwargs)
 

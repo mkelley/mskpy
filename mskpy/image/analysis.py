@@ -11,7 +11,9 @@ image.analysis --- Analyze (astronomical) images.
    apphot
    azavg
    bgfit
+   bgphot
    centroid
+   fwhm
    gcentroid
    imstat
    linecut
@@ -35,14 +37,19 @@ __all__ = [
     'apphot',
     'azavg',
     'bgfit',
+    'bgphot',
     'centroid',
     'gcentroid',
+    'fwhm',
     'imstat',
     'linecut',
     'polyfit2d',
     'radprof',
     'trace'
 ]
+
+class UnableToCenter(Exception):
+    pass
 
 def anphot(im, yx, rap, subsample=4):
     """Simple annular aperture photometry.
@@ -62,7 +69,8 @@ def anphot(im, yx, rap, subsample=4):
       The `y, x` center of the aperture(s).  Only one center is
       allowed. [pixels]
     rap : float or array
-      Aperture radii.  [pixels]
+      Aperture radii.  The inner-most aperture will be the annulus 0
+      to `min(rap)`.  [pixels]
     subsample : int, optional
       The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
       This will sub-sample the entire image.
@@ -85,6 +93,9 @@ def anphot(im, yx, rap, subsample=4):
 
     yx = np.array(yx, float)
     assert yx.shape == (2,), "yx has incorrect shape."
+
+    if not np.iterable(rap):
+        rap = np.array([rap])
 
     if subsample > 1:
         if ndim == 3:
@@ -160,8 +171,6 @@ def apphot(im, yx, rap, subsample=4):
       `N`, `f` will have shape `N x len(rap)`.
       
     """
-    if not np.iterable(rap):
-        rap = np.array([rap])
     n, f = anphot(im, yx, rap, subsample=subsample)
     return n.cumsum(-1), f.cumsum(-1)
 
@@ -271,6 +280,76 @@ def bgfit(im, unc=None, order=1, mask=True):
 
     return bg
 
+def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
+    """Background photometry and error analysis in an annulus.
+
+    Pixels are not sub-sampled.  The annulus is processed via
+    `util.uclip`.
+
+    Parameters
+    ----------
+    im : array or array of arrays
+      An image, cube, or array of images on which to measure
+      photometry.  For data cubes, the first axis iterates over the
+      images.  All images must have the same shape.
+    yx : array
+      The `y, x` center of the aperture.  Only one center is
+      allowed. [pixels]
+    rap : array
+      Inner and outer radii of the annulus.  [pixels]
+    ufunc : function, optional
+      The function with which to determine the background average.
+    **kwargs :
+      Keyword arguments passed to `util.uclip`.
+
+    Returns
+    -------
+    n : ndarray
+      The number of pixels per annular bin.  Same shape comment as for
+      `bg`.
+    bg : ndarray
+      The background level in the annulus.  If `im` is a set of images
+      of depth `N`, `bg` will have shape `N x len(rap)`
+    sig : ndarray
+      The standard deviation of the background pixels.  Same shape
+      comment as for `bg`.
+
+    """
+
+    from ..util import uclip
+
+    _im = np.array(im)
+    ndim = _im.ndim  # later, we will flatten the images
+
+    assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
+                            " of images are allowed.")
+
+    yx = np.array(yx, float)
+    assert yx.shape == (2,), "yx has incorrect shape."
+
+    rap = np.array(rap, float)
+    assert rap.shape == (2,), "rap has incorrect shape."
+
+    sz = _im.shape[-2:]
+
+    r = core.rarray(sz, yx=yx, subsample=4)
+    annulus = (r >= rap.min()) * (r <= rap.max())
+
+    if ndim == 3:
+        n, bg, sig = np.zeros((3, _im.shape[0]))
+        for i in range(len(m)):
+            f = _im[i][annulus]
+            bg[i], j, niter = uclip(f, ufunc, full_output=True, **kwargs)
+            n[i] = len(j)
+            sig[i] = np.std(f[j])
+    else:
+        f = _im[annulus]
+        bg, j, niter = uclip(f, ufunc, full_output=True, **kwargs)
+        n = len(j)
+        sig = np.std(f[j])
+
+    return n, bg, sig
+
 def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (center of mass) of an image.
 
@@ -341,8 +420,51 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     return cyx
 
+def fwhm(im, yx, bg=True, **kwargs):
+    """Compute the FWHM of an image.
+
+    Parameters
+    ----------
+    im : array
+      The image to fit.
+    yx : array
+      The center on which to fit.
+    bg : bool, optional
+      Set to `True` if there is a constant background to be
+      considered.
+    **kwargs
+      Any `radprof` keyword, e.g., `range` or `bins`.
+
+    Returns
+    -------
+    fwhm : float
+      The FHWM of the radial profile.
+
+    """
+
+    from scipy.optimize import leastsq as lsq
+    from ..util import gaussian
+
+    R, I, n = radprof(im, yx, **kwargs)
+    r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+
+    if bg:
+        def fitfunc(p, R, I):
+            return I - gaussian(R, 0, p[0]) * p[1] + p[2]
+        guess = (r, I.max(), I.min())
+    else:
+        def fitfunc(p, R, I):
+            return I - gaussian(R, 0, p[0]) * p[1]
+        guess = (r, I.max())
+
+    fit = lsq(fitfunc, guess, args=(R, I))[0]
+
+    return abs(fit[0]) * 2.35
+
 def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
+
+    The best-fit should be bounded within `box`.
 
     Parameters
     ----------
@@ -370,7 +492,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     """
 
-    from astropy.modeling import models, fitting
+    from scipy.optimize import minimize
+    from ..util import gaussian
 
     if yx is None:
         yx = np.unravel_index(np.nanargmax(im), im.shape)
@@ -387,33 +510,39 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     halfbox = np.round(box / 2).astype(int)
 
-    g = models.Gaussian1DModel(1, stddev=3, mean=yx[0])
-    gfit = fitting.NonLinearLSQFitter(g)
-    cyx = np.zeros(2)  # return variable
+    cyx = np.array(yx)  # return variable
+
+    def gfit(p, x, f):
+        amplitude, mu, sigma = p
+        return np.sum((amplitude * gaussian(x, mu, sigma) - f)**2)
     
     if halfbox[0] > 0:
         yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
         xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
         ap = (slice(*yr), slice(*xr))
-        y = np.arange(*yr)
+        y = np.arange(*yr, dtype=float)
         f = np.sum(im[ap], 1)
-        g.amplitude = np.nanmax(f)
-        gfit(y, f)
+        scale = np.nanmax(f)
+        fit = minimize(gfit, (1.0, yx[0], 2.5), args=(y, f / scale),
+                       method='L-BFGS-B',
+                       bounds=((0, None), yr, (0, box[0])))
+        if not fit['success']:
+            raise UnableToCenter("y-fit results = \n{}".format(str(fit)))
+        cyx[0] = fit['x'][1]
 
-    cyx[0] = g.mean.value
-
-    g.mean = yx[1]
-    g.stdev = 3.0
     if halfbox[1] > 0:
         yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
         xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
         f = np.sum(im[ap], 0)
-        g.amplitude = np.nanmax(f)
-        gfit(x, f)
-
-    cyx[1] = g.mean.value
+        scale = np.nanmax(f)
+        fit = minimize(gfit, (1.0, yx[1], 2.5), args=(x, f / scale),
+                       method='L-BFGS-B',
+                       bounds=((0, None), xr, (0, box[1])))
+        if not fit['success']:
+            raise UnableToCenter("x-fit results = \n{}".format(str(fit)))
+        cyx[1] = fit['x'][1]
 
     if niter > 1:
         if shrink:
@@ -515,6 +644,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
       
     """
 
+    from ..util import midstep
+
     _im = np.array(im)
     ndim = _im.ndim  # later, we will flatten the images
     assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
@@ -536,8 +667,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
     # x is parallel to length, y is perpendicular to it
     a = np.radians(pa)
 
-    x = xarray(sz, yx, rot=a, dtype=float) / subsample
-    y = np.abs(yarray(sz, yx, rot=a, dtype=float) / subsample)
+    x = core.xarray(sz, yx, rot=a, dtype=float) / subsample
+    y = np.abs(core.yarray(sz, yx, rot=a, dtype=float) / subsample)
 
     if np.iterable(length):
         Nbins = len(length) - 1
@@ -579,8 +710,8 @@ def linecut(im, yx, width, length, pa, subsample=4):
             n[i] = len(j)
             f[i] = np.sum(_im[j])
 
-    n /= float(sample**2)
-    return math.midstep(xap), n, f
+    n /= float(subsample**2)
+    return midstep(xap), n, f
 
 def polyfit2d(f, y, x, unc=None, order=1):
     """Fit a polynomial surface to 2D data.
@@ -669,6 +800,7 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     from ..util import takefrom
 
     if range is None:
+        yx = np.array(yx)
         rmax = np.sqrt(max(
                 sum(yx**2),
                 sum((yx - np.r_[0, im.shape[1]])**2),
