@@ -53,11 +53,11 @@ class SpeX(LongSlitSpectrometer):
             1.65 * u.um, self.shape['bigdog'], self.ps['bigdog'],
             2.0, 0.034 * u.um, R=250, location=self.location)
 
-        self._mode = 'imager'
+        self._mode = 'guidedog'
 
     @property
     def mode(self):
-        if self._mode in ['imager', 'prism']:
+        if self._mode in ['guidedog', 'prism']:
             return self.__dict__[self._mode]
         else:
             raise KeyError("Invalid mode: {:}".format(self._mode))
@@ -94,7 +94,7 @@ class SpeX(LongSlitSpectrometer):
         """
         return self.mode.lightcurve(*args, **kwargs)
 
-    def spec_correct(ftarget, ftelluric=None, dtt=0.0, dat=0.0, ext=0.0):
+    def spec_correct(self, ftarget, ftelluric, dtt=0.0, dat=0.0, ext=0.0):
         """Correct a spectrum processed with xspextool.
 
         Take the reduced and telluric spectra, and return a final
@@ -105,9 +105,7 @@ class SpeX(LongSlitSpectrometer):
         ftarget : string
           The file name of the target spectrum (FITS format).
         ftelluric : string, optional
-          The file name of the telluric spectrum (FITS format).  If
-          `None`, then `ftelluric` will be set to `ftarget` with
-          '_tellspex' inserted before '.fits'.
+          The file name of the telluric spectrum (FITS format).
         dtt : float, optional
           The shift in wavelength to align the telluric spectrum with
           the target. [micron]
@@ -128,15 +126,14 @@ class SpeX(LongSlitSpectrometer):
         """
 
         from os import path
+        from astropy.io import fits
         from ..config import config
-
-        if ftelluric is None:
-            ftelluric = ftarget.replace('.fits', '_tellspec.fits')
 
         raw_w, raw_f, raw_e = fits.getdata(ftarget)
         tel_w, tel_f, tel_e = fits.getdata(ftelluric)
 
-        tc = np.interp(tel_w + dtt, raw_w, tel_f)
+        x = np.arange(len(tel_w))
+        tc = np.interp(x, x + dtt, tel_f)
         tar_f = raw_f * tc
         tar_e = raw_e * tc
         tar_w = raw_w
@@ -153,6 +150,7 @@ class SpeX(LongSlitSpectrometer):
             atc = 1 + (1 - at) * ext
         except ZeroDivisionError:
             atc = np.ones_like(tar_w)
+        atc[~np.isfinite(atc)] = 1.0
 
         tar_f /= atc
         tar_e /= atc
