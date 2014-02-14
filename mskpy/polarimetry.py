@@ -188,10 +188,10 @@ class HalfWavePlate(LinPol):
             self.sig_I90 = None
             self.sig_I135 = None
         else:
-            self.sig_I0 = sig_I0
-            self.sig_I45 = sig_I45
-            self.sig_I90 = sig_I90
-            self.sig_I135 = sig_I135
+            self.sig_I0 = sig_I[0]
+            self.sig_I45 = sig_I[1]
+            self.sig_I90 = sig_I[2]
+            self.sig_I135 = sig_I[3]
 
         self.correct = correct
         self.flipU = flipU
