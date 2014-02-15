@@ -252,6 +252,8 @@ class HalfWavePlate(LinPol):
 
     def __init__(self, I, sig_I=None, p_eff=1.0, sig_p_eff=0.0,
                  rc_correct=True, p_eff_correct=True, flipU=False):
+        from astropy.coordinates import Angle
+
         self.I0 = I[0]
         self.I45 = I[1]
         self.I90 = I[2]
