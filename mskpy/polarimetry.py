@@ -174,6 +174,7 @@ class LinPol(object):
         newp.rotated = True
         newp.dtheta = self.dtheta + dth
         newp.sig_dtheta = np.sqrt(self.sig_dtheta**2 + sig_dth**2)
+        return newp
 
     def table(self):
         """The data, formatted as a table.
