@@ -275,6 +275,10 @@ class HalfWavePlate(LinPol):
         self.p_eff_correct = p_eff_correct
         self.flipU = flipU
 
+        self.rotated = False
+        self.dtheta = Angle(0.0 * u.deg)
+        self.sig_dtheta = Angle(0.0 * u.deg)
+
     def __getitem__(self, k):
         if k in ['I0', 'I45', 'I90', 'I135', 'sig_I0',
                  'sig_I45', 'sig_I90', 'sig_I135']:
