@@ -152,8 +152,8 @@ class LinPol(object):
         rc_correct = self.rc_correct
         self.rc_correct = False
 
-        QI =  self.QI * c + self.UI * s
-        UI = -self.QI * s + self.UI * c
+        QI =  self.QI * c - self.UI * s
+        UI =  self.QI * s + self.UI * c
         if (self.sig_QI is None) or (self.sig_UI is None):
             sig_QI = None
             sig_UI = None
