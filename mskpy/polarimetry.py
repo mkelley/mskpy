@@ -62,7 +62,10 @@ class LinPol(object):
     """
 
     def __init__(self, I, QI, UI, sig_I=None, sig_QI=None, sig_UI=None,
-                 p_eff=1.0, sig_p_eff=0.0, rc_correct=True, p_eff_correct=True):
+                 p_eff=1.0, sig_p_eff=0.0, rc_correct=True,
+                 p_eff_correct=True):
+        from astropy.coordinates import Angle
+
         self.I = I
         self.QI = QI
         self.UI = UI
@@ -76,6 +79,10 @@ class LinPol(object):
 
         self.p_eff_correct = p_eff_correct
         self.rc_correct = rc_correct
+
+        self.rotated = False
+        self.dtheta = Angle(0.0 * u.deg)
+        self.sig_dtheta = Angle(0.0 * u.deg)
 
     @property
     def _pth(self):
@@ -108,10 +115,10 @@ class LinPol(object):
     def sig_theta(self):
         return self._pth[3]
 
-    def rotate(self, a, sig_a=None):
+    def rotate(self, dth, sig_dth=None):
         """Rotate the polarization vector.
 
-        The vector is rotated by the amount `a`, e.g.::
+        The vector is rotated by the given angle, e.g.::
           >>> print pol.theta
           0.0
           >>> print pol.rotate(90 * u.deg).theta
@@ -119,9 +126,9 @@ class LinPol(object):
 
         Parameters
         ----------
-        a : astropy Angle or Quantity
+        dth : astropy Angle or Quantity
           The amount to rotate.
-        sig_a : astropy Angle or Quantity, optional
+        sig_dth : astropy Angle or Quantity, optional
           The uncertainty in the rotation.
 
         Returns
@@ -132,17 +139,17 @@ class LinPol(object):
         """
         from astropy.coordinates import Angle
 
-        if sig_a is None:
-            sig_a = 0 * u.deg
+        if sig_dth is None:
+            sig_dth = 0 * u.deg
 
-        a = Angle(a)
-        sig_a = Angle(sig_a)
+        dth = Angle(dth)
+        sig_dth = Angle(sig_dth)
 
-        c = np.cos(2 * a).value
-        s = np.sin(2 * a).value
+        c = np.cos(2 * dth).value
+        s = np.sin(2 * dth).value
 
         # Rotate uncorrected QI, UI.
-        correct = self.rc_correct
+        rc_correct = self.rc_correct
         self.rc_correct = False
 
         QI =  self.QI * c + self.UI * s
@@ -152,18 +159,21 @@ class LinPol(object):
             sig_UI = None
         else:
             sig_QI = np.sqrt((self.sig_QI * c)**2 + (self.sig_UI * s)**2
-                             + (self.QI * 2.0 * sig_a.radian * c)**2
-                             + (self.UI * 2.0 * sig_a.radian * s)**2)
+                             + (self.QI * 2.0 * sig_dth.radian * c)**2
+                             + (self.UI * 2.0 * sig_dth.radian * s)**2)
             sig_UI = np.sqrt((self.sig_QI * s)**2 + (self.sig_UI * c)**2
-                             + (self.QI * 2.0 * sig_a.radian * s)**2
-                             + (self.UI * 2.0 * sig_a.radian * c)**2)
+                             + (self.QI * 2.0 * sig_dth.radian * s)**2
+                             + (self.UI * 2.0 * sig_dth.radian * c)**2)
 
-        self.rc_correct = correct
-        return LinPol(self.I, QI, UI, sig_I=self.sig_I,
-                      sig_QI=sig_QI, sig_UI=sig_UI,
-                      p_eff=self.p_eff, sig_p_eff=self.sig_p_eff,
-                      rc_correct=self.rc_correct,
-                      p_eff_correct=self.p_eff_correct)
+        self.rc_correct = rc_correct
+        newp =  LinPol(self.I, QI, UI, sig_I=self.sig_I,
+                       sig_QI=sig_QI, sig_UI=sig_UI,
+                       p_eff=self.p_eff, sig_p_eff=self.sig_p_eff,
+                       rc_correct=self.rc_correct,
+                       p_eff_correct=self.p_eff_correct)
+        newp.rotated = True
+        newp.dtheta = self.dtheta + dth
+        newp.sig_dtheta = np.sqrt(self.sig_dtheta**2 + sig_dth**2)
 
     def table(self):
         """The data, formatted as a table.
@@ -196,6 +206,10 @@ class LinPol(object):
         tab.meta['p_eff_applied'] = self.p_eff_correct
         tab.meta['p_eff'] = self.p_eff
         tab.meta['sig_p_eff'] = self.sig_p_eff
+        tab.meta['rotated'] = self.rotated
+        if self.rotated:
+            tab.meta['dtheta'] = self.dtheta
+            tab.meta['sig_dtheta'] = self.sig_dtheta
         return tab
 
 class HalfWavePlate(LinPol):
