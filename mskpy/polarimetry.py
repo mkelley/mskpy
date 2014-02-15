@@ -108,7 +108,7 @@ class LinPol(object):
     def sig_theta(self):
         return self._pth[3]
 
-    def rotate(self, a):
+    def rotate(self, a, sig_a=None):
         """Rotate the polarization vector.
 
         The vector is rotated by the amount `a`, e.g.::
@@ -121,6 +121,8 @@ class LinPol(object):
         ----------
         a : astropy Angle or Quantity
           The amount to rotate.
+        sig_a : astropy Angle or Quantity, optional
+          The uncertainty in the rotation.
 
         Returns
         -------
@@ -128,11 +130,18 @@ class LinPol(object):
           The rotated vector.
 
         """
+        from astropy.coordinates import Angle
 
-        c = np.cos(2 * a)
-        s = np.sin(2 * a)
+        if sig_a is None:
+            sig_a = 0 * u.deg
 
-        # We want uncorrected vectors
+        a = Angle(a)
+        sig_a = Angle(sig_a)
+
+        c = np.cos(2 * a).value
+        s = np.sin(2 * a).value
+
+        # Rotate uncorrected QI, UI.
         correct = self.rc_correct
         self.rc_correct = False
 
@@ -142,12 +151,19 @@ class LinPol(object):
             sig_QI = None
             sig_UI = None
         else:
-            sig_QI =  self.sig_QI * c + self.sig_UI * s
-            sig_UI = -self.sig_QI * s + self.sig_UI * c
+            sig_QI = np.sqrt((self.sig_QI * c)**2 + (self.sig_UI * s)**2
+                             + (self.QI * 2.0 * sig_a.radian * c)**2
+                             + (self.UI * 2.0 * sig_a.radian * s)**2)
+            sig_UI = np.sqrt((self.sig_QI * s)**2 + (self.sig_UI * c)**2
+                             + (self.QI * 2.0 * sig_a.radian * s)**2
+                             + (self.UI * 2.0 * sig_a.radian * c)**2)
 
         self.rc_correct = correct
-        return LinPol(I, QI, UI, sig_I=sig_I, sig_QI=sig_QI, sig_UI=sig_UI,
-                      correct=correct)
+        return LinPol(self.I, QI, UI, sig_I=self.sig_I,
+                      sig_QI=sig_QI, sig_UI=sig_UI,
+                      p_eff=self.p_eff, sig_p_eff=self.sig_p_eff,
+                      rc_correct=self.rc_correct,
+                      p_eff_correct=self.p_eff_correct)
 
     def table(self):
         """The data, formatted as a table.
@@ -332,9 +348,6 @@ def linear_pol(QI, UI, sig_QI=None, sig_UI=None, p_eff=1.0, sig_p_eff=0.0):
         sig_p = None
         sig_theta = None
     else:
-        #sig_p = np.sqrt((sig_QI * QI)**2 + (sig_UI * UI)**2) / p
-        #sig_QIcor2 = (sig_QI**2 + UI**2 * sig_peff**2) / peff**2
-        #sig_UIcor2 = (sig_UI**2 + QI**2 * sig_peff**2) / peff**2
         sig_p = np.sqrt((sig_QI * QI)**2 + (sig_UI * UI)**2
                         + 2 * QI**2 * UI**2 * sig_p_eff**2) / p_eff / p
         sig_theta = np.maximum(0, np.degrees(sig_p / p) / 2.0)
