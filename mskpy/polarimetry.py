@@ -38,10 +38,15 @@ class LinPol(object):
       `I`, `QI` and `UI` uncertainties.
     p_eff : float, optional
       Polarization efficiency correction.
+    QI_inst, UI_inst : float or array, optional
+      Instrumental polarization corrections.  They are subtracted from
+      `QI` and `UI`.
     rc_correct : bool, optional
       If `True`, enable the Ricean correction.
     eff_correct : bool, optional
       If `True`, enable the polarization efficiency correction.
+    inst_correct : bool, optional
+      If `True`, enable the instrumental polarization correction.
 
     Attributes
     ----------
@@ -53,6 +58,11 @@ class LinPol(object):
       Linear polarizaton position angle.
     sig_theta : astropy Angle
       Uncertainty on `theta`.
+    rotated : bool
+      `True` if this object was derived from another by rotation.
+    dth, sig_dth : astropy Angle
+      If rotated, these variables hold the rotation amount and
+      uncertainties.
 
     Methods
     -------
@@ -62,8 +72,8 @@ class LinPol(object):
     """
 
     def __init__(self, I, QI, UI, sig_I=None, sig_QI=None, sig_UI=None,
-                 p_eff=1.0, sig_p_eff=0.0, rc_correct=True,
-                 p_eff_correct=True):
+                 p_eff=1.0, sig_p_eff=0.0, QI_inst=None, UI_inst=None,
+                 rc_correct=True, p_eff_correct=True, inst_correct=True):
         from astropy.coordinates import Angle
 
         self.I = I
@@ -77,12 +87,38 @@ class LinPol(object):
         self.p_eff = p_eff
         self.sig_p_eff = sig_p_eff
 
+        self.QI_inst = QI_inst
+        self.UI_inst = UI_inst
+        
         self.p_eff_correct = p_eff_correct
         self.rc_correct = rc_correct
+        self.inst_correct = inst_correct
 
         self.rotated = False
         self.dtheta = Angle(0.0 * u.deg)
         self.sig_dtheta = Angle(0.0 * u.deg)
+
+    @property
+    def QI(self):
+        if self.inst_correct and (self.QI_inst is not None):
+            return self._QI - self.QI_inst
+        else:
+            return self._QI
+
+    @QI.setter
+    def QI(self, QI):
+        self._QI = QI
+
+    @property
+    def UI(self):
+        if self.inst_correct and (self.UI_inst is not None):
+            return self._UI - self.UI_inst
+        else:
+            return self._UI
+
+    @UI.setter
+    def UI(self, UI):
+        self._UI = UI
 
     @property
     def _pth(self):
@@ -222,12 +258,16 @@ class HalfWavePlate(LinPol):
       Intensities from each polarization angle: `[I0, I45, I90,
       I135]`.  Each intensity may in turn be an array.
     sig_I : array, optional
-      Intensity uncertainties, same form as `I`.
+      Intensity uncertainties, same form as `Ie`.
     p_eff, sig_p_eff : float, optional
       Polarization efficiency and uncertainty.
+    QI_inst, UI_inst : float or array, optional
+      Instrumental polarzation corrections.  See `LinPol`.
     rc_correct : bool, optional
     eff_correct : bool, optional
-      Ricean and polarization efficiency correction flags.  See `LinPol`.
+    inst_correct : boo, optional
+      Ricean, polarization efficiency, and instrumental polarization
+      correction flags.  See `LinPol`.
     flipU : bool, optional
       Set to `True` to reverse the sense of the `U` parameter.
 
@@ -252,7 +292,8 @@ class HalfWavePlate(LinPol):
     """
 
     def __init__(self, I, sig_I=None, p_eff=1.0, sig_p_eff=0.0,
-                 rc_correct=True, p_eff_correct=True, flipU=False):
+                 QI_inst=None, UI_inst=None, rc_correct=True,
+                 p_eff_correct=True, inst_correct=True, flipU=False):
         from astropy.coordinates import Angle
 
         self.I0 = I[0]
@@ -273,9 +314,13 @@ class HalfWavePlate(LinPol):
 
         self.p_eff = p_eff
         self.sig_p_eff = sig_p_eff
-            
+
+        self.QI_inst = QI_inst
+        self.UI_inst = UI_inst
+
         self.rc_correct = rc_correct
         self.p_eff_correct = p_eff_correct
+        self.inst_correct = inst_correct
         self.flipU = flipU
 
         self.rotated = False
@@ -306,12 +351,15 @@ class HalfWavePlate(LinPol):
                 self.sig_I90 is None, self.sig_I135 is None)):
             return None
         else:
-            return np.sqrt(self.sig_I0**2 + self.sig_I45**2 + self.sig_I90**2
-                           + self.sig_I135**2)
+            return np.sqrt(self.sig_I0**2 + self.sig_I45**2
+                           + self.sig_I90**2 + self.sig_I135**2)
 
     @property
     def QI(self):
-        return (self.I0 - self.I90) / (self.I0 + self.I90)
+        QI = (self.I0 - self.I90) / (self.I0 + self.I90)
+        if self.inst_correct and (self.QI_inst is not None):
+            QI -= self.QI_inst
+        return QI
 
     @property
     def sig_QI(self):
@@ -324,7 +372,10 @@ class HalfWavePlate(LinPol):
     @property
     def UI(self):
         scale = -1 if self.flipU else 1
-        return scale * (self.I45 - self.I135) / (self.I45 + self.I135)
+        UI = scale * (self.I45 - self.I135) / (self.I45 + self.I135)
+        if self.inst_correct and (self.UI_inst is not None):
+            UI -= self.UI_inst
+        return UI
 
     @property
     def sig_UI(self):
