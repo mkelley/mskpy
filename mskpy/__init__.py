@@ -12,6 +12,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    asteroid    - Defines an asteroid for observing, flux estimates.
    calib       - Photometric calibration.
    comet       - Defines a comet for observing, flux estimates.
+   config      - mskpy configuration parameters.
    ephem       - Solar System object ephemerides (requires PySPICE).
    graphics    - Helper functions for making plots.
    image       - Image generators, analysis, and processing.
@@ -19,6 +20,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    modeling    - For fitting models to data.
    models      - Surface and dust models.
    observing   - Tools for observing preparations.
+   polarimetry - Classes and functions for polarimetry.
    util        - Grab bag of utility functions.
 
 """
