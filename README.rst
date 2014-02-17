@@ -16,6 +16,7 @@ Caution
 
 I hope you find mskpy useful, but use at your own risk.
 
+
 Configuration
 =============
 
@@ -148,3 +149,22 @@ Then, execute the following::
 
 .. image:: doc/images/am_plot.png
 
+
+Polarimetry
+-----------
+
+Aperture polarimetry from a half-wave plate polarimeter::
+
+  >>> import mskpy.polarimetry as pol
+  >>> # fluxes and uncertainties from position angles: 0, 45, 90, and 135:
+  >>> I = [1.0, 1.1, 1.0, 1.0]
+  >>> sig_I = [0.01, 0.01, 0.01, 0.01]
+  >>> p = pol.HalfWavePlate(I, sig_I)
+  >>> print 'p = {:.3f} +/- {:.3f} %'.format(p.p, p.sig_p)
+  >>> print ' at {:.1f} +/- {:.1f} deg'.format(p.theta, p.sig_theta)
+  p = 0.047 +/- 0.007 %
+  at 45.0 +/- 4.1 deg
+
+Polarimetry classes can also take arrays for the wave plate positions,
+including images.  There are keywords that allow for instrumental
+corrections to Q/I, U/I and total polarization.
