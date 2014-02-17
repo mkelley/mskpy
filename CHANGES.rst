@@ -1,158 +1,69 @@
-2.1.14
-------
-
-- Handle RuntimeError when importing `graphics`.
-
-- Add min_score parameter to `spatial_match`.
-
-
-2.1.13
-------
-
-- New `catalogs`, currently for matching lists of sources together.
-
-- Fix `observing.mko` timezone.
-
-- `observing.am_plot`
-
-  - Better handles x-axis ticks, which will automatically update after
-    changing axis limits.
-
-  - The legend now uses a monospace font.
-
-- `graphics.nicelegend` now handles font properties via `prop`
-  keyword.
-
-- Fix import crash when pyds9 is not installed.
-
-
-2.1a.12
-------
-
-- New `graphics.ds9`: if pyds9 is installed, `graphics.ds9` will
-  return a `ds9.ds9` instance with a `view` method for more lazy
-  display calls.
-
-- `ephem`: Fix some planet NAIF IDs.
-
-- Fix `graphics` importing.
-
-2.1.11
-------
-
-- `observing`
-
-  - Fix `am_plot` crash, draw plot at the end, add Observer to the LST
-    axis label, respect `fig` keyword.
-
-  - `Observer`: add name, make `date` a property that can be set at
-    any time.
-
-  - Fix `gaussian` crash.
-
-  - Add `hst.wfc3uvis`
-
-  - Fix `spitzer.irac.ps` units
-
-  - Fix `linecut` fatal crash.
-
-2.1.10
-------
-
-- Bug fix `hms2dh` crash for any input.
-
-- Add `lowell` and `mko` observers to `observing`.
-
-- Fix `crclean` fatal crash.  I'm not sure algorithm is working
-  properly, though.
-
-- Added `linefit` to `util`.
-
-- Let `image.stack2grid` work for any number of images.
-
-2.1.9
+2.2.0
 -----
 
-- Bug fix `gcentroid`: drop `astropy.modeling` and use
-  `scipy.optimize`.
+- New `polarimetry` module.
+- Removed `graphics.ds9`.  The XPA interface in `pyds9` isn't working
+  well on my setup.
 
-- New `util.timestamp`.
 
-2.1.8
------
+2.1.0 to 2.1.14
+---------------
 
-Bug fixes: `Geom` crash, `KeplerState` comet name from `SpiceState`,
-scripts/ephemeris to use correct end date.
+New features
+^^^^^^^^^^^^
 
-2.1.7
------
-
+- `catalogs`, currently limited to spatially matching lists of sources
+  together.
+- `graphics.ds9`: if pyds9 is installed, `graphics.ds9` is a class
+  with a `view` method for more lazy display calls.
+- `observing` module, updated from `mskpy1`.
+- `image`
+  - `combine`, more efficient than `util.meanclip` for 2D arrays.
+  - `bgphot` for background photometry.
+- Instruments: `hst.wfc3uvis`, `vis.OptiPol`.
+- `util`
+  - `linefit` for simple line fitting with uncertainties.
+  - `timestamp` string generator.
 - New `util.lb2xyz`.
-
 - New `ephem.state.KeplerState`.
+  - `KeplerState` gets comet name from `SpiceState`.
 
-- Optimize `ephem.state.State` with `rv` method.
-
-
-2.1.6
------
-
-- `util.date_len` bug fixes.
-
-- `ephem.ssobj.getxyz` fix: wasn't running at all.
-
-2.1.5
------
-
-- New `image.combine`, more efficient than `util.meanclip` for 2D
-  arrays.
-
-- Re-write `image.mkflat` to only do the normalization.
-
-2.1.4
------
-
-- `image.gcentroid`
-
-  - Fixes for new `astropy.modeling` API.
-
-  - Contrain fits to within the box.
-
-- Bug fix in `anphot` for single apertures.
-
-2.1.3
------
-
-- `observing` airmass charts now use different line styles, as well as
-  different colors.
-
-2.1.2
------
-
-- Fix `observing` crash for JD to `astropy` `Time` conversion.
-
-2.1.1
------
-
-Critical Fixes
+Critical fixes
 ^^^^^^^^^^^^^^
 
-- `image.fwhm` renamed from `fwhmfit` and now actually respects the
-  `bg` keyword.
+- `image`
+  - Fix `linecut` fatal crash.
+  - Fix `crclean` fatal crash.  I'm not sure algorithm is working
+    properly, though.
+  - `fwhm` renamed from `fwhmfit` and now actually respects the `bg`
+    keyword.
+  - Bug fix in `anphot` for single apertures.
+- `ephem`
+  - `Geom` crash fix.
+  - `ssobj.getxyz` fix: wasn't running at all.
+- scripts/ephemeris now uses correct end date.
+- `util`
+  - Fix `gaussian` crash.
+  - Fix `hms2dh` crash given any input.
+  - `date_len` bug fixes.
 
-New Features
-^^^^^^^^^^^^
+Other improvements
+^^^^^^^^^^^^^^^^^^
 
-- `image.bgphot` function.
-
-
-2.1.0
------
-
-New Features
-^^^^^^^^^^^^
-
-- New `observing` module, updated from `mskpy1`.
+- `graphics`
+  - Fix exception handling (e.g., when `matplotlib` does not exist)
+    during `graphics` importing.
+  - `nicelegend` now handles font properties via `prop` keyword.
+- Fix `spitzer.irac.ps` units.
+- `image`
+  - Let `stack2grid` work for any number of images.
+  - `gcentroid`:
+    - Uses `scipy.optimize`.
+    - Contrain fits to within the box.
+  - Re-write `mkflat` to only do the normalization.
+- `ephem`:
+  - Fix some planet NAIF IDs.
+  - Optimize `state.State` with `rv` method.
 
 
 2.0.0
@@ -170,57 +81,39 @@ New Features
 ^^^^^^^^^^^^
 
 - New `ephem` module.
-
   - `SolarSysObject` for object ephemerides and, possibly, flux
     estimates.
-
   - `SpiceState` to retrieve positions and velocities from SPICE
     kernels.  `ephem` includes a set of default `SolarSysObject`s,
     e.g., `Sun`, `Earth`, `Spitzer` (if the kernels are available).
-
   - Use `getspiceobj` to easily create a `SolarSysObject` with a
     `SpiceState`.
-
 - `comet` and `asteroid` modules define the `Asteroid`, `Coma`, and
   `Comet` `SolarSysObject`s for flux estimates of comets and
   asteroids.
-
 - `Geom` is completely rewritten, and should be much more useful.
-
 - `models` module, including `surfaces` and `dust`.
-
   - `NEATM`, `DAp`, and `HG` for thermal and reflected light from
     surfaces.
-
   - `AfrhoScattered` and `AfrhoThermal` for comet comae described with
     the Afrho parameter.
-
   - Various phase functions for dust and surfaces: `phaseHG`,
     `lambertian`, `phaseK`, `phaseH`, `phaseHM`.
-
 - New `modeling` module (mirroring `astropy.modeling`) for fitting
   models to data.
-
 - `Asteroid`, `Coma`, and `Comet` objects for easy estimates of their
   fluxes.  These objects package together `SpiceObject` and `models`.
-
 - A few key functions are now `astropy` `Quantity` aware.  E.g.,
   `util.Planck`, `calib.solar_flux`.
-
 - New time functions in `util`:
-
   - `cal2iso` to ISO format your lazy calendar dates.
-
   - `cal2doy` and `jd2doy` for time to day of year conversions.
-
   - `cal2time` and `jd2time` to lazily generate `astropy.time.Time`
     objects.
-
 - New `instruments` module.  It can currently be used to estimate
   fluxes from comets and asteroids, but may have other uses in the
   future.  Includes `midir` sub-module with `MIRSI`, and `spitzer`
   sub-module with `IRAC`.
-
 - New `scripts` directory for command-line scripts.  Currently
   includes an ephemeris generator.
 
@@ -228,83 +121,49 @@ Changes From mskpy v1.7.0
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - `math` renamed `util` and sorted:
-
   - `archav` and `Planck` return Quantities!
-
   - `nanmedian` now considers `inf` as a real value.
-
   - `numalpha` replaced with `leading_num_key`.
-
   - `dminmax` renamed `mean2minmax`.
-
   - `powerlaw` renamed `randpl`.
-
   - `pcurve` renamed `polcurve`
-
   - Added `projected_vector_angle` and `vector_rotate`.
-
   - Rather than returning ndarrays, `takefrom` now returns lists,
     tuples, etc., based on the input arrays' type.
-
   - `spectral_density_sb` for `astropy.unit` surface brightness
     conversions.
-
   - `autodoc` to automatically update a module's docstring.
-
 - `calib`:
-
   - `cohenstandard` renamed `cohen_standard`.
-
   - `filtertrans` renamed `filter_trans`
-
   - `solarflux` renamed `solar_flux`
-
 - `spice` renamed `ephem`:
-
   - Removed `get_observer_xyz`, `get_planet_xyz`, `get_spitzer_xyz`,
     `get_herschel_xyz`, `get_comet_xyz`.
-
   - `getgeom` code incorporated into `Geom`.
-
   - `summarizegeom` code incorporated into `Geom`.
-
 - `Geom`, `getgeom`, and `summarizegeom` moved from `observing` to
   `ephem`.
-
 - `time` functions moved into `util`:
-
   - `date2X`, `jd2dt`, `s2dt`, `s2jd` removed in favor of `cal2time`,
     `jd2time`, or `date2time`.
-
   - `jd2dt` removed in favor of `jd2time`.
-
   - `dms2dd` renamed `hms2dh`.  Accepts `format`.
-
   - `doy2md` now requires year.
-
 - `orbit.state2orbit` moved into `util`.
-
 - `image` reorganized.  FITS and WCS functions moved to `util`.
-
   - `combine`, `imcombine`, `jailbar`, `phot`, `zarray` didn't make it.
-
   - Argument names made more consistent between all functions.  For
     example, `center` and `cen` renamed `yx`, `sample` renamed
     `subsample`.  Functions which previously took two coordinates, `y`
     and `x` now take one `yx`.
-
   - New `refine_center` to handle refining `rarray` and `tarray`
     subsampling.
-
   - `rarray` and `tarray` subsample parameters changed from bool to
     int so the exact subsampling factor can be specified.
-
   - Re-write `azavg` and `radprof` to use `anphot`.
-
   - New `gcentroid`.
-
   - `bgfit` arguments renamed.  Only 2D uncertainty maps are allowed.
-
   - `mkflat` re-written since `imcombine` was removed.
 
 Bug fixes
