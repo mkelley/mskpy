@@ -1388,7 +1388,8 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
             else:
                 return y.mean()
         else:
-            raise ValueError("There is no axis {0} in the input array".format(axis))
+            raise ValueError("There is no axis {0} in the input"
+                             " array".format(axis))
 
     if isinstance(lsig, tuple):
         lsig = list(lsig)
@@ -1414,7 +1415,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
     for i in range(maxiter):
         y = x.flatten()[good]
         medval = np.median(y)
-        sig = y.std()
+        sig = y.std(dtype=np.float64)
 
         keep = (y > (medval - lsig * sig)) * (y < (medval + hsig * sig))
         cutfrac = float(abs(good.size - keep.sum())) / good.size
@@ -1429,7 +1430,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
 
     y = x.flatten()[good]
     if full_output:
-        return y.mean(), y.std(), good, i+1
+        return y.mean(), y.std(dtype=np.float64), good, i+1
     else:
         return y.mean()
 
