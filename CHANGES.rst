@@ -1,3 +1,8 @@
+2.2.1
+-----
+
+- Critical fix to meanclip: use higher precision float64 by default.
+
 2.2.0
 -----
 
