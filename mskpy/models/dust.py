@@ -6,6 +6,10 @@ dust --- Models for dust
 .. autosummary::
    :toctree: generated/
 
+   Activity
+   --------
+   acrit
+
    Dust Models
    -----------
    AfrhoRadiation
@@ -26,6 +30,8 @@ import astropy.units as u
 from astropy.units import Quantity
 
 __all__ = [
+    'acrit',
+
     'AfrhoRadiation',
     'AfrhoScattered',
     'AfrhoThermal',
@@ -34,6 +40,40 @@ __all__ = [
     'phaseH',
     'phaseHM'
 ]
+
+def acrit(Q, vth, R, rho_g=Quantity(1, u.g / u.cm**3),
+          rho_n=Quantity(0.3, u.g / u.cm**3), f_active=1.0):
+    """Maximum liftable grain radius from a spherical nucleus.
+
+    See Meech and Svoren 2004, Comets II.
+
+    Parameters
+    ----------
+    Q : Quantity
+      Mass production rate of the driving gas.
+    vth : Quantity
+      Gas expansion speed.
+    R : Quantity
+      Nucleus radius.
+    rho_g : Quantity, optional
+      Grain density.
+    rho_n : Quantity, optional
+      Nucleus mean density.
+    f_active : float, optional
+      Active fraction of the nucleus.
+    
+    Returns
+    -------
+    a : Quantity
+      Maximum liftable grain radius.
+
+    """
+
+    from numpy import pi
+    import astropy.constants as c
+
+    a = 9 * Q * vth / (64 * pi**2 * rho_g * rho_n * R**3 * c.G)
+    return a.to(u.um)
 
 class AfrhoRadiation(object):
     """Light from a comet coma parameterized by Afrho, or similar.
