@@ -107,13 +107,15 @@ def axcolor(color):
     plt.rc('axes', edgecolor=color)
     plt.rc('axes', labelcolor=color)
 
-def circle(x, y, r, segments=100, **kwargs):
+def circle(x, y, r, ax=None, segments=100, **kwargs):
     """Draw a circle.
 
     Parameters
     ----------
     x, y, r : float or array
       x coordinate, y coordinate, radius.
+    ax : matplotlib Axes
+      Plot on this axis.
     segments : int, optional
       The number of line segements in the circle.
     **kwargs
@@ -121,20 +123,23 @@ def circle(x, y, r, segments=100, **kwargs):
 
     """
 
+    if ax is None:
+        ax = plt.gca()
+
     if np.iterable(x) and np.iterable(y) and np.iterable(r):
         for i in xrange(len(x)):
-            circle(x[i], y[i], r[i], **kwargs)
+            circle(x[i], y[i], r[i], ax=ax, **kwargs)
     elif np.iterable(x) and np.iterable(y):
         for i in xrange(len(x)):
-            circle(x[i], y[i], r, **kwargs)
+            circle(x[i], y[i], r, ax=ax, **kwargs)
     elif np.iterable(r):
         for i in xrange(len(r)):
-            circle(x, y, r[i], **kwargs)
+            circle(x, y, r[i], ax=ax, **kwargs)
     else:
         th = np.linspace(0, 2 * np.pi, segments)
         xx = r * np.sin(th) + x
         yy = r * np.cos(th) + y
-        plt.plot(xx, yy, **kwargs)
+        ax.plot(xx, yy, **kwargs)
 
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
@@ -246,7 +251,7 @@ def nicelegend(*args, **kwargs):
     return plt.legend(*args, **kwargs)
 
 
-def niceplot(ax=None, axfs='large', lfs='x-large', tightlayout=True,
+def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
              **kwargs):
     """Pretty up a plot for publication.
 
