@@ -123,18 +123,18 @@ def circle(x, y, r, segments=100, **kwargs):
 
     if np.iterable(x) and np.iterable(y) and np.iterable(r):
         for i in xrange(len(x)):
-            circle(x[i], y[i], r[i], **keywords)
+            circle(x[i], y[i], r[i], **kwargs)
     elif np.iterable(x) and np.iterable(y):
         for i in xrange(len(x)):
-            circle(x[i], y[i], r, **keywords)
+            circle(x[i], y[i], r, **kwargs)
     elif np.iterable(r):
         for i in xrange(len(r)):
-            circle(x, y, r[i], **keywords)
+            circle(x, y, r[i], **kwargs)
     else:
         th = np.linspace(0, 2 * np.pi, segments)
         xx = r * np.sin(th) + x
         yy = r * np.cos(th) + y
-        plt.plot(xx, yy, **keywords)
+        plt.plot(xx, yy, **kwargs)
 
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
