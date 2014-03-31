@@ -56,6 +56,8 @@ class Coma(SolarSysObject):
     thermal : AfrhoRadiation, optional
       A model for thermal emission from dust or `None` to pass
       `kwargs` `AfrhoThermal`.
+    name : string, optional
+      A name for this coma.
     **kwargs
       Keywords for `AfrhoRadiation` and/or `AfrhoThermal`, when
       `reflected` and/or `thermal` are `None`, respectively.
@@ -64,11 +66,10 @@ class Coma(SolarSysObject):
     _Afrho1 = None
 
     def __init__(self, state, Afrho1, k=-2, reflected=None, thermal=None,
-                 **kwargs):
-        assert isinstance(state, State), "state must be a State"
-        assert isinstance(Afrho1, u.Quantity), "Afrho1 must be a Quantity"
+                 name=None, **kwargs):
+        assert u.cm.is_equivalent(Afrho1), "Afrho1 must have units of length"
 
-        self.state = state
+        SolarSysObject.__init__(self, state, name=name)
         self.k = k
 
         if reflected is None:
@@ -92,7 +93,7 @@ class Coma(SolarSysObject):
 
     @Afrho1.setter
     def Afrho1(self, a):
-        assert isinstance(a, u.Quantity)
+        assert u.cm.is_equivalent(a), "Afrho1 must have units of length"
         self._Afrho1 = a
         self.thermal.Afrho = 1 * a.unit
         self.reflected.Afrho = 1 * a.unit
@@ -168,6 +169,8 @@ class Comet(SolarSysObject):
     coma : dict or Coma
       The coma of the comet as a `Coma` instance or a dictionary of
       keywords to initialize a new `Coma`.
+    name : string, optional
+      A name for this comet.
 
     Attributes
     ----------
@@ -204,9 +207,11 @@ class Comet(SolarSysObject):
 
     """
 
-    def __init__(self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict()):
+    def __init__(self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict(),
+                 name=None):
         assert isinstance(state, State)
         self.state = state
+        self.name = name
 
         if isinstance(nucleus, dict):
             self.nucleus = Asteroid(self.state, 2 * R, Ap, **nucleus)
