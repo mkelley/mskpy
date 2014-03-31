@@ -92,7 +92,10 @@ def ct2lst(date, lon, tz):
 
     d = date2time(date)
     jd = d.jd
-    tzoff = tz if isinstance(tz, float) else tz2utc(d).total_seconds() / 3600
+    if isinstance(tz, float):
+        tzoff = tz
+    else:
+        tzoff = tz2utc(d, tz).total_seconds() / 3600.0
 
     jd0 = np.round(jd - tzoff / 24.0 - 1.0) + 0.5  # JD for 0h UT
     T = (jd - 2451545.0) / 36525  # JD2000 = 2451545
@@ -124,7 +127,7 @@ def ct2lst0(date, lon, tz):
 
     """
 
-    from ..util import date2time, tz2utc
+    from ..util import date2time
 
     d = date2time(date)
     jd = round(d.jd - 0.5) + 0.5
