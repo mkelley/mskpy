@@ -61,6 +61,42 @@ class BlackbodyEmission(ParametricModel):
         result = self.eval(wave, self.param_sets)
         return _convert_output(result, format)
 
+class LinearReflectance(ParametricModel):
+    """Reflectance parameterized by a linear slope with wavelength.
+
+    Parameters
+    ----------
+    R0 : float
+    slope : float
+      `R = R0 + slope * 10 * (wave - 0.55 um)`, where slope has
+      units % per 0.1 um.
+
+    """
+    param_names = ['R0', 'slope']
+    deriv = None  # compute numerical derivatives
+
+    def __init__(self, scale, slope, param_dim=1):
+        self._scale = Parameter(name='scale', val=scale, mclass=self,
+                                param_dim=param_dim)
+        self._slope = Parameter(name='slope', val=scale, mclass=self,
+                                param_dim=param_dim)
+
+        ParametricModel.__init__(self, self.param_names, n_inputs=1,
+                                 n_outputs=1, param_dim=param_dim)
+        self.linear = True
+
+    def eval(self, wave, params):
+        import astropy.units as u
+
+        w = u.Quantity(wave, u.um)
+        return params[0] + params[1] * 10 * (wave - 0.55 * u.um)
+
+    def __call__(self, wave):
+        from astropy.modeling import _convert_input, _convert_output
+        wave, format = _convert_input(wave, self.param_dim)
+        result = self.eval(wave, self.param_sets)
+        return _convert_output(result, format)
+
 class ScatteredSunlight(ParametricModel):
     """Scattered sunlight.
 
@@ -90,7 +126,7 @@ class ScatteredSunlight(ParametricModel):
 
         ParametricModel.__init__(self, self.param_names, n_inputs=1,
                                  n_outputs=1, param_dim=param_dim)
-        self.linear = False
+        self.linear = True
 
         self._wave, self._flux = np.loadtxt(_e490_sm).T
         self._wave *= u.um
