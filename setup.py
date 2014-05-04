@@ -7,21 +7,6 @@ class my_install(install):
         install.run(self)
         import mskpy.config
 
-class PyTest(Command):
-    user_options = []
-    def initialize_options(self):
-        pass
-    def finalize_options(self):
-        pass
-    def run(self):
-        import sys
-        import subprocess
-        errno = subprocess.call([sys.executable, 'setup.py', 'build_ext',
-                                 '--inplace'])
-        errno = subprocess.call([sys.executable, 'setup.py', 'build'])
-        errno = subprocess.call(['ipython', 'runtests.py', 'tests/'])
-        raise SystemExit(errno)
-
 def find_data_files():
     import os
     filelist = []

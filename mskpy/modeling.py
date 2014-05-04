@@ -52,7 +52,7 @@ class BlackbodyEmission(ParametricModel):
         from ..util import planck
         f = params[0] * planck(wave, params[1], unit=self.unit)
         w0 = 0.29e4 / params[1]
-        f /= planck(w0, params[1], unit=self.unit).value
+        f /= np.pi * planck(w0, params[1], unit=self.unit / self.sr).value
         return f
 
     def __call__(self, wave):
