@@ -6,7 +6,9 @@ modeling --- Models for fitting data.
 .. autosummary::
    :toctree: generated/
 
-   ComaSED
+   BlackbodyEmission
+   LinearReflectance
+   ScatteredSunlight
 
 """
 
@@ -16,8 +18,48 @@ import astropy.units as u
 from astropy.modeling import Parameter, ParametricModel
 
 __all__ = [
-    'ComaSED'
+    #'ComaSED'
 ]
+
+class BlackbodyEmission(ParametricModel):
+    """Single temperature, blackbody emission.
+
+    Parameters
+    ----------
+    scale : float
+      Planck function scale factor.  The Planck function is first
+      normalized to its peak value.
+    T : float
+      Temperature (K).
+    unit : astropy unit, optional
+      The output flux density units.
+
+    """
+    param_names = ['scale', 'T']
+    deriv = None  # compute numerical derivatives
+
+    def __init__(self, scale, T, unit=u.Unit('W/(m2 um)'), param_dim=1):
+        self._scale = Parameter(name='scale', val=scale, mclass=self,
+                                param_dim=param_dim)
+        self._T = Parameter(name='T', val=T, mclass=self, param_dim=param_dim)
+        self.unit = unit
+
+        ParametricModel.__init__(self, self.param_names, n_inputs=1,
+                                 n_outputs=1, param_dim=param_dim)
+        self.linear = False
+
+    def eval(self, wave, params):
+        from ..util import planck
+        f = params[0] * planck(wave, params[1], unit=self.unit)
+        w0 = 0.29e4 / params[1]
+        f /= planck(w0, params[1], unit=self.unit).value
+        return f
+
+    def __call__(self, wave):
+        from astropy.modeling import _convert_input, _convert_output
+        wave, format = _convert_input(wave, self.param_dim)
+        result = self.eval(wave, self.param_sets)
+        return _convert_output(result, format)
 
 class ComaSED(ParametricModel):
     """A simple, semi-empirical coma SED, based on Afrho.
