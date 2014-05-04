@@ -15,13 +15,16 @@ modeling --- Models for fitting data.
 from __future__ import print_function
 import numpy as np
 import astropy.units as u
-from astropy.modeling import Parameter, ParametricModel
+from astropy.modeling import Parameter, FittableModel
 
 __all__ = [
     #'ComaSED'
 ]
 
-class BlackbodyEmission(ParametricModel):
+# Need astropy v0.4 for models.  BlackbodyEmission is updated, the
+# other are not.
+
+class BlackbodyEmission(FittableModel):
     """Single temperature, blackbody emission.
 
     Parameters
@@ -35,31 +38,28 @@ class BlackbodyEmission(ParametricModel):
       The output flux density units.
 
     """
-    param_names = ['scale', 'T']
-    deriv = None  # compute numerical derivatives
+    scale = Parameter()
+    T = Parameter()
+    fit_deriv = None
 
-    def __init__(self, scale, T, unit=u.Unit('W/(m2 um)'), param_dim=1):
-        self._scale = Parameter(name='scale', val=scale, mclass=self,
-                                param_dim=param_dim)
-        self._T = Parameter(name='T', val=T, mclass=self, param_dim=param_dim)
+    def __init__(self, scale, T, unit=u.Unit('W/(m2 um)'), param_dim=1,
+                 **constraints):
+        super(BlackbodyEmission, self).__init__(
+            scale=scale, T=T, param_dim=param_dim, **constraints)
+
         self.unit = unit
 
-        ParametricModel.__init__(self, self.param_names, n_inputs=1,
-                                 n_outputs=1, param_dim=param_dim)
-        self.linear = False
-
-    def eval(self, wave, params):
+    @staticmethod
+    def eval(self, wave, scale, T):
         from ..util import planck
         f = params[0] * planck(wave, params[1], unit=self.unit)
         w0 = 0.29e4 / params[1]
         f /= np.pi * planck(w0, params[1], unit=self.unit / self.sr).value
         return f
 
+    @format_input
     def __call__(self, wave):
-        from astropy.modeling import _convert_input, _convert_output
-        wave, format = _convert_input(wave, self.param_dim)
-        result = self.eval(wave, self.param_sets)
-        return _convert_output(result, format)
+        return self.eval(wave, *self.param_sets)
 
 class LinearReflectance(ParametricModel):
     """Reflectance parameterized by a linear slope with wavelength.

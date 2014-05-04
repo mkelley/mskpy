@@ -25,6 +25,16 @@ created.  If not simply execute ``python -c 'import mskpy.config'``.
 This file currently contains paths to your SPICE kernels and Cohen
 mid-IR standards (both are not required to run mskpy).
 
+Testing
+=======
+
+Tests require py.test.  Change directory to `tests` in the source
+directory.  Run `py.test` to run all the tests, or `py.test
+test_MODULE.py` to test a particular module.
+
+If the tests fail with the IPython error "ValueError: fallback
+required, but not specified," use the `-s` option with `py.test`.
+
 
 Examples
 ========
