@@ -61,6 +61,58 @@ class BlackbodyEmission(ParametricModel):
         result = self.eval(wave, self.param_sets)
         return _convert_output(result, format)
 
+class ScatteredSunlight(ParametricModel):
+    """Scattered sunlight.
+
+    The solar spectrum is the smoothed E490 from `calib.solar_flux`.
+
+    Parameters
+    ----------
+    scale : float
+      Spectrum scale factor, equal to `(rh / 1 AU)**2 * (delta / 1 m)**2`,
+      where `rh` is the sun-target distance, `delta` is the
+      target-observer distance.
+    unit : astropy unit, optional
+      The output flux density units.
+
+    """
+    param_names = ['scale']
+    deriv = None  # compute numerical derivatives
+
+    def __init__(self, scale, unit=u.Unit('W/(m2 um)'), param_dim=1):
+        from scipy.interpolate import interp1d
+        import astropy.units as u
+        from .calib import _e490_sm
+
+        self._scale = Parameter(name='scale', val=scale, mclass=self,
+                                param_dim=param_dim)
+        self.unit = unit
+
+        ParametricModel.__init__(self, self.param_names, n_inputs=1,
+                                 n_outputs=1, param_dim=param_dim)
+        self.linear = False
+
+        self._wave, self._flux = np.loadtxt(_e490_sm).T
+        self._wave *= u.um
+        self._flux *= u.W / u.m**2 / u.um
+        if self._flux.unit != self.unit:
+            self._flux = self._flux.to(self.unit,
+                                       u.spectral_density(self._wave))
+        self.solar_interp = interp1d(self._wave.value, self._flux.value)
+
+    def eval(self, wave, params):
+        if not np.iterable(wave):
+            f = self.solar_interp([wave])[0]
+        else:
+            f = self.solar_interp(wave)
+        return f * params[0] * self._flux.unit
+
+    def __call__(self, wave):
+        from astropy.modeling import _convert_input, _convert_output
+        wave, format = _convert_input(wave, self.param_dim)
+        result = self.eval(wave, self.param_sets)
+        return _convert_output(result, format)
+
 class ComaSED(ParametricModel):
     """A simple, semi-empirical coma SED, based on Afrho.
 
