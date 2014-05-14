@@ -1590,6 +1590,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
       sigma.
 
     """
+    from scipy import stats
 
     def spearmanZ(x, y):
         N = len(x)
