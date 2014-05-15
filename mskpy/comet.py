@@ -14,6 +14,7 @@ comet --- Comets!
 
    Functions
    ---------
+   afrho2Q
    flux2Q
    fluxd2afrho
    fluxd2efrho
@@ -24,6 +25,7 @@ comet --- Comets!
 __all__ = [
     'Coma',
     'Comet',
+    'afrho2Q',
     'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
@@ -357,7 +359,85 @@ def flux2Q(fgas, wave, geom, g, rap, v):
 
     return (2 * N * v / pi / rho).decompose()
 
+def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
+            rho_g=1 * u.Unit('g/cm3'), arange=[0.1, 1e4] * u.um):
+    """Convert Afrho to dust production rate.
+
+    The conversion assumes Afrho is measured within the 1/rho regime,
+    and allows for a size-dependent expansion speed, and power-law
+    size distributions.
+
+      Q = 2 / (rho pi) \int_a0^a1 n(a) m(a) v(a) da
+
+    where rho is the projected linear aperture radius at the distance
+    of the comet, the particle radii range from a0 to a1, n(a) is the
+    differential size distribution, m(a) is the mass of a grain with
+    radius a, v(a) is the expansion speed of a grain with radius a.
+
+    Parameters
+    ----------
+    Afrho : Quantity
+      The Afrho value (at a phase angle of 0 deg).
+    rap : Quantity
+      The angular or linear raidus of the projected aperture within
+      which `Afrho` was measured.
+    geom : dictionary of Quantity
+      The observation geometry via keywords `rh`, `delta`.
+    k : float
+      The power-law slope of the differential size distribution.
+    v1 : Quantity
+      The expansion speed of 1 micron radius grains ejected at 1 AU
+      from the sun.
+    u1, u2 : float, optional
+      Defines the relationship between expansion speed, grain radius,
+      and heliocentric distance: v = v1 a^{u1} rh^{u2}.
+    Ap : float, optional
+      The geometric albedo of the dust at the same wavelength as
+      `Afrho` is measured.
+    rho_g : Quantity, optional
+      The dust grain density.
+    arange : Quanitity array, optional
+      The minimum and maximum grain sizes in the coma.
+
+    Returns
+    -------
+    Q : Quantity
+      The dust mass production rate.
+
+    """
+
+    from scipy.integrate import quad
+    from numpy import pi
+
+    Afrho = u.Quantity(Afrho, u.m)
+    rh = u.Quantity(geom['rh'], u.au)
+    delta = u.Quantity(geom['delta'], u.au)
+
+    try:
+        rho = u.Quantity(rap, u.m)
+    except u.UnitsError:
+        try:
+            rho = (u.Quantity(rap, u.arcsec) * 725e3 * u.m / u.arcsec / u.au
+                   * delta)
+        except u.UnitsError:
+            print 'rap must have units of length or angluar size.'
+            raise
+
+    v1 = u.Quantity(v1, u.m / u.s)
+    rho_g = u.Quantity(rho_g, u.kg / u.m**3)
+    arange = u.Quantity(arange, u.m)
+
+    A = 4 * Ap
+    cs = pi * quad(lambda a: a**(2 + k), *arange.value)[0] * u.m**2
+    N = (Afrho * pi * rho / A / cs).decompose().value
+    q = (4 * pi / 3 * rho_g * v1 * (rh / (1 * u.au))**u2 * 1e6**u1
+         * quad(lambda a: a**(k + 3 + u1), *arange.value)[0] * u.m**3)
+    Q = (N * 2 / pi / rho * q).to(u.kg / u.s)
+
+    return Q
+
 def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
+
     """Convert flux density to A(th)frho.
 
     See A'Hearn et al. (1984) for the definition of Afrho.
