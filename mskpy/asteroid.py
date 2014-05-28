@@ -12,6 +12,10 @@ asteroid --- Asteroids!
    -------
    Asteroid
 
+   Functions
+   ---------
+   neatm
+
 """
 
 __all__ = [
@@ -20,10 +24,7 @@ __all__ = [
 
 import numpy as np
 import astropy.units as u
-from astropy.time import Time
-
-from .ephem import SolarSysObject, State
-from .models import SurfaceRadiation, DAp, NEATM
+from .ephem import SolarSysObject
 
 class Asteroid(SolarSysObject):
     """An asteroid.
@@ -55,10 +56,15 @@ class Asteroid(SolarSysObject):
     _D = None
     _Ap = None
 
+from astropy.time import Time
+
     def __init__(self, state, D, Ap, reflected=None, thermal=None, **kwargs):
-        assert isinstance(state, State), "state must be a State."
+        from .ephem import State
+        from .models import SurfaceRadiation, DAp, NEATM
+
+        SolarSysObject.__init__(self, state, name=name)
+
         assert isinstance(D, u.Quantity), "D must be a Quantity."
-        self.state = state
 
         if reflected is None:
             self.reflected = DAp(D, Ap, **kwargs)
@@ -137,6 +143,8 @@ class Asteroid(SolarSysObject):
             fluxd += self.thermal.fluxd(g, wave, unit=unit)
 
         return fluxd
+
+
 
 # update module docstring
 from .util import autodoc

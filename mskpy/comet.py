@@ -211,9 +211,7 @@ class Comet(SolarSysObject):
 
     def __init__(self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict(),
                  name=None):
-        assert isinstance(state, State)
-        self.state = state
-        self.name = name
+        SolarSysObject.__init__(self, state, name=name)
 
         if isinstance(nucleus, dict):
             self.nucleus = Asteroid(self.state, 2 * R, Ap, **nucleus)
