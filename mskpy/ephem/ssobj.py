@@ -39,6 +39,11 @@ class SolarSysObject(object):
     ----------
     state : State
       The object from which to retrieve positions and velocities.
+    M : float or Quantity, optional
+      Mass of the object.  [float: kg]
+    GM : float or Quantity, optional
+      Gravitational constant times the mass of the object. [float:
+      km**3/s**2]
     name : string, optional
       The name of the object.
 
@@ -58,14 +63,42 @@ class SolarSysObject(object):
 
     """
 
-    def __init__(self, state, name=None):
+    def __init__(self, state, M=None, GM=None, name=None):
         from .state import State
         assert isinstance(state, State)
         self.state = state
         self.name = name
 
+        if M is None and GM is None:
+            self.M = 0
+        elif M is not None:
+            self.M = M
+        else:
+            self.GM = GM
+
+    @property
+    def M(self):
+        """Mass.  [kg]"""
+        return self._GM / 6.67384e-20
+
+    @M.setter
+    def M(self, m):
+        m = u.Quantity(m, u.kg)
+        self._GM = 6.67384e-20 * m.value
+
+    @property
+    def GM(self):
+        """Gravitational constant times mass. [kg**3 / s**2]"""
+        return self._GM
+
+    @GM.setter
+    def GM(self, gm):
+        gm = u.Quantity(gm, u.km**3 / u.s**2)
+        self._GM = gm.value
+
     def __repr__(self):
-        return '<SolarSysObject name="{}">'.format(self.name)
+        return '<SolarSysObject name="{}" M="{:.3g} kg">'.format(
+            self.name, self.M)
 
     def r(self, date):
         """Position vector.
@@ -408,7 +441,7 @@ def getgeom(target, observer, date=None, ltt=False, kernel=None):
 
     return observer.observe(target, date, ltt=ltt)
 
-def getspiceobj(obj, kernel=None, name=None):
+def getspiceobj(obj, kernel=None, name=None, **kwarg):
     """Create a new SolarSysObject with a SPICE kernel, for your convenience.
 
     Parameters
@@ -422,6 +455,8 @@ def getspiceobj(obj, kernel=None, name=None):
       kernel through `find_kernel`.
     name : string
       The name of the object, or `None` to use `obj`.
+    **kwarg
+      Any other `SolarSysObject` keyword argument.
 
     Returns
     -------
@@ -433,7 +468,7 @@ def getspiceobj(obj, kernel=None, name=None):
 
     from .state import SpiceState
     name = str(obj) if name is None else name
-    return SolarSysObject(SpiceState(obj, kernel=kernel), name=name)
+    return SolarSysObject(SpiceState(obj, kernel=kernel), name=name, **kwarg)
 
 def getxyz(obj, date=None, kernel=None):
     """Coordinates and velocity from an ephemeris kernel.

@@ -455,6 +455,9 @@ lowell = Observer(Angle(-111.5358, u.deg),
 mko = Observer(Angle('-155 28 19', u.deg),
                Angle('19 49 34', u.deg),
                -10.0, None, name='MKO')
+lapalma = Observer(Angle('-17 53 31', u.deg),
+                   Angle('28 45 24', u.deg),
+                   'Europe/London', None, name='La Palma')
 
 # update module docstring
 from ..util import autodoc

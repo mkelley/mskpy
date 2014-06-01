@@ -1146,7 +1146,7 @@ def state2orbit(R, V):
     import astropy.units as u
 
     mu = 1.32712440018e11  # km3/s2
-    AU = (1 * u.au).kilometer
+    AU = u.au.to(u.kilometer)
 
     # some usefull things
     r = np.sqrt((R**2).sum())  # heliocentric distance [km]
@@ -1327,8 +1327,8 @@ def mean2minmax(a):
     """
     return np.abs(minmax(a) - np.array(a).mean())
 
-def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
-             full_output=False):
+def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
+             full_output=False, dtype=np.float64):
     """Average `x` after iteratively removing outlying points.
 
     Clipping is performed about the median.  NaNs are ignored.
@@ -1384,11 +1384,12 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
                 y[i], ys[i], yiter[i] = mc[0], mc[1], mc[3]
                 yind += (mc[2],)
             if full_output:
-                return y.mean(), ys, yind, yiter
+                return y.mean(dtype=dtype), ys, yind, yiter
             else:
-                return y.mean()
+                return y.mean(dtype=dtype)
         else:
-            raise ValueError("There is no axis {0} in the input array".format(axis))
+            raise ValueError("There is no axis {0} in the input"
+                             " array".format(axis))
 
     if isinstance(lsig, tuple):
         lsig = list(lsig)
@@ -1414,7 +1415,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
     for i in range(maxiter):
         y = x.flatten()[good]
         medval = np.median(y)
-        sig = y.std()
+        sig = y.std(dtype=dtype)
 
         keep = (y > (medval - lsig * sig)) * (y < (medval + hsig * sig))
         cutfrac = float(abs(good.size - keep.sum())) / good.size
@@ -1429,9 +1430,9 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.02,
 
     y = x.flatten()[good]
     if full_output:
-        return y.mean(), y.std(), good, i+1
+        return y.mean(dtype=dtype), y.std(dtype=dtype), good, i+1
     else:
-        return y.mean()
+        return y.mean(dtype=dtype)
 
 def midstep(a):
     """Compute the midpoints of each step in `a`.

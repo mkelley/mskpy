@@ -1,3 +1,46 @@
+2.2.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- Maximum liftable grain radius: `models.dust.acrit`.
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- Crash fixes:
+  - `util.state2orbit`
+  - `graphics.circle`
+
+- Timezone (pytz) fixes for `Observer`.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `ephem`
+  - Add mass to `SolarSysObject`.
+  - Add masses to planets in `ephem`.
+
+- `graphics`
+  - Add `ax` keyword to `circle`.
+  - Change default font size for `niceplot`.
+
+- Add La Palma (`lapalma`) to `observing.
+
+- `comets.Coma`
+  - Initializes via `SolarSysObject` (still need to change other
+    classes).
+  - Improved `Afrho1` parameter checks.
+
+- Update `astropy.units` usage in `instruments.spitzer.IRAC`.
+
+
+2.2.1
+-----
+
+- Critical fix to meanclip: use higher precision float64 by default.
+
 2.2.0
 -----
 

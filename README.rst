@@ -96,15 +96,33 @@ Flux estimates
 Asteroid
 ^^^^^^^^
 
-Download (24) Themis SPICE kernel from JPL HORIZONS; save as
-'2000024.bsp'::
+Two methods:
 
-  >>> import astropy.units as u
-  >>> from mskpy import Asteroid, SpiceState, Earth
-  >>> themis = Asteroid(SpiceState(2000024), 198 * u.km, 0.067, G=0.19, eta=1.0)
-  >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy)
-  [ 0.03166609  0.01328637  6.19537744] Jy
+A) Thermal emission from (24) Themis.  If you are not using SPICE, but
+   know ``rh``, ``delta``, and ``phase``::
 
+      >>> import astropy.units as u
+      >>> from mskpy.models import NEATM
+      >>> geom = dict(rh=2.741 * u.au, delta=3.317 * u.au, phase=15.5 * u.deg)
+      >>> themis = NEATM(198 * u.km, 0.067, G=0.19, eta=1.0)
+      >>> print themis.fluxd(geom,  [0.55, 3.0, 10] * u.um, unit=u.Jy)
+      [  6.43548331e-42   9.33984255e-05   6.19350889e+00] Jy
+
+B) Thermal emission and/or reflected light from (24) Themis.  Download
+   its SPICE kernel from JPL HORIZONS; save as '2000024.bsp'::
+
+      >>> import astropy.units as u
+      >>> from mskpy import Asteroid, SpiceState, Earth
+      >>> themis = Asteroid(SpiceState(2000024), 198 * u.km, 0.067, G=0.19, eta=1.0)
+      # Thermal + Reflected
+      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy)
+      [ 0.03174409  0.01327644  6.19537937] Jy
+      # Thermal only
+      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, reflected=False)
+      [  6.46956946e-42   9.34730285e-05   6.19402381e+00] Jy
+      # Reflected only
+      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, thermal=False)
+      [ 0.03174409  0.01318297  0.00135556] Jy
 
 Comet coma
 ^^^^^^^^^^

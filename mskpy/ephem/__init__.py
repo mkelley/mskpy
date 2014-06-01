@@ -20,7 +20,7 @@ Requres PySPICE.
    Built-in SolarSysObjects
    ------------------------
    Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
-   Neptune, Pluto, Spitzer (optional), DeepImpact (optional)
+   Neptune, PlutoSys, Spitzer (optional), DeepImpact (optional)
 
    Exceptions
    ----------
@@ -52,6 +52,8 @@ it is for `Time` instances), we assume the scale is UTC.
 
 """
 
+import astropy.units as u
+
 from . import core
 from . import geom
 from . import state
@@ -64,20 +66,32 @@ from .ssobj import *
 __all__ = geom.__all__ + state.__all__ + ssobj.__all__
 
 # load up a few objects
-Sun = getspiceobj('Sun', kernel='planets.bsp')
-Mercury = getspiceobj('Mercury', kernel='planets.bsp')
-Venus = getspiceobj('Venus', kernel='planets.bsp')
-Earth = getspiceobj('Earth', kernel='planets.bsp')
-Moon = getspiceobj('Moon', kernel='planets.bsp')
-Mars = getspiceobj('4', name='Mars', kernel='planets.bsp')
-Jupiter = getspiceobj('5', name='Jupiter', kernel='planets.bsp')
-Saturn = getspiceobj('6', name='Saturn', kernel='planets.bsp')
-Uranus = getspiceobj('7', name='Uranus', kernel='planets.bsp')
-Neptune = getspiceobj('8', name='Neptune', kernel='planets.bsp')
-Pluto = getspiceobj('9', name='Pluto', kernel='planets.bsp')
+
+# G * Masses are from Standish, E.M. (1998) "JPL Planetary and Lunar
+# Ephemerides, DE405/LE405", JPL IOM 312.F-98-048.
+GM_sun = 1.32712440017987e20 * u.m**3 / u.s**2
+GM_planets = [22032.080, 324858.599, 398600.433, 42828.314,
+              126712767.863, 37940626.063, 5794549.007,
+              6836534.064, 981.601]
+GM_ast = [62.375, 13.271, 17.253]  # Ceres, Pallas, Vesta
+GM_moon = 4902.801
+GM_earth_sys = 403503.233
+
+Sun = getspiceobj('Sun', kernel='planets.bsp', GM=GM_sun)
+Mercury = getspiceobj('Mercury', kernel='planets.bsp', GM=GM_planets[0])
+Venus = getspiceobj('Venus', kernel='planets.bsp', GM=GM_planets[1])
+EarthSys = getspiceobj('3', kernel='planets.bsp', GM=GM_earth_sys)
+Earth = getspiceobj('399', kernel='planets.bsp', GM=GM_planets[2])
+Moon = getspiceobj('301', kernel='planets.bsp', GM=GM_moon)
+Mars = getspiceobj('4', name='Mars', kernel='planets.bsp', GM=GM_planets[3])
+Jupiter = getspiceobj('5', name='Jupiter', kernel='planets.bsp', GM=GM_planets[4])
+Saturn = getspiceobj('6', name='Saturn', kernel='planets.bsp', GM=GM_planets[5])
+Uranus = getspiceobj('7', name='Uranus', kernel='planets.bsp', GM=GM_planets[6])
+Neptune = getspiceobj('8', name='Neptune', kernel='planets.bsp', GM=GM_planets[7])
+PlutoSys = getspiceobj('9', name='PlutoSys', kernel='planets.bsp', GM=GM_planets[8])
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
-                       uranus=Uranus, neptune=Neptune, pluto=Pluto)
+                       uranus=Uranus, neptune=Neptune, pluto=PlutoSys)
 __all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em

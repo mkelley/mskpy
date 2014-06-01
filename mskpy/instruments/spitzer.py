@@ -64,17 +64,15 @@ class IRAC(Camera):
         from ..calib import filter_trans
         from ..util import davint, takefrom
 
-        nu0 = (const.c.si / self.wave).teraHertz
+        nu0 = (const.c.si / self.wave).to(u.teraHertz).value
         K = np.zeros(4)
         for i in range(4):
             tw, tr = filter_trans('IRAC CH{:}'.format(i + 1))
-            nu = (const.c / tw).teraHertz
+            nu = (const.c / tw).to(u.teraHertz).value
 
-            equiv = u.spectral_density(tw.unit, tw)
-            sfnu = sf(tw).to(u.Jy, equivalencies=equiv).value
+            sfnu = sf(tw).to(u.Jy, u.spectral_density(tw)).value
 
-            equiv = u.spectral_density(self.wave.unit, self.wave[i])
-            sfnu /= sf(self.wave[i]).to(u.Jy, equivalencies=equiv).value
+            sfnu /= sf(self.wave[i]).to(u.Jy, u.spectral_density(self.wave[i])).value
 
             sfnu, tr, nu = takefrom((sfnu, tr, nu), nu.argsort())
             K[i] = (davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
@@ -104,11 +102,11 @@ class IRAC(Camera):
         from ..calib import filter_trans
         from ..util import davint, takefrom
 
-        nu0 = (const.c.si / self.wave).teraHertz
+        nu0 = (const.c.si / self.wave).to(u.teraHertz).value
         K = np.zeros(4)
         for i in range(4):
             tw, tr = filter_trans('IRAC CH{:}'.format(i + 1))
-            nu = (const.c / tw).teraHertz
+            nu = (const.c / tw).to(u.teraHertz).value
 
             # interpolate the filter transmission to a higher
             # resolution
@@ -118,8 +116,7 @@ class IRAC(Camera):
             _sf = interpolate.splev(fw.value, s, ext=1)
             _sf /= interpolate.splev(self.wave[i].value, s, ext=1)
 
-            equiv = u.spectral_density(fw.unit, fw)
-            _sf *= sf.unit.to(u.Jy, equivalencies=equiv)
+            _sf *= sf.unit.to(u.Jy, u.spectral_density(fw))
 
             _sf, ft, nu = takefrom((_sf, ft, nu), nu.argsort())
             K[i] = (davint(nu, _sf * ft * nu0[i] / nu, nu[0], nu[-1])
