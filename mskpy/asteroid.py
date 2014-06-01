@@ -56,8 +56,6 @@ class Asteroid(SolarSysObject):
     _D = None
     _Ap = None
 
-from astropy.time import Time
-
     def __init__(self, state, D, Ap, reflected=None, thermal=None, **kwargs):
         from .ephem import State
         from .models import SurfaceRadiation, DAp, NEATM
