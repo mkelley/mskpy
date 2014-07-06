@@ -313,17 +313,17 @@ class SolarSysObject(object):
                 print(d)
             f = self.fluxd(observer, d, wave, **kwargs)
             fluxd[i] = f.value
-            units = f.unit
+            unit = f.unit
 
         if verbose:
             print()
 
         cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
-        units = str(units)
+        unit = str(unit)
         for i in range(fluxd.shape[1]):
             lc.add_column(Column(data=fluxd[:, i],
                                  name="f{:.1f}".format(wave.value[i]),
-                                 format=cf, units=units))
+                                 format=cf, unit=unit))
         return lc
 
     def observe(self, target, date, ltt=False):
