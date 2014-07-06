@@ -43,6 +43,8 @@ class Asteroid(SolarSysObject):
     thermal : SurfaceRadiation, optional
       A model of the thermal emission.  If `None` a `NEATM` model will
       be initialized (including `**kwargs`).
+    name : string, optional
+      A name for this object.
     **kwargs
       Additional keywords for the default `reflected` and `thermal`
       models.
@@ -56,7 +58,8 @@ class Asteroid(SolarSysObject):
     _D = None
     _Ap = None
 
-    def __init__(self, state, D, Ap, reflected=None, thermal=None, **kwargs):
+    def __init__(self, state, D, Ap, reflected=None, thermal=None,
+                 name=None, **kwargs):
         from .ephem import State
         from .models import SurfaceRadiation, DAp, NEATM
 
