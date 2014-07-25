@@ -445,7 +445,7 @@ def fwhm(im, yx, bg=True, **kwargs):
     from scipy.optimize import leastsq as lsq
     from ..util import gaussian
 
-    R, I, n = radprof(im, yx, **kwargs)
+    R, I, n = radprof(im, yx, **kwargs)[:3]
     r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
 
     if bg:
@@ -788,16 +788,18 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     Returns
     -------
-    r : ndarray
-      The mean radius of each point in the surface brightness profile.
+    rc : ndarray
+      The center of each radial bin.
     sb : ndarray
       The surface brightness at each `r`.
     n : ndarray
       The number of pixels in each bin.
+    rmean : ndarray
+      The mean radius of the points in each radial bin.
 
     """
 
-    from ..util import takefrom
+    from ..util import midstep
 
     if range is None:
         yx = np.array(yx)
@@ -813,14 +815,22 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     else:
         rap = np.linspace(range[0], range[1], bins + 1)
 
-    n, f = anphot(im, yx, rap, subsample=subsample)
     r = core.rarray(im.shape, yx=yx, subsample=10)
-    r = anphot(r, yx, rap, subsample=subsample)[1]
+    n, f = anphot(im, yx, rap, subsample=subsample)
+    rmean = anphot(r, yx, rap, subsample=subsample)[1]
 
+    # flux -> surface brightness
     i = n != 0
-    f[i] = f[i] / n[i]
-    r[i] = r[i] / n[i]
-    return r, f, n
+    f[i] /= n[i]
+    rmean[i] /= n[i]
+
+    # first rap is really an inner edge, but anphot doesn't know that
+    n = n[1:]
+    f = f[1:]
+    rmean = rmean[1:]
+    rc = midstep(rap)
+
+    return rc, f, n, rmean
 
 def trace(im, err, guess):
     """Trace the peak pixels along the second axis of an image.

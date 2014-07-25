@@ -318,12 +318,14 @@ class Image(np.ndarray):
 
         Returns
         -------
-        r : ndarray
-          The mean radius of each point in the surface brightness profile.
+        rc : ndarray
+          The center of each radial bin.
         sb : ndarray
           The surface brightness at each `r`.
         n : ndarray
           The number of pixels in each bin.
+        rmean : ndarray
+          The mean radius of the points in each radial bin.
 
         """
         yx = self.yx if yx is None else yx
