@@ -1,3 +1,32 @@
+2.2.3
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `image.radprof` now returns centers of the radius bins, in addition
+  to average of the radii within each bin.  This change breaks old
+  code.
+
+- New `instruments`:
+  - Added `FLITECAM` to `sofia`.
+  - Moved `MIRSI` to new `irtf`.
+  - Added `SpeX` to `irtf`.
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- Fix `SolarSysObject.lightcurve` call to `Column`.
+
+- Fix `Asteroid` crashes due to missing name parameter and
+  `astropy.time.Time`.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- Modeling commented out and awaiting finalized astropy modeling API.
+
+
 2.2.2
 -----
 
