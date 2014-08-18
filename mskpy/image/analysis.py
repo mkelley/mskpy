@@ -514,7 +514,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     def gfit(p, x, f):
         amplitude, mu, sigma = p
-        return np.sum((amplitude * gaussian(x, mu, sigma) - f)**2)
+        i = np.isfinite(f)
+        return np.sum((amplitude * gaussian(x, mu, sigma) - f)[i]**2)
     
     if halfbox[0] > 0:
         yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
