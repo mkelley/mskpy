@@ -89,7 +89,7 @@ class State(object):
         from .. import util
         N = util.date_len(date)
         if N > 0:
-            return np.array([self.r(d) for d in date])
+            return np.array([self.rv(d)[0] for d in date])
         return self.rv(date)[0]
 
     def v(self, date):
@@ -109,7 +109,7 @@ class State(object):
         from .. import util
         N = util.date_len(date)
         if N > 0:
-            return np.array([self.r(d) for d in date])
+            return np.array([self.rv(d)[1] for d in date])
         return self.rv(date)[1]
 
 class FixedState(State):
