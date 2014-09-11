@@ -26,6 +26,7 @@ util --- Short and sweet functions, generic algorithms
    Optimizations
    -------------
    linefit
+   planckfit
 
    Searching, sorting
    ------------------
@@ -113,6 +114,7 @@ __all__ = [
     'getrot',
 
     'linefit',
+    'planckfit',
 
     'between',
     'groupby',
@@ -698,6 +700,57 @@ def linefit(x, y, err, guess, covar=False):
         err = np.ones(len(y))
 
     output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-3)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
+def planckfit(wave, fluxd, err, guess, covar=False):
+    """A quick scaled Planck fitting function.
+
+    The scale factor includes a factor of pi for the conversion from
+    specific surface brightness to flux density.
+
+    Parameters
+    ----------
+    wave, fluxd : Quantity
+      The wavelength and flux density.
+    err : Quantity
+      Flux density uncertainties; set to `None` for unweighted fitting.
+    guess : tuple (double, double)
+      `(scale, T)` a guess for the temperature, `T`, and scale factor.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple (double, double)
+      `(scale, T)` the best-fit parameters.
+    err or cov : tuple (double, double) or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, wave, fluxd, err):
+        import astropy.units as u
+        scale, T = p
+        model = scale * planck(wave, T, unit=fluxd.unit / u.sr) * u.sr
+        chi = (fluxd - model) / err
+        return chi.decompose().value
+
+    if err is None:
+        err = np.ones(len(y)) * fluxd.unit
+
+    output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
     fit = output[0]
     cov = output[1]
