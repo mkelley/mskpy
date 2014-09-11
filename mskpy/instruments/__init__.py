@@ -10,6 +10,7 @@ Instruments can be used observe a `SolarSysObject`.
    -------
    Instrument
    Camera
+   CircularApertureSpectrometer
    LongSlitSpectrometer
 
 """

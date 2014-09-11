@@ -6,8 +6,9 @@ irtf --- NASA IRTF instruments.
 
    Classes
    -------
-   BigDog
+   BASS
    MIRSI
+   SpeX
 
 """
 
@@ -19,12 +20,106 @@ try:
 except ImportError:
     Earth = None
 
-from .instrument import Instrument, Camera, LongSlitSpectrometer
+from .instrument import Instrument, Camera
+from .instrument import CircularApertureSpectrometer, LongSlitSpectrometer
 
 __all__ = [
+    'BASS',
     'MIRSI',
     'SpeX'
 ]
+
+class BASS(CircularApertureSpectrometer):
+    """Broadband Array Spectrograph System.
+    """
+
+    def __init__(self):
+        waves = [
+            3.02961,   3.13797,   3.24272,   3.34419,   3.63162,   3.7225 ,
+            3.89791,   3.98272,   4.06576,   4.53217,   4.74822,   4.81809,
+            4.88695,   4.95486,   5.02185,   5.28133,   5.34423,   7.27842,
+            7.46219,   7.64154,   7.98818,   8.15597,   8.32038,   8.48161,
+            8.63982,   8.79519,   8.94787,   9.09798,   9.24565,   9.39101,
+            9.53414,   9.67516,   9.81416,   9.95121,  10.0864 ,  10.2198 ,
+            10.4815 ,  10.6099 ,  10.7368 ,  10.8623 ,  10.9862 ,  11.1089 ,
+            11.2301 ,  11.3501 ,  11.5863 ,  11.7026 ,  11.8178 ,  11.9318 ,
+            12.0448 ,  12.1567 ,  12.2677 ,  12.3776 ,  12.4865 ,  12.5945 ,
+            12.7016 ,  12.8078 ,  12.9131 ,  13.0176 ,  13.1212 ,  13.224  
+        ] * u.um
+        CircularApertureSpectrometer.__init__(
+            self, waves, 2.0 * u.arcsec, Earth)
+
+class MIRSI(Instrument):
+    """Mid-Infrared Spectrometer and Imager.
+
+    Attributes
+    ----------
+    imager : `Camera` for imaging mode.
+    sp10r200 : `LongSlitSpectrometer` for 10-micron spectroscopy.
+    sp20r100 : `LongSlitSpectrometer` for 20-micron spectroscopy.
+    mode : The current MIRSI mode (see examples).
+
+    Examples
+    --------
+
+    """
+
+    shape = (240, 320)
+    ps = 0.265 * u.arcsec
+    location = Earth
+
+    def __init__(self):
+        w = [4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.7, 20.6, 24.4] * u.um
+        self.imager = Camera(w, self.shape, self.ps, location=self.location)
+
+        self.sp10r200 = LongSlitSpectrometer(10.5 * u.um, self.shape, self.ps,
+                                             2.25, 0.022 * u.um, R=200,
+                                             location=self.location)
+
+        self.sp20r100 = LongSlitSpectrometer(21.5 * u.um, self.shape, self.ps,
+                                             4.5, 0.028 * u.um, R=100,
+                                             location=self.location)
+
+        self._mode = 'imager'
+
+    @property
+    def mode(self):
+        if self._mode in ['imager', 'sp10r200', 'sp20r100']:
+            return self.__dict__[self._mode]
+        else:
+            raise KeyError("Invalid mode: {:}".format(self._mode))
+
+    def sed(self, *args, **kwargs):
+        """Spectral energy distribution of a target.
+
+        Parameters
+        ----------
+        *args
+        **kwargs
+          Arguments and keywords depend on the current MIRSI mode.
+
+        Returns
+        -------
+        sed : ndarray
+
+        """
+        return self.mode.sed(*args, **kwargs)
+
+    def lightcurve(self, *args, **kwargs):
+        """Secular lightcurve of a target.
+
+        Parameters
+        ----------
+        *args
+        **kwargs
+          Arguments and keywords depend on the current MIRSI mode.
+
+        Returns
+        -------
+        lc : astropy Table
+
+        """
+        return self.mode.lightcurve(*args, **kwargs)
 
 class SpeX(LongSlitSpectrometer):
     """SpeX.
@@ -155,79 +250,6 @@ class SpeX(LongSlitSpectrometer):
         tar_f /= atc
         tar_e /= atc
         return tar_w, tar_f, tar_e
-
-class MIRSI(Instrument):
-    """Mid-Infrared Spectrometer and Imager.
-
-    Attributes
-    ----------
-    imager : `Camera` for imaging mode.
-    sp10r200 : `LongSlitSpectrometer` for 10-micron spectroscopy.
-    sp20r100 : `LongSlitSpectrometer` for 20-micron spectroscopy.
-    mode : The current MIRSI mode (see examples).
-
-    Examples
-    --------
-
-    """
-
-    shape = (240, 320)
-    ps = 0.265 * u.arcsec
-    location = Earth
-
-    def __init__(self):
-        w = [4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.7, 20.6, 24.4] * u.um
-        self.imager = Camera(w, self.shape, self.ps, location=self.location)
-
-        self.sp10r200 = LongSlitSpectrometer(10.5 * u.um, self.shape, self.ps,
-                                             2.25, 0.022 * u.um, R=200,
-                                             location=self.location)
-
-        self.sp20r100 = LongSlitSpectrometer(21.5 * u.um, self.shape, self.ps,
-                                             4.5, 0.028 * u.um, R=100,
-                                             location=self.location)
-
-        self._mode = 'imager'
-
-    @property
-    def mode(self):
-        if self._mode in ['imager', 'sp10r200', 'sp20r100']:
-            return self.__dict__[self._mode]
-        else:
-            raise KeyError("Invalid mode: {:}".format(self._mode))
-
-    def sed(self, *args, **kwargs):
-        """Spectral energy distribution of a target.
-
-        Parameters
-        ----------
-        *args
-        **kwargs
-          Arguments and keywords depend on the current MIRSI mode.
-
-        Returns
-        -------
-        sed : ndarray
-
-        """
-        return self.mode.sed(*args, **kwargs)
-
-    def lightcurve(self, *args, **kwargs):
-        """Secular lightcurve of a target.
-
-        Parameters
-        ----------
-        *args
-        **kwargs
-          Arguments and keywords depend on the current MIRSI mode.
-
-        Returns
-        -------
-        lc : astropy Table
-
-        """
-        return self.mode.lightcurve(*args, **kwargs)
-
 
 # update module docstring
 from ..util import autodoc

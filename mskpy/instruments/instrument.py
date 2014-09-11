@@ -10,9 +10,17 @@ Instruments can be used observe a `SolarSysObject`.
    -------
    Instrument
    Camera
+   Spectrometer
    LongSlitSpectrometer
 
 """
+
+__all__ = [
+    'Instrument',
+    'Camera',
+    'CircularApertureSpectrometer',
+    'LongSlitSpectrometer'
+]
 
 import numpy as np
 import astropy.units as u
@@ -141,6 +149,51 @@ class Camera(Instrument):
     lightcurve.__doc__ = Instrument.sed.__doc__ + """        Notes
         -----
         Default aperture radius is 2.5 pixels.
+
+        """
+
+class CircularApertureSpectrometer(Instrument):
+    """Circular-aperture spectrometers.
+
+    The aperture is assumed to be circular, i.e., no spatial
+    resolution.
+
+    Parameters
+    ----------
+    waves : Quantity
+      Instrument wavelengths.
+    rap : Quantity
+      Angular radius of the circular aperture.
+    location : SolarSysObject, optional
+      Location of the camera.
+
+    Methods
+    -------
+    sed : Spectral energy distribution of a target.
+    lightcurve : Secular light curve of a target.
+
+    """
+
+    def __init__(self, waves, rap, location=None):
+        self.waves = u.Quantity(waves, u.um)
+        self.rap = u.Quantity(rap, u.arcsec)
+
+        Instrument.__init__(self, waves, location=location)
+
+    def sed(self, target, date, **kwargs):
+        kwargs['rap'] = kwargs.pop('rap', self.rap)
+        return target.fluxd(self.location, date, self.waves, **kwargs)
+
+    def lightcurve(self, target, dates, **kwargs):
+        kwargs['rap'] = kwargs.pop('rap', self.rap)
+        w = [3.3, 4.8, 10, 12] * self.waves.unit
+        return target.lightcurve(self.location, dates, w, **kwargs)
+
+    lightcurve.__doc__ = Instrument.sed.__doc__ + """        Notes
+        -----
+        Default aperture radius is half the slit width.
+
+        `lightcurve` wavelengths are fixed.
 
         """
 
