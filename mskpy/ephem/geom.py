@@ -554,10 +554,10 @@ class Geom(object):
             minmaxtime = '     [{:}, {:}]'.format(timemin, timemax)
             minmaxdate = '   [{:}, {:}]'.format(datemin, datemax)
 
-            ramin = gmin['ra'].format('hour', **opts)
-            decmin = gmin['dec'].format('deg', alwayssign=True, **opts)
-            ramax = gmax['ra'].format('hour', **opts)
-            decmax = gmax['dec'].format('deg', alwayssign=True, **opts)
+            ramin = gmin['ra'].to_string('hour', **opts)
+            decmin = gmin['dec'].to_string('deg', alwayssign=True, **opts)
+            ramax = gmax['ra'].to_string('hour', **opts)
+            decmax = gmax['dec'].to_string('deg', alwayssign=True, **opts)
 
             raminmax = '  [ {:},  {:}]'.format(ramin, ramax)
             decminmax = '  [{:}, {:}]'.format(decmin, decmax)
@@ -583,8 +583,8 @@ class Geom(object):
         date, time = jd2time(g['date']).iso.split()
         time = time.split('.')[0]
 
-        ra = g['ra'].format('hour', **opts)
-        dec = g['dec'].format('deg', alwayssign=True, **opts)
+        ra = g['ra'].to_string('hour', **opts)
+        dec = g['dec'].to_string('deg', alwayssign=True, **opts)
 
         print ("""
 {:>34s} {:s}{:}
