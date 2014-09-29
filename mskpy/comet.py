@@ -19,6 +19,7 @@ comet --- Comets!
    fluxd2afrho
    fluxd2efrho
    m2afrho1
+   Q2flux
 
 """
 
@@ -29,7 +30,8 @@ __all__ = [
     'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
-    'm2afrho1'
+    'm2afrho1',
+    'Q2flux'
 ]
 
 import numpy as np
@@ -559,6 +561,61 @@ def m2afrho1(M1):
 
     """
     return 10**(-0.208 * M1 + 4.687)
+
+def Q2flux(Q, wave, geom, g, rap, v):
+    """Convert Q to line emission.
+
+    Use when rho << gas photodissociation lengthscale.
+
+    Q = 2 N v / (pi rho)
+
+    Parameters
+    ----------
+    Q : Quantity
+      The production rate (inverse time).
+    wave : Quantity
+      The wavelength of the line/band.
+    geom : dict of Quantity, or ephem.Geom
+      The observing circumstances (rh and delta).
+    g : Quantity
+      The g-factor of the line/band at 1 AU.
+    rap : Quantity
+      The radius of the aperture used to measure the flux.  May be an
+      angle or length.
+    v : Quantity
+      The expansion velocity of the gas.
+
+    Returns
+    -------
+    flux : Quantity
+      The total line flux.
+
+    """
+
+    from numpy import pi
+
+    assert isinstance(Q, u.Quantity)
+    assert isinstance(wave, u.Quantity)
+    assert isinstance(geom['delta'], u.Quantity)
+    assert isinstance(geom['rh'], u.Quantity)
+    assert isinstance(g, u.Quantity)
+    assert isinstance(rap, u.Quantity)
+    assert isinstance(v, u.Quantity)
+
+    hc = 1.9864457e-25 * u.J * u.m
+
+    if rap.unit.is_equivalent(u.radian):
+        rho = (rap * geom['delta'].to(u.au).value
+               * 725 * u.km / u.arcsec).decompose()
+    elif rap.unit.is_equivalent(u.meter):
+        rho = rap
+    else:
+        raise ValueError("rap must have angular or length units.")
+
+    F = (Q * rho * hc * g / v / geom['delta']**2 / wave
+         / geom['rh'].to(u.au).value**2)
+
+    return F.to('W/m2')
 
 # update module docstring
 from .util import autodoc
