@@ -14,6 +14,7 @@ comet --- Comets!
 
    Functions
    ---------
+   afrho2fluxd
    afrho2Q
    flux2Q
    fluxd2afrho
@@ -26,6 +27,7 @@ comet --- Comets!
 __all__ = [
     'Coma',
     'Comet',
+    'afrho2fluxd',
     'afrho2Q',
     'flux2Q',
     'fluxd2afrho',
@@ -304,6 +306,81 @@ class Comet(SolarSysObject):
 
         return fluxd
 
+def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
+                bandpass=None):
+    """Convert A(th)frho to flux density.
+
+    See A'Hearn et al. (1984) for the definition of Afrho.
+
+    Parameters
+    ----------
+    wave : Quantity
+      The wavelength of the measurement.
+    afrho : Quantity
+      The Afrho parameter.
+    rap : Quanitity
+      The aperture radius.  May be angular size or projected linear
+      size at the distance of the comet.
+    geom : dictionary of Quantities or ephem.Geom
+      The observing geometry via keywords `rh`, `delta`.
+    sun : Quantity, optional
+      Use this value for the solar flux density at 1 AU, or `None` to
+      use `calib.solar_flux`.
+    unit : Unit, optional
+      Unit to pass to `calib.solar_flux`.
+    bandpass : dict, optional
+      Instead of using `sun`, set to a dictionary of keywords to pass,
+      along with the solar spectrum, to `util.bandpass`.
+
+    Returns
+    -------
+    fluxd : Quantity
+      The flux density of the comet.
+
+    Notes
+    -----
+    Farnham, Schleicher, and A'Hearn (2000), Hale-Bopp
+    filter set:
+
+      UC = 0.3449 * u.um, qUC = 2.716e17 -> 908.9 * u.Unit('W/m2/um')
+      BC = 0.4453 * u.um, qBC = 1.276e17 -> 1934 * u.Unit('W/m2/um')
+      GC = 0.5259 * u.um, qGC = 1.341e17 -> 1841 * u.Unit('W/m2/um')
+      RC = 0.7133 * u.um, qRC = 1.975e17 -> 1250 * u.Unit('W/m2/um')
+
+    """
+
+    from . import util
+    from . import calib
+
+    # parameter check
+    assert wave.unit.is_equivalent(u.um)
+    assert afrho.unit.is_equivalent(u.um)
+    assert geom['rh'].unit.is_equivalent(u.um)
+    assert geom['delta'].unit.is_equivalent(u.um)
+
+    if rap.unit.is_equivalent(u.cm):
+        rho = rap.to(afrho.unit)
+    elif rap.unit.is_equivalent(u.arcsec):
+        rho = geom['delta'].to(afrho.unit) * rap.to(u.rad).value
+    else:
+        raise ValueError("rap must have angular or length units.")
+
+    if sun is None:
+        assert unit.is_equivalent('W/(m2 um)', u.spectral_density(wave))
+
+        if bandpass is None:
+            sun = calib.solar_flux(wave, unit=unit)
+        else:
+            sw, sf = calib.e490(smooth=True, unit=unit)
+            sun = util.bandpass(sw.to(u.um).value, sf.value, **bandpass)[1]
+            sun *= unit
+    else:
+        assert sun.unit.is_equivalent('W/(m2 um)', u.spectral_density(wave))
+
+    fluxd = (afrho * rho * sun * (1 * u.au / geom['rh'])**2
+             / 4. / geom['delta']**2)
+    return fluxd.to(unit)
+
 def flux2Q(fgas, wave, geom, g, rap, v):
     """Convert gas emission to Q.
 
@@ -437,7 +514,6 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
     return Q
 
 def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
-
     """Convert flux density to A(th)frho.
 
     See A'Hearn et al. (1984) for the definition of Afrho.
