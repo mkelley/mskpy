@@ -1,8 +1,8 @@
-#!/opt/local/bin/python
+#!/usr/bin/python
 from __future__ import print_function
 import argparse
 import datetime
-from mskpy import ephem, util
+from mskpy import ephem, util, between
 
 today = datetime.date.today()
 
@@ -16,6 +16,10 @@ parser.add_argument('--end', type=str, action='store', default=None,
                     help='The last day of the ephemeris, YYYY-MM-DD [today + n].')
 parser.add_argument('-n', type=int, action='store', default=30,
                     help='The number of days for the ephemeris.')
+parser.add_argument('--selong', type=str, action='store', default='0,180',
+                    help='The allowed solar elongation limits.')
+parser.add_argument('--observer', type=str, action='store', default='Earth',
+                    help='The observer.')
 
 args = parser.parse_args()
 
@@ -26,10 +30,17 @@ if args.end is None:
     n = args.n + 1
 else:
     end = args.end
-    n = util.cal2time(end).jd - util.cal2time(args.start).jd + 1
+    n = int(util.cal2time(end).jd - util.cal2time(args.start).jd + 1)
 
 target = ephem.getspiceobj(' '.join(args.target))
+try:
+    observer = eval('ephem.' + args.observer.capitalize())
+except AttributeError:
+    observer = ephem.getspiceobj(' '.join(args.observer))
 
-t = target.ephemeris(ephem.Earth, [args.start, end], num=n)
+selong_limits = [float(x) for x in args.selong.split(',')]
+
+t = target.ephemeris(observer, [args.start, end], num=n)
+t = t[between(t['selong'], selong_limits)]
 t.pprint(max_width=-1, max_lines=-1)
 
