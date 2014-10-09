@@ -7,9 +7,13 @@ Class
 -----
 Geom
 
+Function
+--------
+proper_motion
+
 """
 
-__all__ = ['Geom']
+__all__ = ['Geom', 'proper_motion']
 
 from datetime import datetime
 
@@ -622,6 +626,34 @@ class Geom(object):
            minmax('sangle', '8.3f'),
            "Projected velocity vector (deg):", g['vangle'].degree,
            minmax('vangle', '8.3f')))
+
+def proper_motion(g0, g1):
+    """Proper motion from two `Geom` instances.
+
+    Parameters
+    ----------
+    g0, g1 : Geom
+      Two positions of the target.  `g0.date < g1.date` is assumed.
+
+    Returns
+    -------
+    mu : Quantity
+      The proper motion.
+
+    phi : Angle
+      The position angle of the proper motion.
+
+    """
+
+    from astropy.coordinates import SkyCoord
+
+    c0 = SkyCoord(ra=g0.ra, dec=g0.dec, frame='icrs')
+    c1 = SkyCoord(ra=g1.ra, dec=g1.dec, frame='icrs')
+    dt = (g1.date - g0.date).jd * u.day
+    mu = (c0.separation(c1) / dt).to(u.arcsec / u.hr)
+    phi = c0.position_angle(c1).to(u.deg)
+
+    return mu, phi
 
 # update module docstring
 from ..util import autodoc
