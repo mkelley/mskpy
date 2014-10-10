@@ -20,6 +20,7 @@ comet --- Comets!
    fluxd2afrho
    fluxd2efrho
    m2afrho1
+   m2qh2o
    Q2flux
 
 """
@@ -33,6 +34,7 @@ __all__ = [
     'fluxd2afrho',
     'fluxd2efrho',
     'm2afrho1',
+    'm2qh2o',
     'Q2flux'
 ]
 
@@ -637,6 +639,26 @@ def m2afrho1(M1):
 
     """
     return 10**(-0.208 * M1 + 4.687)
+
+def m2qh2o(M1):
+    """Convert absolute magnitude, M1, to Q(H2O) at 1 AU.
+
+    Based on an empirical correlation between heliocentric magnitude
+    and Q(H2O) by Jorda et al. (2008, ACM, 8046).  Scatter about the
+    trend: 1-sigma = 1.6, 2-sigma = 2.4, 3-sigma = 3.7.
+
+    Parameters
+    ----------
+    M1 : float
+      Comet's absolute magnitude from JPL.
+
+    Returns
+    -------
+    Q : float
+      Q(H2O) at 1 AU.  [molecules/s]
+
+    """
+    return 10**(30.675 - 0.2453 * M1)
 
 def Q2flux(Q, wave, geom, g, rap, v):
     """Convert Q to line emission.
