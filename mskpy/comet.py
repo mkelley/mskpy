@@ -710,7 +710,7 @@ def Q2flux(Q, wave, geom, g, rap, v):
     else:
         raise ValueError("rap must have angular or length units.")
 
-    F = (Q * rho * hc * g / v / geom['delta']**2 / wave
+    F = (Q * rho * hc * g / v / geom['delta']**2 / wave / 8.0
          / geom['rh'].to(u.au).value**2)
 
     return F.to('W/m2')
