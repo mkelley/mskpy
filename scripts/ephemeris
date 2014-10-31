@@ -22,6 +22,10 @@ parser.add_argument('--observer', type=str, action='store', default='Earth',
                     help='The observer.')
 
 args = parser.parse_args()
+if args.target == []:
+    parser.print_help()
+    print()
+    exit()
 
 if args.end is None:
     ymd = [int(x) for x in args.start.split('-')]
