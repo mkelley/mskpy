@@ -19,7 +19,8 @@ comet --- Comets!
    flux2Q
    fluxd2afrho
    fluxd2efrho
-   m2afrho1
+   m2afrho
+   M2afrho1
    m2qh2o
    Q2flux
 
@@ -33,7 +34,8 @@ __all__ = [
     'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
-    'm2afrho1',
+    'm2afrho',
+    'M2afrho1',
     'm2qh2o',
     'Q2flux'
 ]
@@ -620,7 +622,35 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     I = flux / Om  # W/m2/um/sr
     return I * _rho / B
 
-def m2afrho1(M1):
+def m2afrho(m, geom):
+    """Convert JPL/HORIZONS apparent magnitude, m, to Afrho.
+
+    *** EXPERIMENTAL ***
+
+    Based on Comet C/2007 N3 (Lulin) in I-band:
+
+      3200 cm = 8.49 mag at rh=1.49 AU, Delta=0.49 AU.
+      -2.5 log10(3200 / c) = 8.49 + 5 * log10(1.49 * 0.49)
+      c = 4.0e6 cm
+
+    Parameters
+    ----------
+    m : float
+      Comet's apparent magnitude from JPL.
+    geom : dict of Quantity, or ephem.Geom
+      The observing circumstances (rh and delta).
+
+    Returns
+    -------
+    Afrho : float
+      Afrho.  [cm]
+
+    """
+    print "    *** EXPERIMENTAL ***   "
+    M = m - 5 * np.log10(geom['rh'] * geom['delta'])
+    return 4.0e6 * 10**(M / -2.5)
+
+def M2afrho1(M1):
     """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.
 
     Based on an empirical correlation between M1 and Afrho as measured
