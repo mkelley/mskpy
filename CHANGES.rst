@@ -1,3 +1,44 @@
+2.2.4
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `eph.State.v` for an array of dates returned `r`, now returns `v`.
+
+New features
+^^^^^^^^^^^^
+
+- New `util.planckfit`.
+
+- New `comet` functions:
+  - `Q2flux` to convert gas production rates into fluxes.
+  - `afrho2flux` to convert Afrho into flux density.
+  - `m2qh2o` to convert absolute magnitude into water production rate,
+    based on Jorda et al. (2008) relationship.
+  - Renamed `m2afrho1` to `M2afrho1`.
+  - New `m2afrho` to convert apparent magnitude into Afrho.  This is
+    an EXPERIMENTAL relationship that WILL CHANGE.
+
+- New `SolarSysObject.ephemeris` functionality:
+  - Filter output given solar elongation limits.
+  - Allow observers other than Earth.
+
+- New `ephem.proper_motion`.
+
+- New instrument: `BASS`.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `image.gcentroid` now ignores nans, infs.
+
+- Fix time bug when milliseconds are passed to
+  `SolarSysObject.ephemeris`.
+
+- The ephemeris script in `scripts/` now displays help when no
+  parameters are given.
+
 2.2.3
 -----
 
