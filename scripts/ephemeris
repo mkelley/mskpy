@@ -45,6 +45,8 @@ parser.add_argument('--phasef', type=str, action='store', default='phaseHM',
 parser.add_argument('--wave', type=str, action=ListAction,
                     default=[0.6, 2.2, 10, 20],
                     help='Wavelengths for estimate flux densities.')
+parser.add_argument('--rap', type=float, action='store', default=1.0,
+                    help='Aperture radius [arcsec].')
 parser.add_argument('--unit', type=str, action='store', default='Jy',
                     help='Flux density unit.')
 
@@ -79,7 +81,8 @@ else:
                 ef2af=args.ef2af, tscale=args.tscale,
                 phasef=getattr(mskpy.models, args.phasef))
     t = coma.lightcurve(observer, [args.start, end], args.wave * u.um, num=n,
-                        unit=u.Unit(args.unit), verbose=False)
+                        rap=args.rap * u.arcsec, unit=u.Unit(args.unit),
+                        verbose=False)
 
 t = t[between(t['selong'], args.selong)]
 t.pprint(max_width=-1, max_lines=-1)
