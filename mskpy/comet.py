@@ -160,6 +160,12 @@ class Coma(SolarSysObject):
 
         return fluxd
 
+    def _add_lc_columns(self, lc):
+        from astropy.table import Column
+        afrho = self.Afrho1 * lc['rh'].to(u.au).value**self.k
+        lc.add_column(Column(afrho, name='Afrho', format='{:.4g}'))
+        return lc
+
 class Comet(SolarSysObject):
     """A comet.
 
@@ -309,6 +315,9 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+    def _add_lc_columns(self, lc):
+        return self.coma._add_lc_columns(lc)
 
 def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
                 bandpass=None):
