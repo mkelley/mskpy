@@ -25,10 +25,11 @@ parser.add_argument('--end', type=str, action='store', default=None,
                     help='The last day of the ephemeris, YYYY-MM-DD [today + n].')
 parser.add_argument('-n', type=int, action='store', default=30,
                     help='The number of days for the ephemeris.')
-parser.add_argument('--selong', type=str, action=ListAction, default=[0, 180],
-                    help='The allowed solar elongation limits.')
+
 parser.add_argument('--observer', type=str, action='store', default='Earth',
                     help='The observer.')
+parser.add_argument('--selong', type=str, action=ListAction, default=[0, 180],
+                    help='The allowed solar elongation limits.')
 
 parser.add_argument('--afrho', type=float, action='store', default=None,
                     help='Afrho parameter [cm].')
@@ -73,17 +74,31 @@ except AttributeError:
 
 ephemeris_only = True if args.afrho is None else False
 
+arg_list = ['start', 'end', 'n', 'observer', 'selong']
 if ephemeris_only:
     t = target.ephemeris(observer, [args.start, end], num=n)
 else:
+    arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef', 'wave',
+                     'rap', 'unit'])
     afrho1 = args.afrho / args.rh**args.k * u.cm
     coma = Coma(target.state, afrho1, k=args.k,
-                ef2af=args.ef2af, tscale=args.tscale,
+                ef2af=args.ef2af, Tscale=args.tscale,
                 phasef=getattr(mskpy.models, args.phasef))
     t = coma.lightcurve(observer, [args.start, end], args.wave * u.um, num=n,
                         rap=args.rap * u.arcsec, unit=u.Unit(args.unit),
                         verbose=False)
 
 t = t[between(t['selong'], args.selong)]
+
+print("""# ephemeris
+# target = {}
+#""".format(' '.join(args.target)))
+for k in arg_list:
+    if k[0] == '_':
+        continue
+
+    print("# {} = {}".format(k, getattr(args, k)))
+
+print("#")
 t.pprint(max_width=-1, max_lines=-1)
 
