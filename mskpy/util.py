@@ -94,6 +94,7 @@ util --- Short and sweet functions, generic algorithms
    autodoc
    spectral_density_sb
    timesten
+   write_table
 
 """
 
@@ -169,7 +170,8 @@ __all__ = [
     'asValue',
     'autodoc',
     'spectral_density_sb',
-    'timesten'
+    'timesten',
+    'write_table'
 ]
 
 def archav(y):
@@ -605,27 +607,27 @@ def getrot(h):
     # Does CDELTx exist?
     cdelt = np.zeros(2)
     cdeltDefined = False
-    if (h.has_key('CDELT1') and h.has_key('CDELT2')):
+    if (('CDELT1' in h) and ('CDELT2' in h)):
         # these keywords take precedence over the CD matrix
         cdeltDefined = True
         cdelt = np.array([h['CDELT1'], h['CDELT2']])
 
     # Transformation matrix?
     tmDefined = False
-    if (h.has_key('CD1_1') and h.has_key('CD1_2') and
-        h.has_key('CD2_1') and h.has_key('CD2_2')):
+    if (('CD1_1' in h) and ('CD1_2' in h) and
+        ('CD2_1' in h) and ('CD2_2' in h)):
         tmDefined = True
         cd = np.array(((h['CD1_1'], h['CD1_2']), (h['CD2_1'], h['CD2_2'])))
 
-    if (h.has_key('PC1_1') and h.has_key('PC1_2') and
-        h.has_key('PC2_1') and h.has_key('PC2_2')):
+    if (('PC1_1' in h) and ('PC1_2' in h) and
+        ('PC2_1' in h) and ('PC2_2' in h)):
         tmDefined = True
         cd = np.array(((h['PC1_1'], h['PC1_2']), (h['PC2_1'], h['PC2_2'])))
 
     if not tmDefined:
         # if CDELT is defined but the transformation matrix isn't,
         # then CROT should be defined
-        if cdeltDefined and h.has_key('CROTA2'):
+        if cdeltDefined and ('CROTA2' in h):
             rot = h['CROTA2']
             return cdelt, rot
 
@@ -2702,6 +2704,41 @@ def timesten(v, sigfigs):
     s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
     s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
     return s
+
+def write_table(fn, tab, header, comments=[], **kwargs):
+    """Write an astropy Table with a simple header.
+
+    Parameters
+    ----------
+    fn : string
+      The name of the file to write to.
+    tab : astropy Table
+      The table to write.
+    header : dict
+      A dictionary of keywords to save or `None`.  Use an
+      `OrderedDict` to preserve header keyword order.
+    comments : list
+      A list of comments to add to the top of the file.  Each line
+      will be prepended with a comment character.
+    **kwargs
+      Keyword arguments for `tab.write()`.  Default format is
+      'ascii.fixed_width_two_line'.
+
+    """
+
+    format = kwargs.pop('format', 'ascii.fixed_width_two_line')
+    with open(fn, 'w') as outf:
+        outf.write("# {}\n#\n".format(date2time(None).iso))
+
+        for c in comments:
+            outf.write("# {}\n".format(c))
+
+        for k, v in header.items():
+            outf.write("# {} = {}\n".format(k, str(v)))
+
+        outf.write('#\n')
+
+        tab.write(outf, format=format, **kwargs)
 
 # summarize the module
 autodoc(globals())
