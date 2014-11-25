@@ -754,14 +754,17 @@ def planckfit(wave, fluxd, err, guess, covar=False):
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
+    print output[-2]
     fit = output[0]
     cov = output[1]
-    err = np.sqrt(np.diag(cov))
 
     if covar:
         return fit, cov
     else:
-        return fit, err
+        if cov is None:
+            return fit, None
+        else:
+            return fit, np.sqrt(np.diag(cov))
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
