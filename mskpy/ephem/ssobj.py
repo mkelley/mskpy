@@ -133,7 +133,8 @@ class SolarSysObject(object):
         return self.state.v(date)
 
     def ephemeris(self, observer, dates, num=None, columns=None,
-                  cformats=None, date_format=None, ltt=False, **kwargs):
+                  cformats=None, ra_unit='hourangle', date_format=None,
+                  ltt=False, **kwargs):
         """Ephemeris for an observer.
 
         Parameters
@@ -154,6 +155,8 @@ class SolarSysObject(object):
         cformats : dict or list, optional
           A dictionary of formats with keys corresponding to
           `columns`.
+        ra_unit : str or astropy Unit, optional
+          The unit of Right Ascention output, e.g., hourangle or deg.
         date_format : function
           A function to format the `date` column before creating the
           table.
@@ -169,11 +172,14 @@ class SolarSysObject(object):
         `date_format` should be removed when astropy `Table` can
         handle Time objects.
 
+        Override `_add_lc_columns` to add additional columns to
+        lightcurve output.
+
         """
 
         from astropy.table import Table, Column
         from astropy.units import Quantity
-        from ..util import dh2hms, date2time
+        from ..util import date2time, dh2hms
 
         dates = date2time(dates)
         if num is not None:
@@ -199,8 +205,8 @@ class SolarSysObject(object):
 
         _cformats = dict(
             date = '{:s}',
-            ra = lambda x: dh2hms(x / 15.0)[:-7],
-            dec = lambda x: dh2hms(x)[:-7],
+            ra = lambda x: dh2hms(x, "{:2d}:{:02d}"),
+            dec = lambda x: dh2hms(x, "{:2d}:{:02d}"),
             lam = '{:.0f}',
             bet = '{:+.0f}',
             rh = '{:.3f}',
@@ -223,8 +229,10 @@ class SolarSysObject(object):
         for c in columns:
             if c == 'date':
                 data = [date_format(d) for d in g[c]]
+            elif c == 'ra':
+                data = g[c].to(ra_unit)
             else:
-                data = g[c].value
+                data = g[c]
 
             if c in _cformats:
                 cf = _cformats[c]
@@ -318,12 +326,25 @@ class SolarSysObject(object):
         if verbose:
             print()
 
+        lc = self._add_lc_columns(lc)
+
         cf = kwargs.get('cformat', dict()).get('fluxd', '{:9.3g}')
         unit = str(unit)
         for i in range(fluxd.shape[1]):
             lc.add_column(Column(data=fluxd[:, i],
                                  name="f{:.1f}".format(wave.value[i]),
                                  format=cf, unit=unit))
+        return lc
+
+    def _add_lc_columns(self, lc):
+        """Add additional columns to a lightcurve table.
+
+        Parameters
+        ----------
+        lc : Table
+          The current lightcurve table.
+
+        """
         return lc
 
     def observe(self, target, date, ltt=False):
