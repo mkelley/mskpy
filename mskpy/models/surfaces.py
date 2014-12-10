@@ -213,6 +213,67 @@ class NEATM(SurfaceRadiation):
               / sigma)**0.25
         return T0 * u.K
 
+    def fit(self, g, wave, fluxd, unc, **kwargs):
+        """Least-squares fit to a spectrum, varying `D` and `eta`.
+
+        Uses the object's current state as the initial parameter set.
+
+        Parameters
+        ----------
+        g : dict-like
+          A dictionary-like object with the keys 'rh' (heliocentric
+          distance), 'delta' (observer-target distance), and 'phase'
+          (phase angle) as Quantities.
+        wave : Quantity
+          The spectrum wavelengths.
+        fluxd : Quantity
+          The spectrum flux density.
+        unc : Quantity
+          The uncertainties on `fluxd`.
+        **kwargs
+          Any keyword arguments for `scipy.optimize.leastsq`.
+
+        Returns
+        -------
+        fit : NEATM
+          Best-fit parameters.
+        fiterr : tuple
+          `(D, eta)` fit errors (assuming independent variables) or
+          `None` if they cannot be computed.
+        result : tuple
+          The full output from `scipy.optimize.leastsq`.
+
+        """
+
+        from copy import copy
+        from scipy.optimize import leastsq
+
+        def chi(p, neatm, g, wave, fluxd, unc):
+            neatm.D = u.Quantity(abs(p[0]), u.km)
+            neatm.eta = abs(p[1])
+            model = neatm.fluxd(g, wave, unit=fluxd.unit).value
+            chi = (model - fluxd.value) / unc.value
+            rchisq = (chi**2).sum() / (len(wave) - 2.0)
+            print(neatm.D, neatm.eta, rchisq)
+            return chi
+
+        neatm = copy(self)
+        args = (neatm, g, wave, fluxd, unc)
+        kwargs['epsfcn'] = kwargs.get('epsfcn', 1e-5)
+
+        kwargs['full_output'] = True
+        result = leastsq(chi, (self.D.value, self.eta), args, **kwargs)
+
+        neatm.D = u.Quantity(result[0][0], u.km)
+        neatm.eta = result[0][1]
+        cov = result[1]
+        if cov is None:
+            err = None
+        else:
+            err = np.sqrt(np.diagonal(cov))
+
+        return neatm, err, result
+
     def _point_emission(self, phi, theta, wave, T0):
         """The emission from a single point.
 
