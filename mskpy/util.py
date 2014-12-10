@@ -45,6 +45,7 @@ util --- Short and sweet functions, generic algorithms
    spherical_coord_rotate
    state2orbit
    vector_rotate
+   xyz2lb
 
    Statistics
    ----------
@@ -130,6 +131,7 @@ __all__ = [
     'spherical_coord_rotate',
     'state2orbit',
     'vector_rotate',
+    'xyz2lb',
 
     'kuiper',
     'kuiperprob',
@@ -1287,6 +1289,34 @@ def vector_rotate(r, n, th):
         return rot(r, nhat, th)
     else:
         return np.array([rot(r, nhat, t) for t in th])
+
+def xyz2lb(r):
+    """Transform a vector to angles.
+
+    Parameters
+    ----------
+    r : array
+      The vector, shape = (3,) or (n, 3).
+
+    Returns
+    -------
+    lam : float or array
+      Longitude. [degrees]
+    bet : float or array
+      Latitude. [degrees]
+
+    """
+
+    r = np.array(r)
+    if r.ndim == 1:
+        lam = np.arctan2(r[1], r[0])
+        bet = np.arctan2(r[2], np.sqrt(r[0]**2 + r[1]**2))
+    else:
+        # assume it is an array of vectors
+        lam = np.arctan2(r[:, 1], r[:, 0])
+        bet = np.arctan2(r[:, 2], np.sqrt(r[:, 0]**2 + r[:, 1]**2))
+
+    return np.degrees(lam), np.degrees(bet)
 
 def kuiper(x, y):
     """Compute Kuiper's statistic and probablity.
