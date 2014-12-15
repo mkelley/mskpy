@@ -162,7 +162,7 @@ class Coma(SolarSysObject):
 
     def _add_lc_columns(self, lc):
         from astropy.table import Column
-        afrho = self.Afrho1 * lc['rh'].to(u.au).value**self.k
+        afrho = self.Afrho1 * lc['rh'].data**self.k
         lc.add_column(Column(afrho, name='Afrho', format='{:.4g}'))
         return lc
 
