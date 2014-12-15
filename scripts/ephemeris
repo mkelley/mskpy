@@ -32,7 +32,7 @@ parser.add_argument('--selong', type=str, action=ListAction, default=[0, 180],
                     help='The allowed solar elongation limits.')
 
 parser.add_argument('--afrho', type=float, action='store', default=None,
-                    help='Afrho parameter [cm].')
+                    help='Afrho parameter at phase angle = 0 [cm].')
 parser.add_argument('-k', type=float, action='store', default=-2.0,
                     help='Afrho heliocentric distance power-law slope.')
 parser.add_argument('--rh', type=float, action='store', default=1.0,
