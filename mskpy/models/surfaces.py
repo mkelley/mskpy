@@ -65,9 +65,9 @@ class NEATM(SurfaceRadiation):
     If you use this model, please reference Harris (1998, Icarus, 131,
     291-301).
 
-    If unknown, use `eta=1.0` `epsilon=0.95` for a comet (Fernandez et
-    al., Icarus, submitted), and `eta=0.96` `epsilon=0.9` (or
-    `eta=0.91` with `epsilon=0.95`) for an asteroid (Mainzer et
+    If unknown, use `eta=1.03` `epsilon=0.95` for a comet (Fernandez
+    et al., 2013, Icarus 226, 1138-1170), and `eta=0.96` `epsilon=0.9`
+    (or `eta=0.91` with `epsilon=0.95`) for an asteroid (Mainzer et
     al. 2011, ApJ 736, 100).
 
     Parameters
