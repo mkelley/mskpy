@@ -7,6 +7,7 @@ spitzer --- Spitzer instruments.
    Classes
    -------
    IRAC
+   IRS
 
 """
 
@@ -23,7 +24,7 @@ from .instrument import Instrument, Camera, LongSlitSpectrometer
 __all__ = ['IRAC']
 
 class IRAC(Camera):
-    """InfraRed Array Camera
+    """Spitzer's Infrared Array Camera
 
     Attributes
     ----------
@@ -122,6 +123,31 @@ class IRAC(Camera):
             K[i] = (davint(nu, _sf * ft * nu0[i] / nu, nu[0], nu[-1])
                     / davint(nu, ft * (nu0[i] / nu)**2, nu[0], nu[-1]))
         return K
+
+class IRS(Instrument):
+    """Spitzer's Infrared Spectrometer
+
+    Attributes
+    ----------
+    module : The current IRS module: SL1, SL2, etc.
+
+    Examples
+    --------
+
+    """
+
+    def __init__(self):
+        w = 
+        self.sl2 = LongSlitSpectrometer(w, 
+
+        w = [3.550, 4.493, 5.731, 7.872] * u.um
+        shape = (256, 256)
+        ps = 1.22 * u.arcsec
+        location = Spitzer
+        Camera.__init__(self, w, shape, ps, location=location)
+
+
+
 
 # update module docstring
 from ..util import autodoc
