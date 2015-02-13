@@ -25,6 +25,8 @@ util --- Short and sweet functions, generic algorithms
 
    Optimizations
    -------------
+   gaussfit
+   glfit
    linefit
    planckfit
 
@@ -35,6 +37,7 @@ util --- Short and sweet functions, generic algorithms
    leading_num_key
    nearest
    takefrom
+   stat_avg
    whist
 
    Spherical/Celestial/vectorial geometry
@@ -115,6 +118,8 @@ __all__ = [
     'fitslog',
     'getrot',
 
+    'gaussfit',
+    'glfit',
     'linefit',
     'planckfit',
 
@@ -122,6 +127,7 @@ __all__ = [
     'groupby',
     'leading_num_key',
     'nearest',
+    'stat_avg',
     'takefrom',
     'whist',
 
@@ -667,6 +673,100 @@ def getrot(h):
 
     return cdelt * 3600.0, np.degrees(rot1)
 
+def gaussfit(x, y, err, guess, covar=False):
+    """A quick Gaussian fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess: `(amplitude, mu, sigma)`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        A, mu, sigma = p
+        model = A * gaussian(x, mu, sigma)
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-4)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
+def glfit(x, y, err, guess, covar=False):
+    """A quick Gaussian + line fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess: `(amplitude, mu, sigma, m, b)`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        A, mu, sigma, m, b = p
+        model = A * gaussian(x, mu, sigma) + m * x + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-4)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
 def linefit(x, y, err, guess, covar=False):
     """A quick line fitting function.
 
@@ -899,6 +999,52 @@ def nearest(array, v):
 
     """
     return np.abs(np.array(array) - v).argmin()
+
+def stat_avg(x, y, u, N):
+    """Bin an array, weighted by measurement errors.
+
+    Parameters
+    ----------
+    x : array
+      The independent variable.
+    y : array
+      The parameter to average.
+    u : array
+      The uncertainties on y. weights for each `y`.
+    N : int
+      The number of points to bin.  The right-most bin may contain
+      fewer than `N` points.
+
+    Returns
+    -------
+    bx, by, bu : ndarray
+      The binned data.  The `x` data is straight averaged (unweighted).
+    n : ndarray
+      The number of points in each bin.
+
+    """
+
+    nbins = x.size / N
+    remainder = x.size % nbins
+    shape = (nbins, N)
+
+    w = (1.0 / np.array(u)**2)
+    _w = w[:-remainder].reshape(shape)
+    _x = np.array(x)[:-remainder].reshape(shape)
+    _y = np.array(y)[:-remainder].reshape(shape)
+
+    _x = _x.mean(1)
+    _y = (_y * _w).sum(1) / _w.sum(1)
+    _u = np.sqrt(1.0 / _w.sum(1))
+
+    n = np.ones(len(_x)) * N
+    if remainder > 0:
+        _x = np.r_[_x, np.mean(x[-remainder:])]
+        _y = np.r_[_y, (np.array(y[-remainder:]) / w[-remainder:]).sum()]
+        _u = np.r_[_u, np.sqrt(1.0 / w[-remainder:].sum())]
+        n = np.r_[n, remainder]
+
+    return _x, _y, _u, n
 
 def takefrom(arrays, indices):
     """Return elements from each array at the given indices.
