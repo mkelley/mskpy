@@ -201,7 +201,7 @@ class Observer(object):
           Plot the target's path over this time span, centered on the
           observer's date (`self.date`).
         ticks : Quantity, optional
-          Plot tick marks using this interval.
+          Plot tick marks using this interval.  The first tick is a circle.
         fov : Quantity, optional
           Angular size of a box or rectangle to draw, indicating your
           instrument's FOV, or `None`.
@@ -261,13 +261,16 @@ class Observer(object):
         dt2 = np.arange(ticks.value, trange[1].value, ticks.value)
         if dt2[-1] != trange[0].value:
             dt2 = np.concatenate((dt2, [trange[1].value]))
-        dt = np.concatenate((dt1, dt2)) * u.hr
+        dt = np.concatenate((dt1[::-1], dt2)) * u.hr
         del dt1, dt2
         g = Earth.observe(target, self.date + dt, ltt=True)
         for i in range(len(g)):
-            ds9.set('regions', 'fk5; point({},{}) # point=cross'.format(
+            s = 'fk5; point({},{}) # point=cross'.format(
                 g[i]['ra'].to_string(u.hr, sep=':'),
-                g[i]['dec'].to_string(u.deg, sep=':')))
+                g[i]['dec'].to_string(u.deg, sep=':'))
+            if i == 0:
+                s = s.replace('cross', 'circle')
+            ds9.set('regions', s)
 
         g = Earth.observe(target, self.date, ltt=True)
         ds9.set('regions', 'fk5; point({},{}) # point=x'.format(
