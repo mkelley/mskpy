@@ -269,6 +269,11 @@ class Observer(object):
                 g[i]['ra'].to_string(u.hr, sep=':'),
                 g[i]['dec'].to_string(u.deg, sep=':')))
 
+        g = Earth.observe(target, self.date, ltt=True)
+        ds9.set('regions', 'fk5; point({},{}) # point=x'.format(
+            g['ra'].to_string(u.hr, sep=':'),
+            g['dec'].to_string(u.deg, sep=':')))
+
         return ds9
 
     def plot_am(self, target, N=100, ax=None, **kwargs):
