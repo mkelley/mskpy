@@ -12,6 +12,7 @@ observing --- Observing stuff
    ---------
    am_plot
    file2targets
+   plot_transit_time
 
 """
 from __future__ import print_function
@@ -27,7 +28,8 @@ __all__ = core.__all__ + [
     'Target',
 
     'am_plot',
-    'file2targets'
+    'file2targets',
+    'plot_transit_time'
     ]
 
 class Target(object):
@@ -534,6 +536,60 @@ def file2targets(filename):
     if skipped > 0:
         print("Skipped {} possible targets".format(skipped))
     return targets
+
+def plot_transit_time(target, g_sun, observer=None, ax=None, **kwargs):
+    """Plot the transit time of a target.
+
+    Parameters
+    ----------
+    target : SolarSysObject
+    g_sun : Geom
+      The Sun's observing geometry for the dates of interest.
+    observer : SolarSysObject
+      The observer, or `None` for Earth.
+    ax : matplotlib axis, optional
+      The axis to which to plot, or `None` for current.
+    **kwargs
+      Any plot keyword.
+
+    """
+
+    import matplotlib.pyplot as plt
+    from ..ephem import Earth
+
+    if observer is None:
+        observer = Earth
+
+    if ax is None:
+        ax = plt.gca()
+    
+    g = observer.observe(target, g_sun.date)
+    tt = (g.ra - g_sun.ra - 12 * u.hourangle).wrap_at(180 * u.deg).hourangle
+
+    cut = np.concatenate((np.abs(np.diff(tt)) > 12, [True]))
+    i = 0
+    name = target.name
+    for j in np.flatnonzero(cut):
+        line = ax.plot(tt[i:j], g.date[i:j].datetime, label=name,
+                       **kwargs)[0]
+        name = None
+        i = j + 1
+
+    # mark perihelion
+    i = g.rh.argmin()
+    if (i > 0) and (i < (len(g) - 1)):
+        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
+        ax.annotate(' q={:.1f}'.format(g.rh[i].value),
+                    [tt[i], g.date[i].datetime], color=line.get_color(),
+                    fontsize=8)
+
+    # pick 12 points and plot rh
+    x = np.random.randint(0, len(g) / 10)
+    for i in np.linspace(0 + x, len(g) - x - 1, 12).astype(int):
+        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
+        ax.annotate(' {:.1f}'.format(g.rh[i].value),
+                    [tt[i], g.date[i].datetime], color=line.get_color(),
+                    fontsize=8)
 
 #class MovingObserver(Observer):
 #    def __init__(self, obj):

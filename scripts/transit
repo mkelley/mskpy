@@ -1,0 +1,93 @@
+#!/usr/bin/python
+from __future__ import print_function
+import sys
+import argparse
+import datetime
+import itertools
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+import astropy.units as u
+import mskpy
+from mskpy import getspiceobj, date2time, cal2time
+from mskpy import ephem, Sun, Earth
+from mskpy.observing import plot_transit_time
+
+today = datetime.date.today()
+
+class ListAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        v = [x.strip() for x in ' '.join(values).split(',')]
+        setattr(namespace, self.dest, v)
+
+parser = argparse.ArgumentParser(description='Generate a plot of transit times.')
+parser.add_argument('target', type=str, action=ListAction, nargs='*',
+                    help='Comma-separated list of targets.')
+
+parser.add_argument('--start', type=str, action='store',
+                    default=today.isoformat(),
+                    help='The first day, YYYY-MM-DD [today].')
+parser.add_argument('--end', type=str, action='store', default=None,
+                    help='The last day, YYYY-MM-DD [start + n].')
+parser.add_argument('-n', type=int, action='store', default=365,
+                    help='The number of days to plot, if end is not specified.')
+
+parser.add_argument('--observer', type=str, action='store', default='Earth',
+                    help='The observer.')
+
+parser.add_argument('-o', type=str, action='store', default='transit.pdf',
+                    help='Plot file name')
+
+args = parser.parse_args()
+if args.target == []:
+    parser.print_help()
+    print()
+    exit()
+
+if args.end is None:
+    #ymd = [int(x) for x in args.start.split('-')]
+    #start = datetime.date(*ymd)
+    start = cal2time(args.start)
+    end = datetime.date.fromordinal(start.datetime.toordinal()
+                                    + args.n).isoformat()
+    n = args.n + 1
+else:
+    end = args.end
+    n = int(util.cal2time(end).jd - util.cal2time(args.start).jd + 1)
+
+targets = [ephem.getspiceobj(t) for t in args.target]
+
+try:
+    observer = eval('ephem.' + args.observer.capitalize())
+except AttributeError:
+    observer = ephem.getspiceobj(' '.join(args.observer))
+
+date_range = date2time([start, end])
+jd = np.arange(date_range[0].jd, date_range[1].jd)
+if jd[-1] != date_range[1].jd:
+    jd = np.concatenate((jd, [date_range[1].jd]))
+dates = date2time(jd)
+g_sun = Earth.observe(Sun, jd)
+
+fig = plt.figure(1, (10, 10))
+fig.clear()
+ax = plt.gca()
+
+style = itertools.cycle(itertools.product(['-', '--', '-.', ':'], 'bgrcym'))
+for target in targets:
+    ls, color = style.next()
+    plot_transit_time(target, g_sun, observer=observer, ax=ax,
+                      color=color, ls=ls)
+
+plt.setp(ax, xlim=[-7, 7], xlabel='Transit time (hr)')
+
+f = lambda x, pos: mskpy.dh2hms(x % 24.0, '{:02d}:{:02d}')
+plt.setp(ax.xaxis, minor_locator=ticker.AutoMinorLocator(),
+         major_formatter=ticker.FuncFormatter(f))
+
+#ax.invert_yaxis()
+mskpy.nicelegend(frameon=False, loc='upper left', bbox_to_anchor=(1.0, 0.95))
+mskpy.niceplot(axfs='10')
+fig.subplots_adjust(right=0.8)
+plt.draw()
+plt.savefig(args.o)
