@@ -50,7 +50,7 @@ if __name__ == "__main__":
           packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
                     'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing'],
           data_files=files,
-          scripts=['scripts/ephemeris'],
+          scripts=['scripts/ephemeris', 'scripts/transit'],
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
           cmdclass={'test': PyTest, 'install': my_install},

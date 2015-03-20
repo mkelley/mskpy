@@ -39,7 +39,7 @@ parser.add_argument('-o', type=str, action='store', default='transit.pdf',
                     help='Plot file name')
 
 args = parser.parse_args()
-if args.target == []:
+if args.target == ['']:
     parser.print_help()
     print()
     exit()
