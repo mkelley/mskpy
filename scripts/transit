@@ -45,8 +45,6 @@ if args.target == ['']:
     exit()
 
 if args.end is None:
-    #ymd = [int(x) for x in args.start.split('-')]
-    #start = datetime.date(*ymd)
     start = cal2time(args.start)
     end = datetime.date.fromordinal(start.datetime.toordinal()
                                     + args.n).isoformat()
