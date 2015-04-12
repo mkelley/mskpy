@@ -19,14 +19,61 @@ __all__ = [
 
 import numpy as np
 
-def spatial_match(cat0, cat1, tol=0.01, min_score=0, full_output=False,
-                  verbose=True):
-    """Find spatially matching sourse between two lists.
+def project_catalog(cat, wcs=None):
+    """Project a catalog onto the image plane.
+
+    The default is the tangent image plane, but any WCS transformation
+    can be used.
+
+    Parameters
+    ----------
+    cat : astropy SkyCoord, Quantity, or Angle
+      The coordinate list.  If a `Quantity` or `Angle`, `cat` must be
+      a 2xN array: (lat, long).
+    wcs : astropy.wcs.WCS, optional
+      The world coordinate system object for transformation.  The
+      default assumes the tangent plane centered on the latitude
+      and longitude of the catalog.
+
+    Returns
+    -------
+    flat_cat : ndarray
+      A 2xN array of pixel positions, (y, x).
+
+    """
+
+    from astropy.wcs import WCS
+    from astropy.coordinates import SkyCoord
+
+    if not isinstance(cat, SkyCoord):
+        assert len(cat) == 2
+        cat = SkyCoord(ra=cat[1], dec=cat[0])
+
+    if wcs is None:
+        wcs = WCS(naxis=2)
+        wcs.wcs.crpix = (0, 0)
+        ra0 = (cat.ra.max() - cat.ra.min()) / 2.0 + cat.ra.min()
+        dec0 = (cat.dec.max() - cat.dec.min()) / 2.0 + cat.dec.min()
+        wcs.wcs.crval = (ra0.value, dec0.value)
+        wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
+        wcs.wcs.cdelt = np.array([-1, 1]) / 3600.0
+
+    x, y = cat.to_pixel(wcs)
+    return np.vstack((y, x))
+
+def spatial_match(cat0, cat1, n=30, tol=0.01, min_score=0, full_output=False,
+                  verbose=True, **kwargs):
+
+    """Find spatially matching sources between two lists.
 
     Parameters
     ----------
     cat0, cat1 : arrays
-      Each catalog is an 2xN array of (y, x) positions.
+      Each catalog is a 2xN array of (y, x) positions, or a 3xN array
+      of positions and flux (y, x, f).
+    n : float, optional
+      If fluxes are provided in the catalogs, only the brightest `n`
+      stars are considered.
     tol : float, optional
       The match tolerance.
     min_score : float, optional
@@ -35,6 +82,8 @@ def spatial_match(cat0, cat1, tol=0.01, min_score=0, full_output=False,
       Set to `True` to also return `match_matrix`.
     verbose : bool, optional
       Print some feedback for the user.
+    **kwargs
+      `triangles` keyword arguments.
 
     Returns
     -------
@@ -60,8 +109,16 @@ def spatial_match(cat0, cat1, tol=0.01, min_score=0, full_output=False,
 
     from scipy.spatial.ckdtree import cKDTree
 
-    v0, s0 = triangles(*cat0)
-    v1, s1 = triangles(*cat1)
+    if len(cat0) == 3:
+        cat0 = cat0[:, np.argsort(cat0[2])[::-1][:n]][:2]
+    assert len(cat0) == 2
+    v0, s0 = triangles(*cat0, **kwargs)
+
+    if len(cat1) == 3:
+        cat1 = cat1[:, np.argsort(cat1[2])[::-1][:n]][:2]
+    assert len(cat1) == 2
+    v1, s1 = triangles(*cat1, **kwargs)
+
     N0 = len(cat0[0])
     N1 = len(cat1[0])
     tree = cKDTree(s0)
@@ -100,13 +157,17 @@ def spatial_match(cat0, cat1, tol=0.01, min_score=0, full_output=False,
     else:
         return matches, scores
 
-def triangles(y, x):
+def triangles(y, x, max_ratio=10, min_sep=0):
     """Describe all possible triangles in a set of points.
 
     Parameters
     ----------
     y, x : arrays
       Lists of coordinates.
+    max_ratio : float
+      Maximum ratio of longest to shortest side.  Typically 5 to 10.
+    min_sep : float
+      The minimum distance between two vertices.
 
     Returns
     -------
@@ -124,6 +185,7 @@ def triangles(y, x):
     dy = y[v] - np.roll(y[v], 1, 1)
     dx = x[v] - np.roll(x[v], 1, 1)
     abc = np.sort(np.sqrt(dy**2 + dx**2), 1)[:, ::-1]  #  lengths of sides abc
-    shapes = abc[:, 1:] / abc[:, :1]  # b/a, c/a
+    shapes = np.vstack((abc[:, 1:] / abc[:, :1]))  # b/a, c/a
+    i = ((shapes[:, 1] > max_ratio**-1) * (abc[:, 2] > min_sep))
 
-    return v, shapes
+    return v[i], shapes[i]
