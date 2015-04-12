@@ -160,6 +160,14 @@ def spatial_match(cat0, cat1, n=30, tol=0.01, min_score=0, full_output=False,
 def triangles(y, x, max_ratio=10, min_sep=0):
     """Describe all possible triangles in a set of points.
 
+    Following IRAF's ccxymatch, triangles computes:
+
+      * length of the perimeter
+      * ratio of longest to shortest side
+      * cosine of the angle between the longest and shortest side
+      * the direction of the arrangement of the vertices of each
+        triangle
+
     Parameters
     ----------
     y, x : arrays
@@ -175,17 +183,40 @@ def triangles(y, x, max_ratio=10, min_sep=0):
       Indices of the `y` and `x` arrays which define the vertices of
       each triangle (Nx3).
     s : array
-      The shape of each triangle (Nx2): b/a, c/a
+      The shape of each triangle (Nx4): perimeter, a/c, cos(beta),
+      curl.
 
     """
 
     from itertools import combinations
 
     v = np.array(list(combinations(range(len(y)), 3)))
+
     dy = y[v] - np.roll(y[v], 1, 1)
     dx = x[v] - np.roll(x[v], 1, 1)
-    abc = np.sort(np.sqrt(dy**2 + dx**2), 1)[:, ::-1]  #  lengths of sides abc
-    shapes = np.vstack((abc[:, 1:] / abc[:, :1]))  # b/a, c/a
-    i = ((shapes[:, 1] > max_ratio**-1) * (abc[:, 2] > min_sep))
+    sides = np.sqrt(dy**2 + dx**2)
 
-    return v[i], shapes[i]
+    # numpy magic from
+    # http://stackoverflow.com/questions/10921893/numpy-sorting-a-multidimensional-array-by-a-multidimensional-array/
+    i = np.argsort(sides, 1)[:, ::-1]  # indices of sides a, b, c
+    i = list(np.ogrid[[slice(j) for j in i.shape]][:-1]) + [i]
+    dy = dy[i]
+    dx = dx[i]
+    abc = sides[i]
+
+    a2c = abc[:, 0] / abc[:, 2]
+    i = (a2c < max_ratio) * (abc[:, 2] > min_sep)
+    dx = dx[i]
+    dy = dy[i]
+    abc = abc[i]
+    a2c = a2c[i]
+
+    perimeter = abc.sum(1)
+    cbet = ((abc[:, 0]**2 + abc[:, 2]**2 - abc[:, 1]**2)
+            / (2 * abc[:, 0] * abc[:, 2]))
+    rot = np.sign((x[v[:, 0]] - x[v[:, 2]]) * (y[v[:, 1]] - y[v[:, 0]])
+                  - (x[v[:, 0]] - x[v[:, 1]]) * (y[v[:, 2]] - y[v[:, 0]]))
+    rot = rot[i]
+    shapes = np.c_[perimeter, a2c, cbet, rot]
+
+    return v, shapes
