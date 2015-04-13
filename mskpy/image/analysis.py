@@ -13,6 +13,7 @@ image.analysis --- Analyze (astronomical) images.
    bgfit
    bgphot
    centroid
+   find
    fwhm
    gcentroid
    imstat
@@ -40,6 +41,7 @@ __all__ = [
     'bgphot',
     'centroid',
     'gcentroid',
+    'find',
     'fwhm',
     'imstat',
     'linecut',
@@ -419,6 +421,89 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
             print("x, y = {0:.1f}, {1:.1f}".format(cx, cy))
 
     return cyx
+
+def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
+    """Find sources in an image.
+
+    Generally designed for point-ish sources.
+
+    Parameters
+    ----------
+    im : array
+      The image to search.
+    sigma : float, optional
+      The 1-sigma uncertainty in the background, or `None` to estimate
+      the uncertainty with the sigma-clipped mean and standard
+      deviation of `meanclip`.  If provided, then the image should be
+      background subtracted.
+    thresh : float, optional
+      The detection threshold in sigma.  If a pixel is detected above
+      `sigma * thresh`, it is an initial source candidate.
+    centroid : function, optional
+      The centroiding function, or `None` to use `util.gcentroid`.
+      The function is passed a subsection of the image.  All other
+      parameters are provided via `kwargs`.
+    fwhm : int, optional
+      A rough estimate of the FWHM of a source, used for binary
+      morphology operations.
+    **kwargs
+      Any keyword arguments for `centroid`.
+
+    Returns
+    -------
+    cat : ndarray
+      A catalog of `(y, x)` source positions.
+    f : ndarray
+      An array of approximate source fluxes (a background estimate is
+      removed if `sigma` is `None`).
+
+    """
+    
+    import scipy.ndimage as nd
+    from util import meanclip, gcentroid
+
+    assert isinstance(fwhm, int), 'FWHM must be integer'
+
+    if sigma is None:
+        stats = meanclip(im)[:2]
+        im -= stats[0]
+        sigma = stats[1]
+
+    if centroid is None:
+        centroid = gcentroid
+
+    det = im > (thresh * sigma)
+    det = nd.binary_erosion(det, iterations=fwhm)  # remove small objects
+    det = nd.binary_dilation(det, iterations=fwhm * 2 + 1)  # grow aperture size
+    label, n = nd.label(det)
+
+    yx = []
+    f = []
+    bad = 0
+    for i in nd.find_objects(label):
+        star = im[i]
+
+        if not np.isfinite(star.sum()):
+            bad += 1
+            continue
+
+        try:
+            cen = centroid(star, **kwargs)
+        except:
+            bad += 1
+            continue
+
+        cen += np.array((i[0].start, i[1].start))
+
+        if not any(np.isfinite(cen)):
+            bad += 1
+            continue
+
+        yx.append(cen)
+        f.append(star.sum())
+
+    print('[find] {} good, {} bad sources'.format(len(yx), bad))
+    return np.array(yx), np.array(f)
 
 def fwhm(im, yx, bg=True, **kwargs):
     """Compute the FWHM of an image.
