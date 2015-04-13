@@ -84,7 +84,7 @@ def brightest(cat0, flux, n):
     """
     return cat0[:, np.argsort(flux)[::-1][:n]]
 
-def spatial_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
+def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
                   psig=1.5, min_frac=0, full_output=False, verbose=True,
                   **kwargs):
 
@@ -155,14 +155,16 @@ def spatial_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
     Notes
     -----
 
-    I don't think step 5 is robust.
+    Step 5 is not robust against vertex re-ordering.  For example, if
+    triangle a, b, c matches d, e, f, but compared with triangle e, f,
+    d, then the match will not be as good.
 
     """
 
     from scipy.spatial.ckdtree import cKDTree
     from .util import takefrom, meanclip
 
-    print "\n*** spatial_match is experimental! ***\n"
+    print "\n*** spatial_match is experimental! See Notes. ***\n"
 
     assert len(cat0) == 2
     v0, s0 = triangles(*cat0, **kwargs)
@@ -191,13 +193,16 @@ def spatial_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
     perimeter_ratios = s1[:, 0] / s0[i, 0]
     mc = meanclip(perimeter_ratios[good], lsig=psig, hsig=psig,
                   full_output=True)
-    p_good = (np.abs(perimeter_ratios - mc[0]) / mc[1] <= psig) * good
-    good *= p_good
+    if mc[1] <= 0:
+        print "[spatial_match] Low measured perimeter ratio sigma ({}), skipping perimeter rejection".format(mc[1])
+    else:
+        p_good = (np.abs(perimeter_ratios - mc[0]) / mc[1] <= psig) * good
+        good *= p_good
 
-    if verbose:
-        print ("""[spatial_match] Sigma-clipped perimeter ratios = {} +/- {}
-[spatial_match] {} triangle pairs with perimeter ratios within {} sigma.""").format(
-    mc[0], mc[1], p_good.sum(), psig)
+        if verbose:
+            print ("""[spatial_match] Sigma-clipped perimeter ratios = {} +/- {}
+[spatial_match] {} triangle pairs with perimeter ratios within {} sigma."""
+               ).format(mc[0], mc[1], p_good.sum(), psig)
 
     # reject based on orientation of vertices
     ccw = s0[i, 3] == s1[:, 3]
