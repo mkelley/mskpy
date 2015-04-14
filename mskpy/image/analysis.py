@@ -460,12 +460,12 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     """
     
     import scipy.ndimage as nd
-    from util import meanclip, gcentroid
+    from ..util import meanclip
 
     assert isinstance(fwhm, int), 'FWHM must be integer'
 
     if sigma is None:
-        stats = meanclip(im)[:2]
+        stats = meanclip(im, full_output=True)[:2]
         im -= stats[0]
         sigma = stats[1]
 
