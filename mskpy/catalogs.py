@@ -270,7 +270,8 @@ def triangles(y, x, max_ratio=10, min_sep=0):
     -------
     v : array
       Indices of the `y` and `x` arrays which define the vertices of
-      each triangle (Nx3).
+      each triangle (Nx3).  The first vertex is opposite side a, the
+      second, b, and the third, c.
     s : array
       The shape of each triangle (Nx4): perimeter, a/c, cos(beta),
       orientation.
@@ -289,6 +290,7 @@ def triangles(y, x, max_ratio=10, min_sep=0):
     # http://stackoverflow.com/questions/10921893/numpy-sorting-a-multidimensional-array-by-a-multidimensional-array/
     i = np.argsort(sides, 1)[:, ::-1]  # indices of sides a, b, c
     i = list(np.ogrid[[slice(j) for j in i.shape]][:-1]) + [i]
+    v = v[i]
     dy = dy[i]
     dx = dx[i]
     abc = sides[i]
