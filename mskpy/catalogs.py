@@ -65,7 +65,7 @@ def project_catalog(cat, wcs=None):
     x, y = cat.to_pixel(wcs)
     return np.vstack((y, x))
 
-def brightest(cat0, flux, n):
+def brightest(cat0, flux, n, full_output=False):
     """Return the n brightest objects in the catalog.
 
     Parameters
@@ -76,13 +76,20 @@ def brightest(cat0, flux, n):
       N-element array of object brightness.
     n : int
       Return the brightest `n` objects.
+    full_output : bool, optional
+      Return optional output.
 
     Returns
     -------
-    cat : array
+    cat : ndarray
+    i : ndarray
 
     """
-    return cat0[:, np.argsort(flux)[::-1][:n]]
+    i = np.argsort(flux)[::-1][:n]
+    if full_output:
+        return np.array(cat0)[:, i], i
+    else:
+        return np.array(cat0)[:, i]
 
 def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
                   psig=1.5, min_frac=0, full_output=False, verbose=True,
@@ -177,8 +184,8 @@ def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
 
     # Find closest triangles, considering a/c and cos(beta)
     scale = 1.0 / np.array((a2c_tol, cbet_tol))
-    tree = cKDTree(s0[:, 1:3] * scale)
-    d, i = tree.query(s1[:, 1:3] * scale)
+    tree = cKDTree(s0[1:3].T * scale)
+    d, i = tree.query(s1[1:3].T * scale)
 
     # reject based on tolerance
     good = d <= tol
@@ -187,10 +194,10 @@ def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
         print ("""[spatial_match] cat0 = {} triangles, cat1 = {} triangles
 [spatial_match] Best match score = {:.2g}, worst match sorce = {:.2g}
 [spatial_match] {} triangle pairs at or below given tolerance ({})""").format(
-                len(v0), len(v1), min(d), max(d), sum(d <= tol), tol)
+                v0.shape[1], v1.shape[1], min(d), max(d), sum(d <= tol), tol)
 
     # reject based on perimeter
-    perimeter_ratios = s1[:, 0] / s0[i, 0]
+    perimeter_ratios = s1[0] / s0[0, i]
     mc = meanclip(perimeter_ratios[good], lsig=psig, hsig=psig,
                   full_output=True)
     if mc[1] <= 0:
@@ -205,7 +212,7 @@ def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
                ).format(mc[0], mc[1], p_good.sum(), psig)
 
     # reject based on orientation of vertices
-    ccw = s0[i, 3] == s1[:, 3]
+    ccw = s0[3, i] == s1[3]
     cw_count = (~ccw[good]).sum()
     ccw_count = ccw[good].sum()
     if ccw_count >= cw_count:
@@ -222,9 +229,9 @@ def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
     match_matrix = np.zeros((N0, N1), int)
     for k, j in enumerate(i):
         if good[k]:
-            match_matrix[v0[j][0], v1[k][0]] += 1
-            match_matrix[v0[j][1], v1[k][1]] += 1
-            match_matrix[v0[j][2], v1[k][2]] += 1
+            match_matrix[v0[0][j], v1[0][k]] += 1
+            match_matrix[v0[1][j], v1[1][k]] += 1
+            match_matrix[v0[2][j], v1[2][k]] += 1
 
     m0 = match_matrix.argmax(1)
     m1 = match_matrix.argmax(0)
@@ -270,10 +277,10 @@ def triangles(y, x, max_ratio=10, min_sep=0):
     -------
     v : array
       Indices of the `y` and `x` arrays which define the vertices of
-      each triangle (Nx3).  The first vertex is opposite side a, the
+      each triangle (3xN).  The first vertex is opposite side a, the
       second, b, and the third, c.
     s : array
-      The shape of each triangle (Nx4): perimeter, a/c, cos(beta),
+      The shape of each triangle (4xN): perimeter, a/c, cos(beta),
       orientation.
 
     """
@@ -310,4 +317,4 @@ def triangles(y, x, max_ratio=10, min_sep=0):
     rot = rot[i]
     shapes = np.c_[perimeter, a2c, cbet, rot]
 
-    return v, shapes
+    return v.T, shapes.T
