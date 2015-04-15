@@ -472,7 +472,7 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     if centroid is None:
         centroid = gcentroid
 
-    det = im > (thresh * sigma)
+    det = im > thresh * sigma
     det = nd.binary_erosion(det, iterations=fwhm)  # remove small objects
     det = nd.binary_dilation(det, iterations=fwhm * 2 + 1)  # grow aperture size
     label, n = nd.label(det)
@@ -581,7 +581,7 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     from ..util import gaussian
 
     if yx is None:
-        yx = np.unravel_index(np.nanargmax(im), im.shape).astype(float)
+        yx = np.array(np.unravel_index(np.nanargmax(im), im.shape), float)
 
     # the array index location of yx
     iyx = np.round(yx).astype(int)
