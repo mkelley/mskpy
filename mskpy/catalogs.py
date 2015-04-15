@@ -159,19 +159,10 @@ def spatial_match(cat0, cat1, tol=0.1, a2c_tol=1.0, cbet_tol=0.2,
     scores : ndarray, optional
       The scores for each triangle's nearest neighbor.
 
-    Notes
-    -----
-
-    Step 5 is not robust against vertex re-ordering.  For example, if
-    triangle a, b, c matches d, e, f, but compared with triangle e, f,
-    d, then the match will not be as good.
-
     """
 
     from scipy.spatial.ckdtree import cKDTree
     from .util import takefrom, meanclip
-
-    print "\n*** spatial_match is experimental! See Notes. ***\n"
 
     assert len(cat0) == 2
     v0, s0 = triangles(*cat0, **kwargs)
