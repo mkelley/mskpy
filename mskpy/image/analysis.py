@@ -581,7 +581,7 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     from ..util import gaussian
 
     if yx is None:
-        yx = np.unravel_index(np.nanargmax(im), im.shape)
+        yx = np.unravel_index(np.nanargmax(im), im.shape).astype(float)
 
     # the array index location of yx
     iyx = np.round(yx).astype(int)
