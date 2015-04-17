@@ -464,15 +464,17 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
 
     assert isinstance(fwhm, int), 'FWHM must be integer'
 
+    _im = im.copy()
+
     if sigma is None:
-        stats = meanclip(im, full_output=True)[:2]
-        im -= stats[0]
+        stats = meanclip(_im, full_output=True)[:2]
+        _im -= stats[0]
         sigma = stats[1]
 
     if centroid is None:
         centroid = gcentroid
 
-    det = im > thresh * sigma
+    det = _im > thresh * sigma
     det = nd.binary_erosion(det, iterations=fwhm)  # remove small objects
     det = nd.binary_dilation(det, iterations=fwhm * 2 + 1)  # grow aperture size
     label, n = nd.label(det)
@@ -481,7 +483,7 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     f = []
     bad = 0
     for i in nd.find_objects(label):
-        star = im[i]
+        star = _im[i]
 
         if not np.isfinite(star.sum()):
             bad += 1
@@ -611,8 +613,10 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         return np.sum((amplitude * gaussian(x, mu, sigma) - f)[i]**2)
     
     if halfbox[0] > 0:
-        yr = [iyx[0] - halfbox[0], iyx[0] + halfbox[0] + 1]
-        xr = [iyx[1] - halfbox[1], iyx[1] + halfbox[1] + 1]
+        yr = [max(iyx[0] - halfbox[0], 0),
+              min(iyx[0] + halfbox[0] + 1, im.shape[0] - 1)]
+        xr = [max(iyx[1] - halfbox[1], 0),
+              min(iyx[1] + halfbox[1] + 1, im.shape[1] - 1)]
         ap = (slice(*yr), slice(*xr))
         y = np.arange(*yr, dtype=float)
         f = np.sum(im[ap], 1)
@@ -625,8 +629,12 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
         cyx[0] = fit['x'][1]
 
     if halfbox[1] > 0:
-        yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
-        xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
+        #yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
+        #xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
+        yr = [max(iyx[0] - halfbox[1], 0),
+              min(iyx[0] + halfbox[1] + 1, im.shape[0] - 1)]
+        xr = [max(iyx[1] - halfbox[0], 0),
+              min(iyx[1] + halfbox[0] + 1, im.shape[1] - 1)]
         ap = (slice(*yr), slice(*xr))
         x = np.arange(*xr)
         f = np.sum(im[ap], 0)
