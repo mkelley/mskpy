@@ -493,6 +493,14 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
             bad += 1
             continue
 
+        if any(np.array(cen) < -0.5):
+            bad += 1
+            continue
+
+        if any((cen[0] >= star.shape[0] - 0.5, cen[1] >= star.shape[1] - 0.5)):
+            bad += 1
+            continue
+
         cen += np.array((i[0].start, i[1].start))
 
         if not any(np.isfinite(cen)):
