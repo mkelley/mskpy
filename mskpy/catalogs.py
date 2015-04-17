@@ -8,14 +8,17 @@ catalogs - Tools for working with lists of stars
    :toctree: generated/
 
    brightest
+   faintest
    project_catalog
-   spatial_match
+   nearest_match
    triangles
+   triangle_match
 
 """
 
 __all__ = [
     'brightest',
+    'faintest',
     'project_catalog',
     'nearest_match',
     'triangles',
@@ -45,6 +48,32 @@ def brightest(cat0, flux, n, full_output=False):
 
     """
     i = np.argsort(flux)[::-1][:n]
+    if full_output:
+        return np.array(cat0)[:, i], i
+    else:
+        return np.array(cat0)[:, i]
+
+def faintest(cat0, flux, n, full_output=False):
+    """Return the n faintest objects in the catalog.
+
+    Parameters
+    ----------
+    cat0 : array
+      2xN array of positions.
+    flux : array
+      N-element array of object brightness.
+    n : int
+      Return the brightest `n` objects.
+    full_output : bool, optional
+      Return optional output.
+
+    Returns
+    -------
+    cat : ndarray
+    i : ndarray
+
+    """
+    i = np.argsort(flux)[:n]
     if full_output:
         return np.array(cat0)[:, i], i
     else:
