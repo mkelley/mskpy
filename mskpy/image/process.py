@@ -7,6 +7,8 @@ image.process --- Process (astronomical) images.
 .. autosummary::
    :toctree: generated/
 
+   align_by_centroid
+   align_by_wcs
    columnpull
    combine
    crclean
@@ -22,6 +24,8 @@ import numpy as np
 from . import core, analysis
 
 __all__ = [
+    'align_by_centroid',
+    'align_by_wcs',
     'columnpull',
     'combine',
     'crclean',
@@ -30,6 +34,124 @@ __all__ = [
     'psfmatch',
     'stripes'
 ]
+
+def align_by_centroid(files, yx, centroid=None, **kwargs):
+    """Align a set of images by centroid of a single source.
+
+    Parameters
+    ----------
+    files : list
+      The list of FITS files to align.
+    yx : array
+      The approximate (y, x) coordinate of the source.
+    centroid : function
+      The centroiding function or `None` to use `gcentroid`.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+    dyx : ndarray
+      The offsets.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+
+    im, h0 = fits.getdata(files[0], header=True)
+    stack = np.zeros((len(files), ) + im.shape)
+    stack[0] = im
+
+    y0, x0 = centroid(im, yx, **kwargs)
+
+    dyx = np.zeros((len(files), 2))
+    for i in range(1, len(files)):
+        im, h = fits.getdata(files[i], header=True)
+        y, x = centroid(im, yx, **kwargs)
+        dyx[i] = y0 - y, x0 - x
+        stack[i] = core.imshift(im, dyx)
+        if dyx[i, 0] < 0:
+            stack[i, :, int(dyx[i, 0]):] = np.nan
+        else:
+            stack[i, :, :int(dyx[i, 0])] = np.nan
+        if dyx[i, 1] < 0:
+            stack[i, int(dyx[i, 1]):] = np.nan
+        else:
+            stack[i, :int(dyx[i, 1])] = np.nan
+
+    return stack, dyx
+
+def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
+                 **kwargs):
+    """Align a set of images using their world coordinate systems.
+
+    Parameters
+    ----------
+    files : list
+      The list of FITS files to align.
+    target : SolarSysObject
+      Align in the reference frame of this object.
+    observer : SolarSysObject
+      Observe `target` with this observer.
+    time_key : string
+      The header keyword for the observation time.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+    dyx : ndarray
+      The offsets.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+    from astropy.wcs import WCS
+    from astropy.coordinates import Angle
+
+    im, h0 = fits.getdata(files[0], header=True)
+    wcs0 = WCS(h0)
+    stack = np.zeros((len(files), ) + im.shape)
+    stack[0] = im
+
+    y0, x0 = np.array(im.shape) / 2.0
+    if target is not None:
+        assert observer is not None, "observer required"
+        g0 = observer.observe(target, h0[time_key])
+        xt, yt = wcs0.wcs_world2pix(np.c_[g0.ra, g0.dec], 0)[0]
+
+    ra0, dec0 = Angle(wcs0.wcs_pix2world(np.c_[x0, y0], 0)[0] * u.deg)
+    dra = 0 * u.deg
+    ddec = 0 * u.deg
+
+    dyx = np.zeros((len(files), 2))
+    for i in range(1, len(files)):
+        im, h = fits.getdata(files[i], header=True)
+        wcs = WCS(h)
+        if target is not None:
+            g = observer.observe(target, h[time_key])
+            dra = g.ra - g0.ra
+            ddec = g.dec - g0.dec
+
+        x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
+        dyx[i] = y0 - y, x0 - x
+        stack[i] = core.imshift(im, dyx)
+        if dyx[i, 0] < 0:
+            stack[i, :, int(dyx[i, 0]):] = np.nan
+        else:
+            stack[i, :, :int(dyx[i, 0])] = np.nan
+        if dyx[i, 1] < 0:
+            stack[i, int(dyx[i, 1]):] = np.nan
+        else:
+            stack[i, :int(dyx[i, 1])] = np.nan
+
+    return stack, dyx
 
 def columnpull(column, index, bg, stdev):
     """Define a column pull detector artifact.
