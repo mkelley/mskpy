@@ -9,6 +9,7 @@ catalogs - Tools for working with lists of stars
 
    brightest
    faintest
+   find_offset
    project_catalog
    nearest_match
    triangles
@@ -19,6 +20,7 @@ catalogs - Tools for working with lists of stars
 __all__ = [
     'brightest',
     'faintest',
+    'find_offset',
     'project_catalog',
     'nearest_match',
     'triangles',
@@ -78,6 +80,39 @@ def faintest(cat0, flux, n, full_output=False):
         return np.array(cat0)[:, i], i
     else:
         return np.array(cat0)[:, i]
+
+def find_offset(cat0, cat1, matches, tol=3.0):
+    """Find the offset between two catalogs, given matched stars.
+
+    The matched star list may have false matches.
+
+    Parameters
+    ----------
+    cat0, cat1 : array
+      2xN array of positions.
+    matches : dict
+      The best match for star `i` of `cat0` is `matches[i]` in `cat1`.
+    tol : float
+      The distance tolerance.
+
+    Returns
+    -------
+    dy, dx : float
+
+    """
+    from .util import midstep, meanclip
+
+    d = cat0[:, matches.keys()] - cat1[:, matches.values()]
+    bins = (np.arange(d[0].min() - 2 * tol, d[0].max() + 2 * tol, 2 * tol),
+            np.arange(d[1].min() - 2 * tol, d[1].max() + 2 * tol, 2 * tol))
+    h, edges = np.histogramdd(d.T, bins=bins)
+    i = np.unravel_index(h.argmax(), h.shape)
+    peak = midstep(edges[0])[i[0]], midstep(edges[1])[i[1]]
+    i = np.prod(np.abs(d.T - peak) < tol, 1, dtype=bool)
+    j = meanclip(d[0, i], full_output=True)[2]
+    k = meanclip(d[1, i], full_output=True)[2]
+    i = i[list(set(np.r_[j, k]))]
+    return d[:, i].mean(1)
 
 def project_catalog(cat, wcs=None):
     """Project a catalog onto the image plane.
@@ -407,6 +442,9 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
     for k in matches.keys():
         if frac[k] < min_frac:
             del matches[k], frac[k]
+
+    if verbose:
+        print "[triangle_match] {} stars matched".format(len(matches))
 
     if full_output:
         return matches, frac, match_matrix, d
