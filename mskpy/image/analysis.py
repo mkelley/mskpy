@@ -9,6 +9,7 @@ image.analysis --- Analyze (astronomical) images.
 
    anphot
    apphot
+   apphot_by_wcs
    azavg
    bgfit
    bgphot
@@ -36,6 +37,7 @@ from . import core
 __all__ = [
     'anphot',
     'apphot',
+    'apphot_by_wcs',
     'azavg',
     'bgfit',
     'bgphot',
@@ -53,13 +55,11 @@ __all__ = [
 class UnableToCenter(Exception):
     pass
 
-def anphot(im, yx, rap, subsample=4):
+def anphot(im, yx, rap, subsample=4, squeeze=True):
     """Simple annular aperture photometry.
 
-    Pixels may be sub-sampled (drizzled).
-
-    `anphot` is not optimized and is best for extended objects in
-    small images.
+    Pixels may be sub-sampled, and sub-sampling may be CPU and memory
+    intensive.
 
     Parameters
     ----------
@@ -68,86 +68,83 @@ def anphot(im, yx, rap, subsample=4):
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
     yx : array
-      The `y, x` center of the aperture(s).  Only one center is
-      allowed. [pixels]
+      The `y, x` center of the aperture(s), or an Nx2 length array of
+      centers. [pixels]
     rap : float or array
       Aperture radii.  The inner-most aperture will be the annulus 0
       to `min(rap)`.  [pixels]
     subsample : int, optional
       The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
       This will sub-sample the entire image.
+    squeeze : bool, optional
+      Set to `True` to sqeeze single length dimensions out of the
+      results.
 
     Returns
     -------
     n : ndarray
-      The number of pixels per annular bin.
+      The number of pixels per annular bin, either shape `(len(rap),)`
+      or `(len(yx), len(rap))`.
     f : ndarray
-      The annular photometry.  If `im` is a set of images of depth
-      `N`, `f` will have shape `N x len(rap)`
+      The annular photometry.  The shape will be one of:
+        `(len(rap),)`
+        `(len(yx), len(rap))`
+        `(len(im), len(yx), len(rap))`
 
     """
 
     _im = np.array(im)
-    ndim = _im.ndim  # later, we will flatten the images
-
-    assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
-                            " of images are allowed.")
+    assert _im.ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
+                                " of images are allowed.")
+    if _im.ndim == 2:
+        _im = _im.reshape((1,) + _im.shape)
 
     yx = np.array(yx, float)
-    assert yx.shape == (2,), "yx has incorrect shape."
+    assert yx.ndim in [1, 2], "yx must be one or two dimensional."
+    if yx.ndim == 1:
+        assert yx.shape[0] == 2, "yx must have length 2."
+        yx = yx.reshape((2, 1))
+    else:
+        assert yx.shape[1] == 2, "Second axis of yx must have length 2."
 
     if not np.iterable(rap):
         rap = np.array([rap])
 
     if subsample > 1:
-        if ndim == 3:
-            _im = np.array([core.rebin(x, subsample, flux=True) for x in _im])
-        else:
-            _im = core.rebin(_im, subsample, flux=True)
-        
+        _im = np.array([core.rebin(x, subsample, flux=True) for x in _im])
         yx = yx * subsample + (subsample - 1) / 2.0
 
     sz = _im.shape[-2:]
 
-    r = core.rarray(sz, yx=yx, subsample=10) / float(subsample)
+    # flatten all arrays for digitize
+    N = _im.shape[0]
+    M = _im.shape[1] * _im.shape[2]
+    _im = _im.flatten().reshape((N, M))
+
+    n = np.zeros((len(yx), len(rap)))
+    f = np.zeros((N, len(yx), len(rap)))
 
     # annular photometry via histograms, histogram via digitize() to
     # save CPU time when mulitiple images are passed
-
-    # flatten all arrays for digitize
-    r = r.flatten()
-    if ndim == 3:
-        N = _im.shape[0]
-        M = _im.shape[1] * _im.shape[2]
-        _im = _im.flatten().reshape((N, M))
-    else:
-        _im = _im.flatten()
-
-    bins = np.digitize(r, rap)
-    n = np.zeros(len(rap))
-    if ndim == 3:
-        f = np.zeros((len(_im), len(rap)))
-        for i in range(len(rap)):
-            j = np.flatnonzero(bins == i)
-            f[:, i] = np.sum(_im[:, j], 1)
-            n[i] = len(j)
-    else:
-        f = np.zeros(len(rap))
-        for i in range(len(rap)):
-            j = np.flatnonzero(bins == i)
-            f[i] = np.sum(_im[j])
-            n[i] = len(j)
+    for i in range(len(yx)):
+        r = core.rarray(sz, yx=yx[i], subsample=10) / float(subsample)
+        bins = np.digitize(r.flatten(), rap)
+        for j in range(len(rap)):
+            ap = np.flatnonzero(bins == j)
+            f[:, i, j] = np.sum(_im[:, ap], 1)
+            n[i, j] = len(ap)
 
     n /= float(subsample**2)
-    return n, f
+    if squeeze:
+        return n.squeeze(), f.squeeze()
+    else:
+        return n, f
 
-def apphot(im, yx, rap, subsample=4):
+def apphot(im, yx, rap, subsample=4, **kwargs):
     """Simple aperture photometry.
 
-    Pixels may be sub-sampled (drizzled).
-
-    `apphot` is not optimized and is best for single objects in small
-    images.
+    Pixels may be sub-sampled, and sub-sampling may be CPU and memory
+    intensive.
 
     Parameters
     ----------
@@ -156,25 +153,124 @@ def apphot(im, yx, rap, subsample=4):
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
     yx : array
-      The `y, x` center of the aperture(s). Only one center is
-      allowed. [pixels]
+      The `y, x` center of the aperture(s), or an Nx2 length array of
+      centers. [pixels]
     rap : float or array
       Aperture radii.  [pixels]
     subsample : int, optional
       The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
       This will sub-sample the entire image.
+    **kwargs
+      Any `anphot` keyword argument.
 
     Returns
     -------
     n : ndarray
-      The number of pixels per aperture.
+      The number of pixels per aperture, either shape `(len(rap),)` or
+      `(len(yx), len(rap))`.
     f : ndarray
-      The aperture photometry.  If `im` is a set of images of depth
-      `N`, `f` will have shape `N x len(rap)`.
-      
+      The annular photometry.  The shape will be one of:
+        `(len(rap),)`
+        `(len(yx), len(rap))`
+        `(len(im), len(yx), len(rap))`  (for multiple images)
+
     """
-    n, f = anphot(im, yx, rap, subsample=subsample)
+    n, f = anphot(im, yx, rap, subsample=subsample, **kwargs)
     return n.cumsum(-1), f.cumsum(-1)
+
+def apphot_by_wcs(im, coords, wcs, rap, subsample=4, centroid=False,
+                  cfunc=None, ckwargs={}, **kwargs):
+    """Simple aperture photometry, using a world coordinate system.
+
+    The WCS only affects source locations, and does not affect
+    aperture areas.
+
+    Pixels may be sub-sampled, and sub-sampling may be CPU and memory
+    intensive.
+
+    Parameters
+    ----------
+    im : array
+      An image, cube, or tuple of images on which to measure
+      photometry.  For data cubes, the first axis iterates over the
+      images.  All images must have the same shape.
+    coords : astropy SkyCoord
+      The coordinates (e.g., RA, Dec) of the targets.  Only sources
+      interior to the image and at least `2 * max(rap)` from the edges
+      are considered.
+    wcs : astropy WCS
+      The world coordinate system transformation.
+    rap : float or array
+      Aperture radii.  [pixels]
+    subsample : int, optional
+      The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
+      This will sub-sample the entire image.
+    squeeze : bool, optional
+      Set to `True` to sqeeze single length dimensions out of the
+      results.
+    centroid : bool, optional
+      Set to `True` to centroid on each source with `cfunc`.  When
+      multiple images are provided, the centroid is based on the first
+      image.
+    cfunc : function, optional
+      The centroiding function to use, or `None` for `gcentroid`.
+    ckwargs: dict
+      Any `cfunc` keyword arguments.
+    **kwargs:
+      Any `apphot` keyword arguments.
+
+    Returns
+    -------
+    yx : ndarray
+      Pixel positions of all sources, `Nx2`.
+    n : ndarray
+      The number of pixels per aperture, either shape `(len(rap),)` or
+      `(len(yx), len(rap))`.
+    f : ndarray
+      The annular photometry.  The shape will be one of:
+        `(len(rap),)`
+        `(len(yx), len(rap))`
+        `(len(im), len(yx), len(rap))`  (for multiple images)
+
+    """
+
+    squeeze = kwargs.pop('squeeze', True)
+
+    x, y = coords.to_pixel(wcs)
+    yx = np.c_[y, x]
+
+    n = np.zeros((len(yx), np.size(rap)))
+    shape = np.array(im).shape
+    if len(shape) == 3:
+        shape = shape[1:]
+        f = np.zeros((shape[0], ) + n.shape)
+    else:
+        f = np.zeros((1, ) + n.shape)
+
+    max_rap = np.max(rap)
+    sources = np.flatnonzero((x >= 2 * max_rap)
+                             * (x <= (shape[1] - 2 * max_rap))
+                             * (y >= 2 * max_rap)
+                             * (y <= (shape[0] - 2 * max_rap)))
+
+    if centroid:
+        if cfunc is None:
+            cfunc = gcentroid
+
+        for i in sources:
+            if len(shape) == 3:
+                yx[i] = cfunc(im[0], yx[i], **ckwargs)
+            else:
+                yx[i] = cfunc(im, yx[i], **ckwargs)
+
+    _n, _f = apphot(im, yx[sources], rap, squeeze=False,
+                    subsample=subsample, **kwargs)
+    n[sources] = _n
+    f[:, sources] = _f
+    if squeeze:
+        return yx, n.squeeze(), f.squeeze()
+    else:
+        return yx, n, f
 
 def azavg(im, yx, raps=None, subsample=4, **kwargs):
     """Create an aziumthally averaged image.
@@ -282,7 +378,7 @@ def bgfit(im, unc=None, order=1, mask=True):
 
     return bg
 
-def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
+def bgphot(im, yx, rap, ufunc=np.mean, squeeze=True, **kwargs):
     """Background photometry and error analysis in an annulus.
 
     Pixels are not sub-sampled.  The annulus is processed via
@@ -295,23 +391,24 @@ def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
     yx : array
-      The `y, x` center of the aperture.  Only one center is
-      allowed. [pixels]
+      The `y, x` center of the aperture, or an `Nx2` array of centers.
     rap : array
       Inner and outer radii of the annulus.  [pixels]
     ufunc : function, optional
       The function with which to determine the background average.
+    squeeze : bool, optional
+      Set to `True` to sqeeze single length dimensions out of the
+      results.
     **kwargs :
       Keyword arguments passed to `util.uclip`.
 
     Returns
     -------
     n : ndarray
-      The number of pixels per annular bin.  Same shape comment as for
-      `bg`.
+      The number of pixels for each aperture.
     bg : ndarray
-      The background level in the annulus.  If `im` is a set of images
-      of depth `N`, `bg` will have shape `N x len(rap)`
+      The background level in the annulus, shape `(len(yx),)` or
+      `(len(im), len(yx))`.
     sig : ndarray
       The standard deviation of the background pixels.  Same shape
       comment as for `bg`.
@@ -321,36 +418,40 @@ def bgphot(im, yx, rap, ufunc=np.mean, **kwargs):
     from ..util import uclip
 
     _im = np.array(im)
-    ndim = _im.ndim  # later, we will flatten the images
-
-    assert ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
-                            " of images are allowed.")
+    assert _im.ndim in [2, 3], ("Only images, data cubes, or tuples/lists"
+                                " of images are allowed.")
+    if _im.ndim == 2:
+        _im = _im.reshape((1,) + _im.shape)
 
     yx = np.array(yx, float)
-    assert yx.shape == (2,), "yx has incorrect shape."
+    assert yx.ndim in [1, 2], "yx must be one or two dimensional."
+    if yx.ndim == 1:
+        assert yx.shape[0] == 2, "yx must have length 2."
+        yx = yx.reshape((2, 1))
+    else:
+        assert yx.shape[1] == 2, "Second axis of yx must have length 2."
 
     rap = np.array(rap, float)
     assert rap.shape == (2,), "rap has incorrect shape."
 
     sz = _im.shape[-2:]
 
-    r = core.rarray(sz, yx=yx, subsample=4)
-    annulus = (r >= rap.min()) * (r <= rap.max())
+    n = np.zeros(len(yx))
+    bg, sig = np.zeros((2, len(_im), len(yx)))
 
-    if ndim == 3:
-        n, bg, sig = np.zeros((3, _im.shape[0]))
-        for i in range(len(m)):
-            f = _im[i][annulus]
-            bg[i], j, niter = uclip(f, ufunc, full_output=True, **kwargs)
-            n[i] = len(j)
-            sig[i] = np.std(f[j])
+    for i in range(len(yx)):
+        r = core.rarray(sz, yx=yx[i], subsample=10)
+        annulus = (r >= rap.min()) * (r <= rap.max())
+        for j in range(len(_im)):
+            f = _im[j][annulus]
+            bg[j, i], k, niter = uclip(f, ufunc, full_output=True, **kwargs)
+            n[i] = len(k)
+            sig[j, i] = np.std(f[k])
+
+    if squeeze:
+        return n.squeeze(), bg.squeeze(), sig.squeeze()
     else:
-        f = _im[annulus]
-        bg, j, niter = uclip(f, ufunc, full_output=True, **kwargs)
-        n = len(j)
-        sig = np.std(f[j])
-
-    return n, bg, sig
+        return n, bg, sig
 
 def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (center of mass) of an image.
@@ -440,8 +541,8 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
       The detection threshold in sigma.  If a pixel is detected above
       `sigma * thresh`, it is an initial source candidate.
     centroid : function, optional
-      The centroiding function, or `None` to use `util.gcentroid`.
-      The function is passed a subsection of the image.  All other
+      The centroiding function, or `None` to use `gcentroid`.  The
+      function is passed a subsection of the image.  All other
       parameters are provided via `kwargs`.
     fwhm : int, optional
       A rough estimate of the FWHM of a source, used for binary
