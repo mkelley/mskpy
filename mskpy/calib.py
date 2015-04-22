@@ -328,3 +328,8 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
         fl = fl.to(unit, equivalencies=equiv)
 
     return wave, fl
+
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc
