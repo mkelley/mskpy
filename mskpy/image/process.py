@@ -141,15 +141,17 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
 
         x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
         dyx[i] = y0 - y, x0 - x
-        stack[i] = core.imshift(im, dyx)
-        if dyx[i, 0] < 0:
-            stack[i, :, int(dyx[i, 0]):] = np.nan
-        else:
-            stack[i, :, :int(dyx[i, 0])] = np.nan
-        if dyx[i, 1] < 0:
-            stack[i, int(dyx[i, 1]):] = np.nan
-        else:
-            stack[i, :int(dyx[i, 1])] = np.nan
+        stack[i] = core.imshift(im, dyx[i])
+        if int(dyx[i, 0]) != 0:
+            if int(dyx[i, 0]) < 0:
+                stack[i, :, int(dyx[i, 0]):] = np.nan
+            else:
+                stack[i, :, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) != 0:
+            if int(dyx[i, 1]) < 0:
+                stack[i, int(dyx[i, 1]):] = np.nan
+            else:
+                stack[i, :int(dyx[i, 1])] = np.nan
 
     return stack, dyx
 
