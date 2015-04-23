@@ -178,7 +178,7 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
     n, f = anphot(im, yx, rap, subsample=subsample, **kwargs)
     return n.cumsum(-1), f.cumsum(-1)
 
-def apphot_by_wcs(im, coords, wcs, rap, subsample=4, centroid=False,
+def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
                   cfunc=None, ckwargs={}, **kwargs):
     """Simple aperture photometry, using a world coordinate system.
 
@@ -202,12 +202,6 @@ def apphot_by_wcs(im, coords, wcs, rap, subsample=4, centroid=False,
       The world coordinate system transformation.
     rap : float or array
       Aperture radii.  [pixels]
-    subsample : int, optional
-      The sub-pixel sampling factor.  Set to `<= 1` for no sampling.
-      This will sub-sample the entire image.
-    squeeze : bool, optional
-      Set to `True` to sqeeze single length dimensions out of the
-      results.
     centroid : bool, optional
       Set to `True` to centroid on each source with `cfunc`.  When
       multiple images are provided, the centroid is based on the first
@@ -258,13 +252,15 @@ def apphot_by_wcs(im, coords, wcs, rap, subsample=4, centroid=False,
             cfunc = gcentroid
 
         for i in sources:
-            if len(shape) == 3:
-                yx[i] = cfunc(im[0], yx[i], **ckwargs)
-            else:
-                yx[i] = cfunc(im, yx[i], **ckwargs)
+            try:
+                if len(shape) == 3:
+                    yx[i] = cfunc(im[0], yx[i], **ckwargs)
+                else:
+                    yx[i] = cfunc(im, yx[i], **ckwargs)
+            except UnableToCenter:
+                pass
 
-    _n, _f = apphot(im, yx[sources], rap, squeeze=False,
-                    subsample=subsample, **kwargs)
+    _n, _f = apphot(im, yx[sources], rap, squeeze=False, **kwargs)
     n[sources] = _n
     f[:, sources] = _f
     if squeeze:
