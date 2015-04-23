@@ -11,10 +11,11 @@ photometry --- Tools for working with photometry.
    cal_airmass
    cal_color_airmass
    cal_oh
-   e_aerosol_bc
-   e_aerosol_oh
-   g_ozone_oh
-   g_rayleigh_oh
+   ext_aerosol_bc
+   ext_aerosol_oh
+   ext_total_oh
+   ext_ozone_oh
+   ext_rayleigh_oh
 
 """
 
@@ -22,15 +23,16 @@ import numpy as np
 import astropy.units as u
 
 __all__ = [
-   'airmass_app',
-   'airmass_loc',
-   'cal_airmass',
-   'cal_color_airmass',
-   'cal_oh',
-   'e_aerosol_bc',
-   'e_aerosol_oh',
-   'g_ozone_oh',
-   'g_rayleigh_oh',
+    'airmass_app',
+    'airmass_loc',
+    'cal_airmass',
+    'cal_color_airmass',
+    'cal_oh',
+    'ext_aerosol_bc',
+    'ext_aerosol_oh',
+    'ext_total_oh',
+    'ext_ozone_oh',
+    'ext_rayleigh_oh',
 ]
 
 def airmass_app(z_true, h):
@@ -108,7 +110,7 @@ def cal_airmass(m, munc, M, X, guess=(25., -0.1),
     from scipy.optimize import leastsq
     
     def chi(A, m, munc, M, X):
-        model = M - A[0] - A[1] * X
+        model = M - A[0] + A[1] * X
         chi = (np.array(m) - model) / np.array(munc)
         return chi
 
@@ -125,7 +127,7 @@ def cal_airmass(m, munc, M, X, guess=(25., -0.1),
 
 def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
                       covar=False):
-    """Calibraton coefficients, based on airmass and color.
+    """Calibraton coefficients, based on airmass and color index.
 
     Parameters
     ----------
@@ -158,7 +160,7 @@ def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
     from scipy.optimize import leastsq
     
     def chi(A, m, munc, M, color, X):
-        model = M - A[0] - A[1] * X - A[2] * color
+        model = M - A[0] + A[1] * X + A[2] * color
         chi = (np.array(m) - model) / np.array(munc)
         return chi
 
@@ -179,7 +181,7 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
 
     Considers Rayleigh and ozone components for the OH filter.
 
-    Farnham & Schleicher 2000.
+    Solves Eq. 10 of Farnham & Schleicher 2000.
 
     Parameters
     ----------
@@ -190,9 +192,9 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
     z_true : Angle or Quantity
       True zenith angle.
     b : array
-      Coefficient sets to use for `g_rayleigh_oh`.
+      Coefficient sets to use for `ext_rayleigh_oh`.
     c : array
-      Coefficient sets to use for `g_ozone_oh`.
+      Coefficient sets to use for `ext_ozone_oh`.
     E_bc : float
       BC airmass extinction. [mag/airmass]
     h : Quantity
@@ -218,7 +220,8 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
 
     def chi(A, oh, oh_unc, OH, z_true, b, c, E_bc, h):
         zp, toz = A
-        model = OH - zp - e_total_oh(toz, z_true, b, c, E_bc, h)
+        toz = np.abs(toz)
+        model = OH - zp + ext_total_oh(toz, z_true, b, c, E_bc, h)
         chi = (oh - model) / oh_unc
         return chi
 
@@ -227,6 +230,7 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
     output = leastsq(chi, guess, args=args, full_output=True, epsfcn=1e-5)
 
     fit = output[0]
+    fit[1] = np.abs(fit[1])  # toz is positive
     cov = output[1]
     err = np.sqrt(np.diag(cov))
 
@@ -235,10 +239,10 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
     else:
         return fit, err
 
-def e_aerosol_bc(E_bc, h):
+def ext_aerosol_bc(E_bc, h):
     """Aerosol extinction for BC filter.
 
-    Farnham & Schleicher 2000.
+    E_A_BC, Eq. 13 of Farnham & Schleicher 2000.
 
     Parameters
     ----------
@@ -256,10 +260,10 @@ def e_aerosol_bc(E_bc, h):
 
     return E_bc - 0.2532 * np.exp(-h.to(u.km).value / 7.5)
 
-def e_aerosol_oh(E_bc, h):
+def ext_aerosol_oh(E_bc, h):
     """Aerosol extinction for OH filter.
 
-    Farnham & Schleicher 2000.
+    E_A_OH, Eq. 14 of Farnham & Schleicher 2000.
 
     Parameters
     ----------
@@ -276,40 +280,12 @@ def e_aerosol_oh(E_bc, h):
     """
 
     #return (3097 / 4453.)**-0.8 * E_aerosol_bc(E_bc, h)
-    return 1.33712 * e_aerosol_bc(E_bc, h)
+    return 1.33712 * ext_aerosol_bc(E_bc, h)
 
-def e_total_oh(toz, z_true, b, c, E_bc, h):
-    """Total OH extinction.
-
-    Parameters
-    ----------
-    toz : float
-      Amount of ozone.
-    z_true : Angle or Quantity
-      True zenith angle.
-    b : array
-      Coefficient sets to use for `g_rayleigh_oh`.
-    c : array
-      Coefficient sets to use for `g_ozone_oh`.
-    E_bc : float
-      BC airmass extinction. [mag/airmass]
-    h : Quantity
-      The observer's elevation.
-    guess : array, optional
-      An intial guess for the fitting algorithm: OH zero point, BC zero point, 
-    covar : bool, optional
-      Set to `True` to return the covariance matrix.
-
-    """
-
-    return (g_rayleigh_oh(z_true, h, b)
-            + e_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
-            + g_ozone_oh(z_true, toz, c))
-
-def g_ozone_oh(z_true, toz, c):
+def ext_ozone_oh(z_true, toz, c):
     """Ozone extinction for OH filter.
 
-    Farnham & Schleicher 2000.
+    G_O_OH, Eq. 15 of Farnham & Schleicher 2000.
 
     Parameters
     ----------
@@ -369,10 +345,10 @@ def g_ozone_oh(z_true, toz, c):
 
     return G
 
-def g_rayleigh_oh(z_true, h, b):
+def ext_rayleigh_oh(z_true, h, b):
     """Rayliegh extinction for OH filter.
 
-    Farnham & Schleicher 2000.
+    G_R_OH, Eq. 11 of Farnham & Schleicher 2000.
 
     Parameters
     ----------
@@ -415,6 +391,36 @@ def g_rayleigh_oh(z_true, h, b):
         G = np.r_[[np.dot(b, [x, x**2]) for x in X]] * e
 
     return G
+
+def ext_total_oh(toz, z_true, b, c, E_bc, h):
+    """Total OH extinction.
+
+    G_R_OH + E_A_OH + G_O_OH, Eq. 10 of Farnham and Schleicher 2000.
+
+    Parameters
+    ----------
+    toz : float
+      Amount of ozone.
+    z_true : Angle or Quantity
+      True zenith angle.
+    b : array
+      Coefficient sets to use for `ext_rayleigh_oh`.
+    c : array
+      Coefficient sets to use for `ext_ozone_oh`.
+    E_bc : float
+      BC airmass extinction. [mag/airmass]
+    h : Quantity
+      The observer's elevation.
+    guess : array, optional
+      An intial guess for the fitting algorithm: OH zero point, BC zero point, 
+    covar : bool, optional
+      Set to `True` to return the covariance matrix.
+
+    """
+
+    return (ext_rayleigh_oh(z_true, h, b)
+            + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
+            + ext_ozone_oh(z_true, toz, c))
 
 # update module docstring
 from .util import autodoc
