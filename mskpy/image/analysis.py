@@ -103,7 +103,7 @@ def anphot(im, yx, rap, subsample=4, squeeze=True):
     assert yx.ndim in [1, 2], "yx must be one or two dimensional."
     if yx.ndim == 1:
         assert yx.shape[0] == 2, "yx must have length 2."
-        yx = yx.reshape((2, 1))
+        yx = yx.reshape((1, 2))
     else:
         assert yx.shape[1] == 2, "Second axis of yx must have length 2."
 
