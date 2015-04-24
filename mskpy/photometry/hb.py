@@ -8,6 +8,7 @@ hb --- Hale-Bopp filter set photometric calibration
 
    cal_oh
    continuum_color
+   continuum_fluxd
    ext_aerosol_bc
    ext_aerosol_oh
    ext_total_oh
@@ -24,11 +25,13 @@ from .core import *
 __all__ = [
     'cal_oh',
     'continuum_color',
+    'continuum_fluxd',
     'ext_aerosol_bc',
     'ext_aerosol_oh',
     'ext_total_oh',
     'ext_ozone_oh',
     'ext_rayleigh_oh',
+    'remove_continuum'
 ]
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
@@ -179,6 +182,37 @@ def continuum_color(w0, f0, f0_unc, w1, f1, f1_unc, s0=None, s1=None):
     dw = (w1 - w0).to(0.1 * u.um)
     Rm = -2.5 * np.log10(f1.to(f0.unit) / f0 * s0.to(s1.unit) / s1) * u.mag / dw
     return Rm, Rp(Rm)
+
+def continuum_fluxd(m_bc, Rm, filt):
+    """Extrapolate BC continuum to another filter.
+
+    Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
+
+    Parameters
+    ----------
+    m_bc : float
+      Observed BC magnitude.
+    Rm : float or Quantity
+      Observed color, in units of magnitudes per 1000 A.
+    filt : string
+      Name of a filter: OH, NH, CN, C3, CO+, C2.
+
+    """
+
+    if isinstance(Rm, u.Quantity):
+        Rm = u.Quantity(Rm, '10 mag / um')
+    else:
+        Rm = Rm * u.Unit('10 mag / um')
+
+    filt = filt.upper()
+    if filt == 'OH':
+        fc = 10**(-0.4 * m_bc) * 10**(-0.4 * 1.791) * 10**(-0.5440 * Rm.value)
+        # 10.560e-9 erg/cm2/s/A = 1.0560e-7 W/m2/um
+        fc *= 1.056e-7 * u.Unit('W/(m2 um)')
+    else:
+        raise ValueError('{} not yet implemented.'.format(filt))
+
+    return fc
 
 def ext_aerosol_bc(E_bc, h):
 
@@ -364,8 +398,37 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
             + ext_ozone_oh(z_true, toz, c))
 
+def remove_continuum(f, fc, filt):
+    """Remove the dust from a gas filter.
+
+    Table VI and Eqs. 45-51 of Farnham et al. 2000.
+
+    Parameters
+    ----------
+    f : Quantity
+      The observed flux density through the gas filter.
+    fc : Quantity
+      The estimated continuum flux density through the gas filter.
+    filt : str
+      The name of the gas filter.
+
+    Returns
+    -------
+    fgas : Quantity
+
+    """
+
+    fc = u.Quantity(fc, f.unit)
+
+    filt = filt.upper()
+    if filt == 'OH':
+        fgas = (f - fc) / 1.698e-2
+    else:
+        raise ValueError('{} not yet implemented.'.format(filt))
+
+    return fgas
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
 del autodoc
-
