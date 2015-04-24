@@ -35,17 +35,21 @@ __all__ = [
     'stripes'
 ]
 
-def align_by_centroid(files, yx, centroid=None, **kwargs):
+def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
+                      **kwargs):
     """Align a set of images by centroid of a single source.
 
     Parameters
     ----------
-    files : list
-      The list of FITS files to align.
+    data : list or array
+      The list of FITS files, or stack of images to align.  If the
+      first element is a string, then a file list is assumed.
     yx : array
       The approximate (y, x) coordinate of the source.
-    centroid : function
+    cfunc : function, optional
       The centroiding function or `None` to use `gcentroid`.
+    ckwargs : dict
+      Keyword arguments for `cfunc`.
     **kwargs
       Keyword arguments for `imshift`.
 
@@ -60,27 +64,36 @@ def align_by_centroid(files, yx, centroid=None, **kwargs):
 
     import astropy.units as u
     from astropy.io import fits
+    from .analysis import gcentroid
 
-    im, h0 = fits.getdata(files[0], header=True)
-    stack = np.zeros((len(files), ) + im.shape)
-    stack[0] = im
+    if cfunc is None:
+        cfunc = gcentroid
 
-    y0, x0 = centroid(im, yx, **kwargs)
+    if isinstance(data[0], str):
+        im = fits.getdata(files[0])
+        stack = np.zeros((len(data), ) + im.shape)
+        stack[0] = im
+        del im
+        for i in range(1, len(data)):
+            stack[i] = fits.getdata(data[i])
+    else:
+        stack = data.copy()
 
-    dyx = np.zeros((len(files), 2))
-    for i in range(1, len(files)):
-        im, h = fits.getdata(files[i], header=True)
-        y, x = centroid(im, yx, **kwargs)
+    y0, x0 = cfunc(stack[0], yx, **ckwargs)
+
+    dyx = np.zeros((len(stack), 2))
+    for i in range(1, len(stack)):
+        y, x = cfunc(stack[i], yx, **ckwargs)
         dyx[i] = y0 - y, x0 - x
-        stack[i] = core.imshift(im, dyx)
-        if dyx[i, 0] < 0:
-            stack[i, :, int(dyx[i, 0]):] = np.nan
-        else:
-            stack[i, :, :int(dyx[i, 0])] = np.nan
-        if dyx[i, 1] < 0:
-            stack[i, int(dyx[i, 1]):] = np.nan
-        else:
-            stack[i, :int(dyx[i, 1])] = np.nan
+        stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
+        if int(dyx[i, 0]) < 0:
+            stack[i, int(dyx[i, 0]):] = np.nan
+        elif int(dyx[i, 0]) > 0:
+            stack[i, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) < 0:
+            stack[i, :, int(dyx[i, 1]):] = np.nan
+        elif int(dyx[i, 1]) > 0:
+            stack[i, :, :int(dyx[i, 1])] = np.nan
 
     return stack, dyx
 
@@ -141,7 +154,7 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
 
         x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
         dyx[i] = y0 - y, x0 - x
-        stack[i] = core.imshift(im, dyx[i])
+        stack[i] = core.imshift(im, dyx[i], **kwargs)
         if int(dyx[i, 0]) != 0:
             if int(dyx[i, 0]) < 0:
                 stack[i, :, int(dyx[i, 0]):] = np.nan
