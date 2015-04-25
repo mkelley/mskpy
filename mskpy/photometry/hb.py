@@ -34,6 +34,90 @@ __all__ = [
     'remove_continuum'
 ]
 
+# Table I of Farnham et al. 2000
+
+filters = set(['OH', 'NH', 'CN', 'C3', 'CO+', 'C2', 'H2O+', 'UC',
+               'BC', 'GC', 'RC'])
+
+cw = {  # center wavelengths
+      'OH': u.Quanitity(0.3097, 'um'),
+      'NH': u.Quanitity(0.3361, 'um'),
+      'CN': u.Quanitity(0.3449, 'um'),
+      'C3': u.Quanitity(0.3869, 'um'),
+     'CO+': u.Quanitity(0.4063, 'um'),
+      'C2': u.Quanitity(0.4266, 'um'),
+    'H2O+': u.Quanitity(0.4453, 'um'),
+      'UC': u.Quanitity(0.5135, 'um'),
+      'BC': u.Quanitity(0.5259, 'um'),
+      'GC': u.Quanitity(0.7028, 'um'),
+      'RC': u.Quanitity(0.7133, 'um')
+}
+
+cw_50 = {  # 50% power width
+      'OH': u.Quanitity( 58, 'AA'),
+      'NH': u.Quanitity( 54, 'AA'),
+      'CN': u.Quanitity( 79, 'AA'),
+      'C3': u.Quanitity( 56, 'AA'),
+     'CO+': u.Quanitity( 58, 'AA'),
+      'C2': u.Quanitity( 64, 'AA'),
+    'H2O+': u.Quanitity( 61, 'AA'),
+      'UC': u.Quanitity(119, 'AA'),
+      'BC': u.Quanitity( 56, 'AA'),
+      'GC': u.Quanitity(164, 'AA'),
+      'RC': u.Quanitity( 58, 'AA')
+}
+
+
+# Table VI of Farnham et al. 2000
+F_0 = {  # Zero magnitude flux density
+      'OH': u.Quantity(1.0560e-7, 'W/(m2 um)'),
+      'NH': u.Quantity(8.420e-8, 'W/(m2 um)'),
+      'CN': u.Quantity(8.6e-8,   'W/(m2 um)'),
+      'C3': u.Quantity(8.160e-8, 'W/(m2 um)'),
+     'CO+': u.Quantity(7.323e-8, 'W/(m2 um)'),
+      'C2': u.Quantity(3.887e-8, 'W/(m2 um)'),
+    'H2O+': u.Quantity(1.380e-8, 'W/(m2 um)'),
+      'UC': u.Quantity(7.802e-8, 'W/(m2 um)'),
+      'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
+      'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
+      'RC': u.Quantity(1.316e-8, 'W/(m2 um)')
+}
+
+MmBC_sun = {  # M - BC solar color index
+      'OH':  1.791,
+      'NH':  1.188,
+      'CN':  1.031,
+      'C3':  0.497,
+     'CO+':  0.338,
+      'C2': -0.423,
+    'H2O+': -1.249,
+      'UC':  1.101,
+      'BC':  0.000,
+      'GC': -0.507,
+      'RC': -1.276
+}
+
+gamma_XX = {
+      'OH': 1.698e-2,
+      'NH': 1.907e-2,
+      'CN': 1.812e-2,
+      'C3': 3.352e-2,
+     'CO+': 1.549e-2,
+      'C2': 5.433e-3,
+    'H2O+': 5.424e-3
+}
+
+gamma_prime_XX = {
+      'OH': 0.98,
+      'NH': 0.99,
+      'CN': 0.99,
+      'C3': 0.19,
+     'CO+': 0.99,
+      'C2': 0.66,
+    'H2O+': 1.00
+}
+
+
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
            covar=False):
     """OH calibraton coefficients.
@@ -135,38 +219,20 @@ def continuum_color(w0, f0, f0_unc, w1, f1, f1_unc, s0=None, s1=None):
     if isinstance(w1, str):
         w1 = w1.upper()
 
-    if w0 == 'UC':
-        if w1 == 'BC':
-            Rm = 0.998 * (2.5 * np.log10(f1 / f0) - 1.101)
-            return Rm, Rp(Rm)
-        else:
-            w0 = 0.3448 * u.um
-    elif w0 == 'BC':
-        if w1 == 'GC':
-            Rm = 1.235 * (2.5 * np.log10(f1 / f0) + 0.507)
-            return Rm, Rp(Rm)
-        else:
-            w0 = 0.4450 * u.um
-    elif w0 == 'GC':
-        if w1 == 'RC':
-            Rm = 0.535 * (2.5 * np.log10(f1 / f0) + 0.769)
-            return Rm, Rp(Rm)
-        else:
-            w0 = 0.5260 * u.um
-    elif w0 == 'RC':
-        w0 = 0.7128 * u.um
+    if w0 in filters and w1 in filters:
+        dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
+        ci = MmBC_sun[w0] - MmBC_sun[w1]
+        Rm = (2.5 * np.log10(f1 / f0) - ci) * u.mag / dw
+        return Rm, Rp(Rm)
+
+    if w0 in filters:
+        w0 = cw[w0]
+    if w1 in filters:
+        w1 = cw[w0]
+
 
     assert isinstance(w0, u.Quantity)
     assert w0.unit.is_equivalent(u.m)
-
-    if w1 == 'UC':
-        w1 = 0.3448 * u.um
-    elif w1 == 'BC':
-        w1 = 0.4450 * u.um
-    elif w1 == 'GC':
-        w1 = 0.5260 * u.um
-    elif w1 == 'RC':
-        w1 = 0.7128 * u.um
 
     if s0 is None:
         s0 = solar_flux(w0)
@@ -206,12 +272,13 @@ def continuum_fluxd(m_bc, Rm, filt):
 
     filt = filt.upper()
     if filt == 'OH':
-        fc = 10**(-0.4 * m_bc) * 10**(-0.4 * 1.791) * 10**(-0.5440 * Rm.value)
+        fc = (10**(-0.4 * m_bc) * 10**(-0.4 * MmBC_sun[filt])
+              * 10**(-0.5440 * Rm.value))
         # 10.560e-9 erg/cm2/s/A = 1.0560e-7 W/m2/um
-        fc *= 1.056e-7 * u.Unit('W/(m2 um)')
     else:
         raise ValueError('{} not yet implemented.'.format(filt))
 
+    fc *= F_0[filt]
     return fc
 
 def ext_aerosol_bc(E_bc, h):
@@ -418,11 +485,12 @@ def remove_continuum(f, fc, filt):
 
     """
 
-    fc = u.Quantity(fc, f.unit)
-
     filt = filt.upper()
-    if filt == 'OH':
-        fgas = (f - fc) / 1.698e-2
+    assert filt in filters
+
+    fc = u.Quantity(fc, f.unit)
+    if filt in ['OH', 'C3', 'C2', 'H2O+']:
+        fgas = (f - fc) / gamma_XX[filt]
     else:
         raise ValueError('{} not yet implemented.'.format(filt))
 
