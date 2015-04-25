@@ -329,10 +329,10 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
 
     return clean
 
-def fixpix(im, mask):
+def fixpix(im, mask, max_area=10):
     """Replace masked values replaced with a linear interpolation.
 
-    Probably only good for isolated badpixels.
+    Probably only good for isolated bad pixels.
 
     Parameters
     ----------
@@ -340,6 +340,8 @@ def fixpix(im, mask):
       The image.
     mask : array
       `True` where `im` contains bad pixels.
+    max_area : int
+      Only fix areas smaller or equal to this value.
 
     Returns
     -------
@@ -348,7 +350,7 @@ def fixpix(im, mask):
     """
 
     from scipy.interpolate import interp2d
-    from scipy.ndimage import binary_dilation, label
+    from scipy.ndimage import binary_dilation, label, find_objects
 
     # create domains around masked pixels
     dilated = binary_dilation(mask)
@@ -356,20 +358,15 @@ def fixpix(im, mask):
 
     # loop through each domain, replace bad pixels with the average
     # from nearest neigboors
-    x = core.xarray(im.shape)
-    y = core.yarray(im.shape)
     cleaned = im.copy()
-    for d in (np.arange(n) + 1):
-        i = (domains == d)  # find the current domain
-
-        # extract the sub-image
-        x0, x1 = x[i].min(), x[i].max() + 1
-        y0, y1 = y[i].min(), y[i].max() + 1
-        subim = im[y0:y1, x0:x1]
-        submask = mask[y0:y1, x0:x1]
-        subgood = (submask == False)
-
-        cleaned[i * mask] = subim[subgood].mean()
+    for i in find_objects(domains):
+        submask = mask[i]
+        if submask.sum() > max_area:
+            continue
+        subim = im[i].copy()
+        subgood = (submask == False) * dilated[i]
+        subim[submask] = subim[subgood].mean()
+        cleaned[i] = subim
 
     return cleaned
 
