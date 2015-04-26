@@ -8,12 +8,14 @@ hb --- Hale-Bopp filter set photometric calibration
 
    cal_oh
    continuum_color
-   continuum_fluxd
    ext_aerosol_bc
    ext_aerosol_oh
    ext_total_oh
    ext_ozone_oh
    ext_rayleigh_oh
+   fluxd_continuum
+   fluxd_oh
+   remove_continuum
 
 """
 
@@ -25,46 +27,46 @@ from .core import *
 __all__ = [
     'cal_oh',
     'continuum_color',
-    'continuum_fluxd',
     'ext_aerosol_bc',
     'ext_aerosol_oh',
     'ext_total_oh',
     'ext_ozone_oh',
     'ext_rayleigh_oh',
-    'remove_continuum'
+    'fluxd_continuum',
+    'fluxd_oh',
+    'remove_continuum',
 ]
 
 # Table I of Farnham et al. 2000
-
 filters = set(['OH', 'NH', 'CN', 'C3', 'CO+', 'C2', 'H2O+', 'UC',
                'BC', 'GC', 'RC'])
 
 cw = {  # center wavelengths
-      'OH': u.Quanitity(0.3097, 'um'),
-      'NH': u.Quanitity(0.3361, 'um'),
-      'CN': u.Quanitity(0.3449, 'um'),
-      'C3': u.Quanitity(0.3869, 'um'),
-     'CO+': u.Quanitity(0.4063, 'um'),
-      'C2': u.Quanitity(0.4266, 'um'),
-    'H2O+': u.Quanitity(0.4453, 'um'),
-      'UC': u.Quanitity(0.5135, 'um'),
-      'BC': u.Quanitity(0.5259, 'um'),
-      'GC': u.Quanitity(0.7028, 'um'),
-      'RC': u.Quanitity(0.7133, 'um')
+      'OH': u.Quantity(0.3097, 'um'),
+      'NH': u.Quantity(0.3361, 'um'),
+      'UC': u.Quantity(0.3449, 'um'),
+      'CN': u.Quantity(0.3869, 'um'),
+      'C3': u.Quantity(0.4063, 'um'),
+     'CO+': u.Quantity(0.4266, 'um'),
+      'BC': u.Quantity(0.4453, 'um'),
+      'C2': u.Quantity(0.5135, 'um'),
+      'GC': u.Quantity(0.5259, 'um'),
+    'H2O+': u.Quantity(0.7028, 'um'),
+      'RC': u.Quantity(0.7133, 'um')
 }
 
 cw_50 = {  # 50% power width
-      'OH': u.Quanitity( 58, 'AA'),
-      'NH': u.Quanitity( 54, 'AA'),
-      'CN': u.Quanitity( 79, 'AA'),
-      'C3': u.Quanitity( 56, 'AA'),
-     'CO+': u.Quanitity( 58, 'AA'),
-      'C2': u.Quanitity( 64, 'AA'),
-    'H2O+': u.Quanitity( 61, 'AA'),
-      'UC': u.Quanitity(119, 'AA'),
-      'BC': u.Quanitity( 56, 'AA'),
-      'GC': u.Quanitity(164, 'AA'),
-      'RC': u.Quanitity( 58, 'AA')
+      'OH': u.Quantity( 58, 'AA'),
+      'NH': u.Quantity( 54, 'AA'),
+      'UC': u.Quantity( 79, 'AA'),
+      'CN': u.Quantity( 56, 'AA'),
+      'C3': u.Quantity( 58, 'AA'),
+     'CO+': u.Quantity( 64, 'AA'),
+      'BC': u.Quantity( 61, 'AA'),
+      'C2': u.Quantity(119, 'AA'),
+      'GC': u.Quantity( 56, 'AA'),
+    'H2O+': u.Quantity(164, 'AA'),
+      'RC': u.Quantity( 58, 'AA')
 }
 
 
@@ -182,37 +184,34 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
     else:
         return fit, err
 
-def continuum_color(w0, f0, f0_unc, w1, f1, f1_unc, s0=None, s1=None):
+def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     """Comet continuum color.
+
+    The color in percent per 0.1 um = 10**(-0.4 * Rm)
 
     Parameters
     ----------
     w0 : string or Quantity
       The shorter wavelength filter name (UC, BC, GC, RC), or the
       effective wavelength.
-    f0 : Quantity
-      The observed flux density through the shorter wavelength filter.
-    f0_unc : Quantity
+    m0 : float
+      The apparant magnitude through the shorter wavelength filter.
+    m0_unc : Quantity
       The uncertainty in `f0`.
-    w1, f1, f1_unc : various
+    w1, m1, m1_unc : various
       The same as above, but for the longer wavelength filter.
-    s0, s1 : Quanitity, optional
+    s0, s1 : Quantity, optional
       The solar flux desnities.  If `None`, `calib.solar_flux` or the
       values in Farnham et al. (2000) will be used.
 
     Returns
     -------
-    Rm : Quantity
-      The color in mangitudes per 0.1 um.
-    Rp : Quantity
-      The color in percent per 0.1 um.
+    Rm, Rm_unc : Quantity
+      The color in mangitudes per 0.1 um, and uncertainty.
 
     """
 
     from ..calib import solar_flux
-
-    def Rp(Rm):
-        return 10**(-0.4 * Rm.value) * Rm.unit * u.percent / u.mag
 
     if isinstance(w0, str):
         w0 = w0.upper()
@@ -222,14 +221,14 @@ def continuum_color(w0, f0, f0_unc, w1, f1, f1_unc, s0=None, s1=None):
     if w0 in filters and w1 in filters:
         dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
         ci = MmBC_sun[w0] - MmBC_sun[w1]
-        Rm = (2.5 * np.log10(f1 / f0) - ci) * u.mag / dw
-        return Rm, Rp(Rm)
+        Rm = (m0 - m1 - ci) * u.mag / dw
+        Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
+        return Rm, Rm_unc
 
     if w0 in filters:
         w0 = cw[w0]
     if w1 in filters:
         w1 = cw[w0]
-
 
     assert isinstance(w0, u.Quantity)
     assert w0.unit.is_equivalent(u.m)
@@ -242,44 +241,13 @@ def continuum_color(w0, f0, f0_unc, w1, f1, f1_unc, s0=None, s1=None):
     assert isinstance(w1, u.Quantity)
     assert w1.unit.is_equivalent(u.m)
     assert w0 < w1
-    assert f0.unit.is_equivalent(f1.unit)
     assert s0.unit.is_equivalent(s1.unit)
 
     dw = (w1 - w0).to(0.1 * u.um)
-    Rm = -2.5 * np.log10(f1.to(f0.unit) / f0 * s0.to(s1.unit) / s1) * u.mag / dw
-    return Rm, Rp(Rm)
-
-def continuum_fluxd(m_bc, Rm, filt):
-    """Extrapolate BC continuum to another filter.
-
-    Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
-
-    Parameters
-    ----------
-    m_bc : float
-      Observed BC magnitude.
-    Rm : float or Quantity
-      Observed color, in units of magnitudes per 1000 A.
-    filt : string
-      Name of a filter: OH, NH, CN, C3, CO+, C2.
-
-    """
-
-    if isinstance(Rm, u.Quantity):
-        Rm = u.Quantity(Rm, '10 mag / um')
-    else:
-        Rm = Rm * u.Unit('10 mag / um')
-
-    filt = filt.upper()
-    if filt == 'OH':
-        fc = (10**(-0.4 * m_bc) * 10**(-0.4 * MmBC_sun[filt])
-              * 10**(-0.5440 * Rm.value))
-        # 10.560e-9 erg/cm2/s/A = 1.0560e-7 W/m2/um
-    else:
-        raise ValueError('{} not yet implemented.'.format(filt))
-
-    fc *= F_0[filt]
-    return fc
+    ci = -2.5 * np.log10(s0.to(s1.unit) / s1)
+    Rm = (m0 - m1 - ci) * u.mag / dw
+    Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
+    return Rm, Rm_unc
 
 def ext_aerosol_bc(E_bc, h):
 
@@ -465,36 +433,139 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
             + ext_ozone_oh(z_true, toz, c))
 
-def remove_continuum(f, fc, filt):
+def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
+    """Extrapolate BC continuum to another filter.
+
+    Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
+
+    Parameters
+    ----------
+    bc, bc_unc : float
+      Observed BC magnitude and uncertainty.
+    Rm, Rm_unc : float or Quantity
+      Observed color, in units of magnitudes per 1000 A, and uncertainty.
+    filt : string
+      Name of the other filter: OH, NH, CN, C3, CO+, C2.
+
+    Returns
+    -------
+    fc, fc_unc : Quantity
+      Continuum flux density and uncertainty.
+
+    """
+
+    Rm = u.Quantity(Rm, '10 mag / um')
+    Rm_unc = u.Quantity(Rm_unc, '10 mag / um')
+
+    filt = filt.upper()
+    if filt == 'OH':
+        fc = (10**(-0.4 * bc) * 10**(-0.4 * MmBC_sun[filt])
+              * 10**(-0.5440 * Rm.value))
+        m_unc = np.sqrt(bc_unc**2 + (0.544 / 0.4 * Rm_unc)**2)
+        fc_unc = fc * m_unc / 1.0857
+    else:
+        raise ValueError('{} not yet implemented.'.format(filt))
+
+    fc *= F_0[filt]
+    fc_unc *= F_0[filt]
+    return fc, fc_unc
+
+def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, toz, z_true, E_bc, h):
+    """Flux from OH.
+
+    Appendix A and D of Farnham et al. 2000.
+
+    Parameters
+    ----------
+    oh, oh_unc, bc, bc_unc : float
+      OH and BC instrumental magnitudes, and uncertainties.
+    Rm : float or Quantity
+      Continuum color in units of magnitudes per 0.1 um.
+    toz : float
+      Amount of ozone.
+    z_true : Angle or Quantity
+      True zenith angle.
+    E_bc : float
+      BC airmass extinction. [mag/airmass]
+    h : Quantity
+      The observer's elevation.
+
+    Returns
+    -------
+    E_tot, E_unc : float
+      Total OH extinction and uncertainty.
+    f_oh, f_oh_unc : Quantity
+      Total band flux from OH and uncertainty.
+
+    Notes
+    -----
+    1) Compute extinction for pure OH and 25% continuum cases.
+
+    2) Use pure OH extinction to compute band flux.
+
+    3) From step 2, compute percent continuum contribution, and
+       linearly interpolate between the two cases of step 1 to
+       determine actual extinction.
+
+    4) Given extinction from step 3, re-compute band flux.
+    
+    """
+
+    E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
+    E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
+    fc, fc_unc = fluxd_continuum(bc, bc_unc, Rm, Rm_unc, 'OH')
+    f = 10**(-0.4 * (oh - E_0)) * F_0['OH']
+    frac = (1 - (f - fc) / f)  # fraction that is continuum
+    frac_unc = frac * np.sqrt(oh_unc**2 + bc_unc**2) / 1.0857
+    assert frac < 0.25, "Continuum more than 25% of observed OH band flux density."
+    E_tot = 4 * ((0.25 - frac) * E_0 + frac * E_25)
+    E_unc = 1.0857 * frac
+    f = 10**(-0.4 * (oh - E_tot)) * F_0['OH']
+    f_unc = f * frac_unc
+    f_oh, f_oh_unc = remove_continuum(f, f_unc, fc, fc_unc, 'OH')
+    return E_tot, E_unc, f_oh, f_oh_unc
+    
+def remove_continuum(f, f_unc, fc, fc_unc, filt):
     """Remove the dust from a gas filter.
 
     Table VI and Eqs. 45-51 of Farnham et al. 2000.
 
     Parameters
     ----------
-    f : Quantity
-      The observed flux density through the gas filter.
-    fc : Quantity
-      The estimated continuum flux density through the gas filter.
+    f, f_unc : float or Quantity
+      The observed flux density through the gas filter and
+      uncertainty.
+    fc, fc_unc : float or Quantity
+      The estimated continuum flux density through the gas filter and
+      uncertainty.
     filt : str
       The name of the gas filter.
 
     Returns
     -------
-    fgas : Quantity
+    fgas, fgas_unc : Quantity
 
     """
 
     filt = filt.upper()
     assert filt in filters
 
-    fc = u.Quantity(fc, f.unit)
+    if isinstance(f, u.Quanitity):
+        f_unc = u.Quantity(f_unc, f.unit)
+        fc = u.Quantity(fc, f.unit)
+        fc_unc = u.Quantity(fc_unc, f.unit)
+    elif isinstance(fc, u.Quanitity):
+        fc_unc = u.Quantity(fc_unc, f.unit)
+        f = u.Quantity(f, f.unit)
+        f_unc = u.Quantity(f_unc, f.unit)
+
     if filt in ['OH', 'C3', 'C2', 'H2O+']:
         fgas = (f - fc) / gamma_XX[filt]
+        fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX[filt]
     else:
         raise ValueError('{} not yet implemented.'.format(filt))
 
-    return fgas
+    return fgas, fgas_unc
 
 # update module docstring
 from ..util import autodoc
