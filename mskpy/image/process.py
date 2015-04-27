@@ -87,13 +87,13 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
         dyx[i] = y0 - y, x0 - x
         stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
         if int(dyx[i, 0]) < 0:
-            stack[i, int(dyx[i, 0]):] = np.nan
+            stack[i, :, int(dyx[i, 0]):] = np.nan
         elif int(dyx[i, 0]) > 0:
-            stack[i, :int(dyx[i, 0])] = np.nan
+            stack[i, :, :int(dyx[i, 0])] = np.nan
         if int(dyx[i, 1]) < 0:
-            stack[i, :, int(dyx[i, 1]):] = np.nan
+            stack[i, int(dyx[i, 1]):] = np.nan
         elif int(dyx[i, 1]) > 0:
-            stack[i, :, :int(dyx[i, 1])] = np.nan
+            stack[i, :int(dyx[i, 1])] = np.nan
 
     return stack, dyx
 
