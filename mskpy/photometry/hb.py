@@ -52,7 +52,8 @@ cw = {  # center wavelengths
       'C2': u.Quantity(0.5135, 'um'),
       'GC': u.Quantity(0.5259, 'um'),
     'H2O+': u.Quantity(0.7028, 'um'),
-      'RC': u.Quantity(0.7133, 'um')
+      'RC': u.Quantity(0.7133, 'um'),
+       'R': u.Quantity(0.641, 'um')  # Bessell 1998
 }
 
 cw_50 = {  # 50% power width
@@ -119,6 +120,13 @@ gamma_prime_XX = {
     'H2O+': 1.00
 }
 
+Msun = {  # apparent magnitude of the Sun, based on Appendix D.
+    'UC': -25.17,
+    'BC': -26.23,
+    'GC': -26.77,
+    'RC': -27.44,
+     'R': -27.13,  # Bessell 1998
+}
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
            covar=False):
@@ -192,17 +200,16 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     Parameters
     ----------
     w0 : string or Quantity
-      The shorter wavelength filter name (UC, BC, GC, RC), or the
-      effective wavelength.
+      The shorter wavelength filter name, or the effective wavelength.
+      May be any of UC, BC, GC, RC, or R.
     m0 : float
       The apparant magnitude through the shorter wavelength filter.
     m0_unc : Quantity
       The uncertainty in `f0`.
     w1, m1, m1_unc : various
       The same as above, but for the longer wavelength filter.
-    s0, s1 : Quantity, optional
-      The solar flux desnities.  If `None`, `calib.solar_flux` or the
-      values in Farnham et al. (2000) will be used.
+    s0, s1 : float, optional
+      The magnitude of the Sun.
 
     Returns
     -------
@@ -225,26 +232,25 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
         Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
         return Rm, Rm_unc
 
-    if w0 in filters:
+    if w0 in Msun:
+        s0 = Msun[w0]
         w0 = cw[w0]
-    if w1 in filters:
-        w1 = cw[w0]
+    if w1 in Msun:
+        s1 = Msun[w1]
+        w1 = cw[w1]
 
     assert isinstance(w0, u.Quantity)
     assert w0.unit.is_equivalent(u.m)
 
-    if s0 is None:
-        s0 = solar_flux(w0)
-    if s1 is None:
-        s1 = solar_flux(w1)
+    assert s0 is not None        
+    assert s1 is not None
 
     assert isinstance(w1, u.Quantity)
     assert w1.unit.is_equivalent(u.m)
     assert w0 < w1
-    assert s0.unit.is_equivalent(s1.unit)
 
     dw = (w1 - w0).to(0.1 * u.um)
-    ci = -2.5 * np.log10(s0.to(s1.unit) / s1)
+    ci = s0 - s1
     Rm = (m0 - m1 - ci) * u.mag / dw
     Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
     return Rm, Rm_unc
@@ -454,13 +460,13 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
 
     """
 
-    Rm = u.Quantity(Rm, '10 mag / um')
-    Rm_unc = u.Quantity(Rm_unc, '10 mag / um')
+    Rm = u.Quantity(Rm, '10 mag / um').value
+    Rm_unc = u.Quantity(Rm_unc, '10 mag / um').value
 
     filt = filt.upper()
     if filt == 'OH':
         fc = (10**(-0.4 * bc) * 10**(-0.4 * MmBC_sun[filt])
-              * 10**(-0.5440 * Rm.value))
+              * 10**(-0.5440 * Rm))
         m_unc = np.sqrt(bc_unc**2 + (0.544 / 0.4 * Rm_unc)**2)
         fc_unc = fc * m_unc / 1.0857
     else:
@@ -470,17 +476,22 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
     fc_unc *= F_0[filt]
     return fc, fc_unc
 
-def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, toz, z_true, E_bc, h):
+def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     """Flux from OH.
 
     Appendix A and D of Farnham et al. 2000.
 
     Parameters
     ----------
-    oh, oh_unc, bc, bc_unc : float
-      OH and BC instrumental magnitudes, and uncertainties.
-    Rm : float or Quantity
-      Continuum color in units of magnitudes per 0.1 um.
+    oh, oh_unc : float
+      OH instrumental magnitude and uncertainty.
+    bc, bc_unc : float
+      BC instrumental magnitude and uncertainty.
+    Rm, Rm_unc : float or Quantity
+      Continuum color in units of magnitudes per 0.1 um, and
+      uncertainty.
+    zp : float
+      OH magnitude zero point.
     toz : float
       Amount of ozone.
     z_true : Angle or Quantity
@@ -508,19 +519,19 @@ def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, toz, z_true, E_bc, h):
        determine actual extinction.
 
     4) Given extinction from step 3, re-compute band flux.
-    
+
     """
 
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     fc, fc_unc = fluxd_continuum(bc, bc_unc, Rm, Rm_unc, 'OH')
-    f = 10**(-0.4 * (oh - E_0)) * F_0['OH']
+    f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     frac = (1 - (f - fc) / f)  # fraction that is continuum
     frac_unc = frac * np.sqrt(oh_unc**2 + bc_unc**2) / 1.0857
-    assert frac < 0.25, "Continuum more than 25% of observed OH band flux density."
+    assert frac < 0.25, "Continuum = {:%}, more than 25% of observed OH band flux density.".format(frac)
     E_tot = 4 * ((0.25 - frac) * E_0 + frac * E_25)
     E_unc = 1.0857 * frac
-    f = 10**(-0.4 * (oh - E_tot)) * F_0['OH']
+    f = 10**(-0.4 * (oh + zp - E_tot)) * F_0['OH']
     f_unc = f * frac_unc
     f_oh, f_oh_unc = remove_continuum(f, f_unc, fc, fc_unc, 'OH')
     return E_tot, E_unc, f_oh, f_oh_unc
