@@ -83,7 +83,7 @@ F_0 = {  # Zero magnitude flux density
       'UC': u.Quantity(7.802e-8, 'W/(m2 um)'),
       'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
       'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
-      'RC': u.Quantity(1.316e-8, 'W/(m2 um)')
+      'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
        'R': u.Quantity(2.177e-8, 'W/(m2 um)')  # Bessell 1998
 }
 
@@ -132,10 +132,10 @@ Msun = {  # apparent magnitude of the Sun, based on Appendix D.
 
 S0 = {  # Solar flux density at 1 AU, based on Appendix D.
     'UC': u.Quantity(908.9, 'W/(m2 um)'),
-    'BC': u.Quantity(908.9, 'W/(m2 um)'),
-    'GC': u.Quantity(908.9, 'W/(m2 um)'),
-    'RC': u.Quantity(908.9, 'W/(m2 um)'),
-     'R': u.Quantity(908.9, 'W/(m2 um)')  # Bessell 1998
+    'BC': u.Quantity(1934, 'W/(m2 um)'),
+    'GC': u.Quantity(1841, 'W/(m2 um)'),
+    'RC': u.Quantity(1250, 'W/(m2 um)'),
+     'R': u.Quantity(1534, 'W/(m2 um)')  # Bessell 1998
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
