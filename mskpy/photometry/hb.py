@@ -84,9 +84,10 @@ F_0 = {  # Zero magnitude flux density
       'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
       'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
       'RC': u.Quantity(1.316e-8, 'W/(m2 um)')
+       'R': u.Quantity(2.177e-8, 'W/(m2 um)')  # Bessell 1998
 }
 
-MmBC_sun = {  # M - BC solar color index
+MmBC_sun = {  # M - BC for the Sun
       'OH':  1.791,
       'NH':  1.188,
       'CN':  1.031,
@@ -97,7 +98,8 @@ MmBC_sun = {  # M - BC solar color index
       'UC':  1.101,
       'BC':  0.000,
       'GC': -0.507,
-      'RC': -1.276
+      'RC': -1.276,
+       'R': -0.90  # From solar mags, below
 }
 
 gamma_XX = {
@@ -126,6 +128,14 @@ Msun = {  # apparent magnitude of the Sun, based on Appendix D.
     'GC': -26.77,
     'RC': -27.44,
      'R': -27.13,  # Bessell 1998
+}
+
+S0 = {  # Solar flux density at 1 AU, based on Appendix D.
+    'UC': u.Quantity(908.9, 'W/(m2 um)'),
+    'BC': u.Quantity(908.9, 'W/(m2 um)'),
+    'GC': u.Quantity(908.9, 'W/(m2 um)'),
+    'RC': u.Quantity(908.9, 'W/(m2 um)'),
+     'R': u.Quantity(908.9, 'W/(m2 um)')  # Bessell 1998
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
@@ -226,6 +236,7 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
         w1 = w1.upper()
 
     if w0 in filters and w1 in filters:
+        assert cw[w1] > cw[w0], 'w0 must be the shorter wavelength bandpass'
         dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
         ci = MmBC_sun[w0] - MmBC_sun[w1]
         Rm = (m0 - m1 - ci) * u.mag / dw
