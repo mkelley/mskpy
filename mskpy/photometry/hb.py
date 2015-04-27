@@ -572,11 +572,11 @@ def remove_continuum(f, f_unc, fc, fc_unc, filt):
     filt = filt.upper()
     assert filt in filters
 
-    if isinstance(f, u.Quanitity):
+    if isinstance(f, u.Quantity):
         f_unc = u.Quantity(f_unc, f.unit)
         fc = u.Quantity(fc, f.unit)
         fc_unc = u.Quantity(fc_unc, f.unit)
-    elif isinstance(fc, u.Quanitity):
+    elif isinstance(fc, u.Quantity):
         fc_unc = u.Quantity(fc_unc, f.unit)
         f = u.Quantity(f, f.unit)
         f_unc = u.Quantity(f_unc, f.unit)
