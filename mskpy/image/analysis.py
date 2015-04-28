@@ -316,6 +316,9 @@ def azavg(im, yx, raps=None, subsample=4, **kwargs):
     if raps is None:
         maxr = int(r.max()) + 1
         raps = np.logspace(0, np.log2(maxr), int(np.log2(maxr) * 2), base=2)
+    elif isinstance(raps, int):
+        maxr = int(r.max()) + 1
+        raps = np.logspace(0, np.log2(maxr), raps, base=2)
 
     n, f = anphot(im, yx, raps, subsample=subsample)
     n, f, raps = takefrom((n, f, raps), n != 0)
