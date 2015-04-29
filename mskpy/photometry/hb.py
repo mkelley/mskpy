@@ -535,12 +535,18 @@ def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
 
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
+    E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
     fc, fc_unc = fluxd_continuum(bc, bc_unc, Rm, Rm_unc, 'OH')
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     frac = (1 - (f - fc) / f)  # fraction that is continuum
     frac_unc = frac * np.sqrt(oh_unc**2 + bc_unc**2) / 1.0857
-    assert frac < 0.25, "Continuum = {:%}, more than 25% of observed OH band flux density.".format(frac)
-    E_tot = 4 * ((0.25 - frac) * E_0 + frac * E_25)
+    if frac <= 0.25:
+        E_tot = 4 * ((0.25 - frac) * E_0 + frac * E_25)
+    else:
+        #assert frac < 0.25, "Continuum = {:%}, more than 25% of observed OH band flux density.  Untested code.".format(frac)
+        #print "Etot", 4 * ((0.25 - frac) * E_0 + frac * E_25), E_tot
+        # the following yields the same as above at the <0.001 mag level
+        E_tot = ((1 - frac) * E_25 + (frac - 0.25) * E_100) / 0.75
     E_unc = 1.0857 * frac
     f = 10**(-0.4 * (oh + zp - E_tot)) * F_0['OH']
     f_unc = f * frac_unc
