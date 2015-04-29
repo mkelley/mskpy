@@ -426,9 +426,9 @@ def bgphot(im, yx, rap, ufunc=np.mean, squeeze=True, **kwargs):
     assert yx.ndim in [1, 2], "yx must be one or two dimensional."
     if yx.ndim == 1:
         assert yx.shape[0] == 2, "yx must have length 2."
-        yx = yx.reshape((2, 1))
-    else:
-        assert yx.shape[1] == 2, "Second axis of yx must have length 2."
+        yx = yx.reshape((1, 2))
+
+    assert yx.shape[1] == 2, "Second axis of yx must have length 2."
 
     rap = np.array(rap, float)
     assert rap.shape == (2,), "rap has incorrect shape."
