@@ -128,11 +128,11 @@ class Observer(object):
 
     def __repr__(self):
         if self.name is not None:
-            return '<Observer ({}): {}, {}>'.format(
-                self.name, self.lon.degree, self.lat.degree)
+            return '<Observer ({}): {}, {}, {}>'.format(
+                self.name, self.lon.degree, self.lat.degree, self.date.iso[:10])
         else:
-            return '<Observer: {}, {}>'.format(
-                self.lon.degree, self.lat.degree)
+            return '<Observer: {}, {}, {}>'.format(
+                self.lon.degree, self.lat.degree, self.date.iso[:10])
 
 
     def _radec(self, target, date):
