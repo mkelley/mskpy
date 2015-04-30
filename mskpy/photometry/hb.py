@@ -13,9 +13,11 @@ hb --- Hale-Bopp filter set photometric calibration
    ext_total_oh
    ext_ozone_oh
    ext_rayleigh_oh
+   flux_gas
+   flux_oh
    fluxd_continuum
-   fluxd_oh
-   remove_continuum
+
+   todo: Need more uncertainty propagations.
 
 """
 
@@ -32,9 +34,9 @@ __all__ = [
     'ext_total_oh',
     'ext_ozone_oh',
     'ext_rayleigh_oh',
+    'flux_gas',
+    'flux_oh',
     'fluxd_continuum',
-    'fluxd_oh',
-    'remove_continuum',
 ]
 
 # Table I of Farnham et al. 2000
@@ -102,17 +104,17 @@ MmBC_sun = {  # M - BC for the Sun
        'R': -0.90  # From solar mags, below
 }
 
-gamma_XX = {
-      'OH': 1.698e-2,
-      'NH': 1.907e-2,
-      'CN': 1.812e-2,
-      'C3': 3.352e-2,
-     'CO+': 1.549e-2,
-      'C2': 5.433e-3,
-    'H2O+': 5.424e-3
+gamma_XX_XX = {
+      'OH': u.Quantity(1.698e-2, '1/AA'),
+      'NH': u.Quantity(1.907e-2, '1/AA'),
+      'CN': u.Quantity(1.812e-2, '1/AA'),
+      'C3': u.Quantity(3.352e-2, '1/AA'),
+     'CO+': u.Quantity(1.549e-2, '1/AA'),
+      'C2': u.Quantity(5.433e-3, '1/AA'),
+    'H2O+': u.Quantity(5.424e-3, '1/AA')
 }
 
-gamma_prime_XX = {
+gamma_prime_XX_XX = {
       'OH': 0.98,
       'NH': 0.99,
       'CN': 0.99,
@@ -320,7 +322,8 @@ def ext_ozone_oh(z_true, toz, c):
     z_true : Angle or Quantity
       The source true zenith angle.
     toz : float
-      The amount of ozone.  0.15 is a good starting guess.
+      The amount of ozone.  0.15 is a good starting
+      guess.
     c : string or 4x4 array
       The ozone c_ij coefficients.  Use 'B', 'G', 'OH', or '25%' for
       the corresponding coefficients from Table VIII of Farhnam et
@@ -487,7 +490,7 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
     fc_unc *= F_0[filt]
     return fc, fc_unc
 
-def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
+def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     """Flux from OH.
 
     Appendix A and D of Farnham et al. 2000.
@@ -516,6 +519,9 @@ def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     -------
     E_tot, E_unc : float
       Total OH extinction and uncertainty.
+    m_oh, m_oh_unc : float
+      Calibrated OH apparent magnitude and uncertainty (including
+      continuum).
     f_oh, f_oh_unc : Quantity
       Total band flux from OH and uncertainty.
 
@@ -537,24 +543,36 @@ def fluxd_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
     fc, fc_unc = fluxd_continuum(bc, bc_unc, Rm, Rm_unc, 'OH')
+
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
-    frac = (1 - (f - fc) / f)  # fraction that is continuum
-    frac_unc = frac * np.sqrt(oh_unc**2 + bc_unc**2) / 1.0857
+    f_unc = oh_unc * f / 1.0857  # first estimate
+
+    frac = fc / f  # fraction that is continuum
+    frac_unc = np.sqrt(f_unc**2 * fc**2 + fc_unc**2 * f**2) / f**2
+    #E_unc = frac_unc / frac * 1.0857
+    #E_unc = np.sqrt(oh_unc**2 + ((fc_unc / fc) * 1.0857)**2)
+
     if frac <= 0.25:
         E_tot = 4 * ((0.25 - frac) * E_0 + frac * E_25)
+        E_unc = 4 * (E_0 + E_25) * frac_unc
     else:
         #assert frac < 0.25, "Continuum = {:%}, more than 25% of observed OH band flux density.  Untested code.".format(frac)
         #print "Etot", 4 * ((0.25 - frac) * E_0 + frac * E_25), E_tot
         # the following yields the same as above at the <0.001 mag level
         E_tot = ((1 - frac) * E_25 + (frac - 0.25) * E_100) / 0.75
-    E_unc = 1.0857 * frac
-    f = 10**(-0.4 * (oh + zp - E_tot)) * F_0['OH']
-    f_unc = f * frac_unc
-    f_oh, f_oh_unc = remove_continuum(f, f_unc, fc, fc_unc, 'OH')
-    return E_tot, E_unc, f_oh, f_oh_unc
-    
-def remove_continuum(f, f_unc, fc, fc_unc, filt):
-    """Remove the dust from a gas filter.
+        E_unc = np.abs(E_100 - E_25) * frac_unc / 0.75
+
+    m = oh + zp - E_tot
+    m_unc = np.sqrt(oh_unc**2 + E_unc**2)
+
+    f = F_0['OH'] * 10**(-0.4 * m)
+    f_unc = m_unc * f / 1.0857
+
+    f_oh, f_oh_unc = flux_gas(f, f_unc, fc, fc_unc, 'OH')
+    return E_tot, E_unc, m, m_unc, f_oh, f_oh_unc
+
+def flux_gas(f, f_unc, fc, fc_unc, filt):
+    """Gas emission band total flux.
 
     Table VI and Eqs. 45-51 of Farnham et al. 2000.
 
@@ -588,12 +606,12 @@ def remove_continuum(f, f_unc, fc, fc_unc, filt):
         f_unc = u.Quantity(f_unc, f.unit)
 
     if filt in ['OH', 'C3', 'C2', 'H2O+']:
-        fgas = (f - fc) / gamma_XX[filt]
-        fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX[filt]
+        fgas = (f - fc) / gamma_XX_XX[filt]
+        fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX_XX[filt]
     else:
         raise ValueError('{} not yet implemented.'.format(filt))
 
-    return fgas, fgas_unc
+    return fgas.decompose([u.W, u.m]), fgas_unc.decompose([u.W, u.m])
 
 # update module docstring
 from ..util import autodoc
