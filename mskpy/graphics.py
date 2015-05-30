@@ -250,7 +250,7 @@ def nicelegend(*args, **kwargs):
 
 
 def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
-             **kwargs):
+             mew=1.25, lw=2.0, ms=7.0, **kwargs):
     """Pretty up a plot for publication.
 
     Parameters
@@ -281,11 +281,21 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
     plt.setp(labels, fontsize=lfs)
 
     # for plot markers, ticks
-    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', 1.25))
-    ms = kwargs.pop('markersize', kwargs.pop('ms', 7.0))
-    lw = kwargs.pop('linewidth', kwargs.pop('lw', 2.0))
+    lines = ax.get_lines()
+    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+    if mew is not None:
+        plt.setp(lines, mew=mew)
 
-    plt.setp(ax.get_lines(), mew=mew, ms=ms, lw=lw, **kwargs)
+    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+    if ms is not None:
+        plt.setp(lines, ms=ms)
+
+    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+    if lw is not None:
+        plt.setp(lines, lw=lw)
+
+    if len(kwargs) > 0:
+        plt.setp(lines, **kwargs)
 
     lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
         ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
