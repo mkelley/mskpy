@@ -48,9 +48,10 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
     length : float
       Length of the arrows in data units.
     rot : float, optional
-      The image orientation (position angle of north).
+      The image orientation (position angle of north) in units of degrees.
     angles : array, floats, optional
-      The position angles at which to place arrows, measured E of N.
+      The position angles at which to place arrows, measured E of N,
+      in units of degrees.
     labels : array, strings, optional
       Labels for each arrow, or None for no labels.
     offset : float, optional
@@ -81,12 +82,9 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
 
     alist = []
     for i in range(len(angles)):
-        ixy = length * inset * np.array(
-            -np.sin(rot + np.radians(angles[i])),
-             np.cos(rot + np.radians(angles[i])))
-        dxy = length * offset * np.array(
-            -np.sin(rot + np.radians(angles[i])),
-             np.cos(rot + np.radians(angles[i])))
+        a = np.radians(rot + angles[i])
+        ixy = length * inset * np.array([-np.sin(a), np.cos(a)])
+        dxy = length * offset * np.array([-np.sin(a), np.cos(a)])
         alist += [ax.annotate(labels[i], xy + ixy, xy + dxy,
                               ha='center', va='center',
                               fontsize=fontsize, arrowprops=arrowprops,
@@ -252,7 +250,7 @@ def nicelegend(*args, **kwargs):
 
 
 def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
-             **kwargs):
+             mew=1.25, lw=2.0, ms=7.0, **kwargs):
     """Pretty up a plot for publication.
 
     Parameters
@@ -283,11 +281,21 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
     plt.setp(labels, fontsize=lfs)
 
     # for plot markers, ticks
-    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', 1.25))
-    ms = kwargs.pop('markersize', kwargs.pop('ms', 7.0))
-    lw = kwargs.pop('linewidth', kwargs.pop('lw', 2.0))
+    lines = ax.get_lines()
+    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+    if mew is not None:
+        plt.setp(lines, mew=mew)
 
-    plt.setp(ax.get_lines(), mew=mew, ms=ms, lw=lw, **kwargs)
+    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+    if ms is not None:
+        plt.setp(lines, ms=ms)
+
+    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+    if lw is not None:
+        plt.setp(lines, lw=lw)
+
+    if len(kwargs) > 0:
+        plt.setp(lines, **kwargs)
 
     lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
         ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()

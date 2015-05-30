@@ -20,6 +20,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    modeling    - For fitting models to data.
    models      - Surface and dust models.
    observing   - Tools for observing preparations.
+   photometry  - Tools for photometry.
    polarimetry - Classes and functions for polarimetry.
    util        - Grab bag of utility functions.
 

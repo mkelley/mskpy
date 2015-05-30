@@ -160,6 +160,12 @@ class Coma(SolarSysObject):
 
         return fluxd
 
+    def _add_lc_columns(self, lc):
+        from astropy.table import Column
+        afrho = self.Afrho1 * lc['rh'].data**self.k
+        lc.add_column(Column(afrho, name='Afrho', format='{:.4g}'))
+        return lc
+
 class Comet(SolarSysObject):
     """A comet.
 
@@ -309,6 +315,9 @@ class Comet(SolarSysObject):
                                      thermal=thermal, unit=unit)
 
         return fluxd
+
+    def _add_lc_columns(self, lc):
+        return self.coma._add_lc_columns(lc)
 
 def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
                 bandpass=None):
@@ -622,23 +631,23 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     I = flux / Om  # W/m2/um/sr
     return I * _rho / B
 
-def m2afrho(m, geom):
+def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
     """Convert JPL/HORIZONS apparent magnitude, m, to Afrho.
 
     *** EXPERIMENTAL ***
 
-    Based on Comet C/2007 N3 (Lulin) in I-band:
-
-      3200 cm = 8.49 mag at rh=1.49 AU, Delta=0.49 AU.
-      -2.5 log10(3200 / c) = 8.49 + 5 * log10(1.49 * 0.49)
-      c = 4.0e6 cm
+    Based on a few comets.  See MSK's notes.
 
     Parameters
     ----------
     m : float
       Comet's apparent magnitude from JPL.
-    geom : dict of Quantity, or ephem.Geom
+    g : dict of Quantity, or ephem.Geom
       The observing circumstances (rh and delta).
+    C : float
+      Conversion constant. [cm]
+    m_sun : float
+      Apparent magnitude of the Sun.
 
     Returns
     -------
@@ -647,8 +656,12 @@ def m2afrho(m, geom):
 
     """
     print "    *** EXPERIMENTAL ***   "
-    M = m - 5 * np.log10(geom['rh'] * geom['delta'])
-    return 4.0e6 * 10**(M / -2.5)
+    #M = m - 5 * np.log10(geom['rh'].to(u.au).value
+    #                     * geom['delta'].to(u.au).value)
+    #return 4.0e6 * 10**(M / -2.5)
+    afrho = (C * g['delta'].to(u.au)**2 * g['rh'].to(u.au)**2 / u.au**4
+             * 10**(-0.4 * (m - m_sun))) * u.cm
+    return afrho
 
 def M2afrho1(M1):
     """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.

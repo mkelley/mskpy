@@ -1,3 +1,79 @@
+2.3.0
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `graphics.arrows` actually works now (again?).
+
+- `image.analysis.azavg` bug fix for raps parameter as an integer.
+
+New features
+^^^^^^^^^^^^
+
+- `catalogs`
+  - `brightest` to sort out bright sources from a catalog.
+  - `faintest` to sort out faint sources from a catalog.
+  - `find_offset` to determine the offset between two catalogs.
+  - `nearest_match` to find neighbors in two lists.
+  - `project_catalog` to project RA, Dec onto image plane.
+
+- `image`
+  - `analysis.anphot`, `apphot`, `bgphot` allow multiple sources.
+  - `analysis.apphot_by_wcs` for aperture photometry by coordinates.
+  - `analysis.find` for rudimentary source finding.
+  - `core.imshift` allow whole pixel shifts.
+  - `core.rebin` handles scale factor 1 by special case.
+  - `process.align_by_centroid` and `align_by_wcs` for image
+    alignment.
+
+- `observing`
+  - `Observer.finding_chart` for creating a finding chart with DS9.
+  - `plot_transit_time` for doing just that.
+
+- `NEATM.fit` for least-squares fitting of a spectrum.
+
+- New `photometry` module, with lots of Hale Bopp filter support in
+  `hb` submodule.
+
+- `scripts/`
+  - `ephemeris` may now output coma flux estimates, and accepts kernel
+    file names from the command line.
+  - New `transit` script for generating plots of transit times.
+
+- `util` functions
+  - `gaussfit` for Gaussian fitting.
+  - `glfit` for Gaussian + linear function fitting.
+  - `stat_avg` for array binning, considering measurement
+    uncertainties.
+  - `write_table` for quick writing of an astropy table with a simple
+    header.
+  - `xyz2lb` to convert Cartesian coordinates to angles.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `calib.filter_trans` modified to use np.loadtxt.
+
+- `catalogs.spatial_match` and `triangles` overhauls.
+
+- `comet.m2afrho` updated, but still experimental.
+
+- `graphics.niceplot` keyword arguments to prevent changes to line
+    widths, marker sizes, and marker edge widths.
+
+- `image`
+  - `analysis.gcentroid` uses float when passed a float.
+  - `process.fixpix` behind the scenes improvements and limit fixing
+  by area.
+  - `analysis.azavg` bug fix for raps parameter as an integer.
+
+- `observing.Observer` includes date in string representation.
+
+- `util`
+  - `getrot` fix for current astropy.io.fits behavior.
+  - `planckfit` fix for when leastsq refuses to fit the data.
+
 2.2.4
 -----
 

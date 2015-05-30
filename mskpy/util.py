@@ -25,6 +25,8 @@ util --- Short and sweet functions, generic algorithms
 
    Optimizations
    -------------
+   gaussfit
+   glfit
    linefit
    planckfit
 
@@ -35,6 +37,7 @@ util --- Short and sweet functions, generic algorithms
    leading_num_key
    nearest
    takefrom
+   stat_avg
    whist
 
    Spherical/Celestial/vectorial geometry
@@ -45,6 +48,7 @@ util --- Short and sweet functions, generic algorithms
    spherical_coord_rotate
    state2orbit
    vector_rotate
+   xyz2lb
 
    Statistics
    ----------
@@ -94,6 +98,7 @@ util --- Short and sweet functions, generic algorithms
    autodoc
    spectral_density_sb
    timesten
+   write_table
 
 """
 
@@ -113,6 +118,8 @@ __all__ = [
     'fitslog',
     'getrot',
 
+    'gaussfit',
+    'glfit',
     'linefit',
     'planckfit',
 
@@ -120,6 +127,7 @@ __all__ = [
     'groupby',
     'leading_num_key',
     'nearest',
+    'stat_avg',
     'takefrom',
     'whist',
 
@@ -129,6 +137,7 @@ __all__ = [
     'spherical_coord_rotate',
     'state2orbit',
     'vector_rotate',
+    'xyz2lb',
 
     'kuiper',
     'kuiperprob',
@@ -169,7 +178,8 @@ __all__ = [
     'asValue',
     'autodoc',
     'spectral_density_sb',
-    'timesten'
+    'timesten',
+    'write_table'
 ]
 
 def archav(y):
@@ -605,27 +615,27 @@ def getrot(h):
     # Does CDELTx exist?
     cdelt = np.zeros(2)
     cdeltDefined = False
-    if (h.has_key('CDELT1') and h.has_key('CDELT2')):
+    if (('CDELT1' in h) and ('CDELT2' in h)):
         # these keywords take precedence over the CD matrix
         cdeltDefined = True
         cdelt = np.array([h['CDELT1'], h['CDELT2']])
 
     # Transformation matrix?
     tmDefined = False
-    if (h.has_key('CD1_1') and h.has_key('CD1_2') and
-        h.has_key('CD2_1') and h.has_key('CD2_2')):
+    if (('CD1_1' in h) and ('CD1_2' in h) and
+        ('CD2_1' in h) and ('CD2_2' in h)):
         tmDefined = True
         cd = np.array(((h['CD1_1'], h['CD1_2']), (h['CD2_1'], h['CD2_2'])))
 
-    if (h.has_key('PC1_1') and h.has_key('PC1_2') and
-        h.has_key('PC2_1') and h.has_key('PC2_2')):
+    if (('PC1_1' in h) and ('PC1_2' in h) and
+        ('PC2_1' in h) and ('PC2_2' in h)):
         tmDefined = True
         cd = np.array(((h['PC1_1'], h['PC1_2']), (h['PC2_1'], h['PC2_2'])))
 
     if not tmDefined:
         # if CDELT is defined but the transformation matrix isn't,
         # then CROT should be defined
-        if cdeltDefined and h.has_key('CROTA2'):
+        if cdeltDefined and ('CROTA2' in h):
             rot = h['CROTA2']
             return cdelt, rot
 
@@ -662,6 +672,100 @@ def getrot(h):
             cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
 
     return cdelt * 3600.0, np.degrees(rot1)
+
+def gaussfit(x, y, err, guess, covar=False):
+    """A quick Gaussian fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess: `(amplitude, mu, sigma)`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        A, mu, sigma = p
+        model = A * gaussian(x, mu, sigma)
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-4)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
+def glfit(x, y, err, guess, covar=False):
+    """A quick Gaussian + line fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess: `(amplitude, mu, sigma, m, b)`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        A, mu, sigma, m, b = p
+        model = A * gaussian(x, mu, sigma) + m * x + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-4)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
 
 def linefit(x, y, err, guess, covar=False):
     """A quick line fitting function.
@@ -752,14 +856,17 @@ def planckfit(wave, fluxd, err, guess, covar=False):
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
+    print output[-2]
     fit = output[0]
     cov = output[1]
-    err = np.sqrt(np.diag(cov))
 
     if covar:
         return fit, cov
     else:
-        return fit, err
+        if cov is None:
+            return fit, None
+        else:
+            return fit, np.sqrt(np.diag(cov))
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
@@ -892,6 +999,52 @@ def nearest(array, v):
 
     """
     return np.abs(np.array(array) - v).argmin()
+
+def stat_avg(x, y, u, N):
+    """Bin an array, weighted by measurement errors.
+
+    Parameters
+    ----------
+    x : array
+      The independent variable.
+    y : array
+      The parameter to average.
+    u : array
+      The uncertainties on y. weights for each `y`.
+    N : int
+      The number of points to bin.  The right-most bin may contain
+      fewer than `N` points.
+
+    Returns
+    -------
+    bx, by, bu : ndarray
+      The binned data.  The `x` data is straight averaged (unweighted).
+    n : ndarray
+      The number of points in each bin.
+
+    """
+
+    nbins = x.size / N
+    remainder = x.size % nbins
+    shape = (nbins, N)
+
+    w = (1.0 / np.array(u)**2)
+    _w = w[:-remainder].reshape(shape)
+    _x = np.array(x)[:-remainder].reshape(shape)
+    _y = np.array(y)[:-remainder].reshape(shape)
+
+    _x = _x.mean(1)
+    _y = (_y * _w).sum(1) / _w.sum(1)
+    _u = np.sqrt(1.0 / _w.sum(1))
+
+    n = np.ones(len(_x)) * N
+    if remainder > 0:
+        _x = np.r_[_x, np.mean(x[-remainder:])]
+        _y = np.r_[_y, (np.array(y[-remainder:]) / w[-remainder:]).sum()]
+        _u = np.r_[_u, np.sqrt(1.0 / w[-remainder:].sum())]
+        n = np.r_[n, remainder]
+
+    return _x, _y, _u, n
 
 def takefrom(arrays, indices):
     """Return elements from each array at the given indices.
@@ -1282,6 +1435,34 @@ def vector_rotate(r, n, th):
         return rot(r, nhat, th)
     else:
         return np.array([rot(r, nhat, t) for t in th])
+
+def xyz2lb(r):
+    """Transform a vector to angles.
+
+    Parameters
+    ----------
+    r : array
+      The vector, shape = (3,) or (n, 3).
+
+    Returns
+    -------
+    lam : float or array
+      Longitude. [degrees]
+    bet : float or array
+      Latitude. [degrees]
+
+    """
+
+    r = np.array(r)
+    if r.ndim == 1:
+        lam = np.arctan2(r[1], r[0])
+        bet = np.arctan2(r[2], np.sqrt(r[0]**2 + r[1]**2))
+    else:
+        # assume it is an array of vectors
+        lam = np.arctan2(r[:, 1], r[:, 0])
+        bet = np.arctan2(r[:, 2], np.sqrt(r[:, 0]**2 + r[:, 1]**2))
+
+    return np.degrees(lam), np.degrees(bet)
 
 def kuiper(x, y):
     """Compute Kuiper's statistic and probablity.
@@ -2702,6 +2883,41 @@ def timesten(v, sigfigs):
     s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
     s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
     return s
+
+def write_table(fn, tab, header, comments=[], **kwargs):
+    """Write an astropy Table with a simple header.
+
+    Parameters
+    ----------
+    fn : string
+      The name of the file to write to.
+    tab : astropy Table
+      The table to write.
+    header : dict
+      A dictionary of keywords to save or `None`.  Use an
+      `OrderedDict` to preserve header keyword order.
+    comments : list
+      A list of comments to add to the top of the file.  Each line
+      will be prepended with a comment character.
+    **kwargs
+      Keyword arguments for `tab.write()`.  Default format is
+      'ascii.fixed_width_two_line'.
+
+    """
+
+    format = kwargs.pop('format', 'ascii.fixed_width_two_line')
+    with open(fn, 'w') as outf:
+        outf.write("# {}\n#\n".format(date2time(None).iso))
+
+        for c in comments:
+            outf.write("# {}\n".format(c))
+
+        for k, v in header.items():
+            outf.write("# {} = {}\n".format(k, str(v)))
+
+        outf.write('#\n')
+
+        tab.write(outf, format=format, **kwargs)
 
 # summarize the module
 autodoc(globals())

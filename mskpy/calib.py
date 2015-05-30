@@ -254,10 +254,15 @@ def filter_trans(name):
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    table = ascii.read(_filterdir + '/' + fil[0])
+    #table = ascii.read(_filterdir + '/' + fil[0], format='fixed_width_no_header')
+    #cols = fil[1]
+    #w = table.columns[cols[0]].data * u.um
+    #tr = table.columns[cols[1]].data
+
+    table = np.loadtxt(_filterdir + '/' + fil[0]).T
     cols = fil[1]
-    w = table.columns[cols[0]].data * u.um
-    tr = table.columns[cols[1]].data
+    w = table[cols[0]] * u.um
+    tr = table[cols[1]]
 
     return w, tr
 
@@ -323,3 +328,8 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
         fl = fl.to(unit, equivalencies=equiv)
 
     return wave, fl
+
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc

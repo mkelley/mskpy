@@ -32,7 +32,7 @@ __all__ = [
 import numpy as np
 
 def imshift(im, yx, subsample=4):
-    """Shift an image, allowing for sub-pixel offsets (drizzle method).
+    """Shift an image, allowing for sub-pixel offsets.
 
     Parameters
     ----------
@@ -42,7 +42,8 @@ def imshift(im, yx, subsample=4):
       `y, x` offsets.  Positive values move pixels to the
       up/right. [unsampled pixels]
     subsample : int, optional
-      The sub-sampling factor.
+      The sub-sampling factor.  If <=1, then the image is only shifted
+      whole pixels.
 
     Returns
     -------
@@ -52,7 +53,7 @@ def imshift(im, yx, subsample=4):
     """
 
     if subsample <= 1:
-        raise ValueError("sample must be > 1.")
+        subsample = 1
 
     sy = int(round(yx[0] * subsample)) # whole sampled pixels
     sx = int(round(yx[1] * subsample))
@@ -146,6 +147,10 @@ def rebin(a, factor, flux=False, trim=False):
         if flux:
             b /= float(factor)
         return b
+
+    if factor == 1:
+        # done!
+        return a
 
     _a = a.copy()
     if factor < 0:
