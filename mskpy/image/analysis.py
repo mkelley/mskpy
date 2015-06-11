@@ -518,7 +518,7 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
                         shrink=shrink, silent=silent)
     else:
         if not silent:
-            print("x, y = {0:.1f}, {1:.1f}".format(cx, cy))
+            print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
 
     return cyx
 
