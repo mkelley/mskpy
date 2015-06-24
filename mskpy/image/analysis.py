@@ -615,8 +615,11 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     print('[find] {} good, {} bad sources'.format(len(yx), bad))
     return np.array(yx), np.array(f)
 
-def fwhm(im, yx, bg=True, **kwargs):
+def fwhm(im, yx, unc=None, guess=None, kind='radial', width=3, length=9,
+         **kwargs):
     """Compute the FWHM of an image.
+
+    Least-squares fit, optionally weighted by uncertainties.
 
     Parameters
     ----------
@@ -624,11 +627,20 @@ def fwhm(im, yx, bg=True, **kwargs):
       The image to fit.
     yx : array
       The center on which to fit.
-    bg : bool, optional
-      Set to `True` if there is a constant background to be
-      considered.
+    unc : array, optional
+      Image uncertainties.
+    guess : tuple, optional
+      Initial guess.  See `util.gaussfit`.  If `guess` is `None`, the
+      default fit is a Gaussian + constant background.  For radial
+      fits, the center (`mu`) must be zero.
+    kind : string, optional
+      'radial', 'x', or 'y'.
+    width : float, optional
+      Extraction width for line cuts.
+    length : float, optional
+      Extraction length for line cuts.
     **kwargs
-      Any `radprof` keyword, e.g., `range` or `bins`.
+      Any `radprof` or `linecut` keyword.
 
     Returns
     -------
@@ -640,21 +652,32 @@ def fwhm(im, yx, bg=True, **kwargs):
     from scipy.optimize import leastsq as lsq
     from ..util import gaussian
 
-    R, I, n = radprof(im, yx, **kwargs)[:3]
-    r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+    assert kind in ['radial', 'x', 'y'], "Invalid kind."
+    if kind == 'radial':
+        R, I, n = radprof(im, yx, **kwargs)[:3]
+        if guess is None:
+            r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+            guess = (I.max(), 0.0, r / 2.35, I.min())
+        args = (R, I)
+    elif kind == 'x':
+        x, n, I = linecut(im, yx, width, length, 0, **kwargs)
+        if guess is None:
+            r = x[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+            guess = (I.max(), 0.0, r / 2.35, I.min())
+        args = (x, I)
+    elif kind == 'y':
+        y, n, I = linecut(im, yx, width, length, 0, **kwargs)
+        if guess is None:
+            r = y[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+            guess = (I.max(), 0.0, r / 2.35, I.min())
+        args = (y, I)
 
-    if bg:
-        def fitfunc(p, R, I):
-            return I - gaussian(R, 0, p[0]) * p[1] + p[2]
-        guess = (r, I.max(), I.min())
-    else:
-        def fitfunc(p, R, I):
-            return I - gaussian(R, 0, p[0]) * p[1]
-        guess = (r, I.max())
+    if unc is None:
+        unc = y / y
 
-    fit = lsq(fitfunc, guess, args=(R, I))[0]
+    fit, err = gaussfit(args[0], args[1], unc, guess)
 
-    return abs(fit[0]) * 2.35
+    return abs(fit[2]) * 2.35
 
 def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.

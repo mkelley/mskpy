@@ -674,7 +674,7 @@ def getrot(h):
     return cdelt * 3600.0, np.degrees(rot1)
 
 def gaussfit(x, y, err, guess, covar=False):
-    """A quick Gaussian fitting function.
+    """A quick Gaussian fitting function, optionally including a line.
 
     Parameters
     ----------
@@ -683,7 +683,11 @@ def gaussfit(x, y, err, guess, covar=False):
     err : array
       `y` errors, set to `None` for unweighted fitting.
     guess : tuple
-      Initial guess: `(amplitude, mu, sigma)`.
+      Initial guess.  The length of the guess determines the fitting
+      function:
+        `(amplitude, mu, sigma)` - pure Gaussian
+        `(amplitude, mu, sigma, b)` - Gaussian + constant offset `b`
+        `(amplitude, mu, sigma, m, b)` - Gaussian + linear term `m x + b`
     covar : bool, optional
       Set to `True` to return the covariance matrix rather than the
       error.
@@ -700,17 +704,37 @@ def gaussfit(x, y, err, guess, covar=False):
 
     from scipy.optimize import leastsq
 
-    def chi(p, x, y, err):
+    def gauss_chi(p, x, y, err):
         A, mu, sigma = p
         model = A * gaussian(x, mu, sigma)
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    def gauss_offset_chi(p, x, y, err):
+        A, mu, sigma, b = p
+        model = A * gaussian(x, mu, sigma) + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    def gauss_line_chi(p, x, y, err):
+        A, mu, sigma, m, b = p
+        model = A * gaussian(x, mu, sigma) + m * x + b
         chi = (np.array(y) - model) / np.array(err)
         return chi
 
     if err is None:
         err = np.ones(len(y))
 
-    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
-                     epsfcn=1e-4)
+    assert len(guess) in (3, 4, 5), "guess must have length of 3, 4, or 5."
+
+    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4)
+    if len(guess) == 3:
+        output = leastsq(gauss_chi, guess, **opts)
+    elif len(guess) == 4:
+        output = leastsq(gauss_chi, guess, **opts)
+    elif len(guess) == 5:
+        output = leastsq(gauss_chi, guess, **opts)
+
     fit = output[0]
     cov = output[1]
     err = np.sqrt(np.diag(cov))
