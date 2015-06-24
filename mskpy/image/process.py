@@ -16,6 +16,7 @@ image.process --- Process (astronomical) images.
    mkflat
    psfmatch
    stripes
+   subim
 
 """
 
@@ -32,7 +33,8 @@ __all__ = [
     'fixpix',
     'mkflat',
     'psfmatch',
-    'stripes'
+    'stripes',
+    'subim',
 ]
 
 def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
@@ -511,8 +513,35 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     
     return s
 
+def subim(im, yx, box):
+    """Extract a sub-image.
+
+    If any part of the sub-image is beyond the image edge, it will be
+    truncated.
+
+    Parameters
+    ----------
+    im : array
+      The full image.
+    yx : array
+      The center of the sub-image.  Floating point values will be
+      rounded.
+    box : int
+      The desired length of a side of the sub-image.
+
+    Returns
+    -------
+    subim : ndarray
+
+    """
+
+    y0 = int(np.around(yx[0]))
+    x0 = int(np.around(yx[0]))
+    s = np.s_[max(y0 - box, 0) : min(y0 + box + 1, im.shape[0]),
+              max(x0 - box, 0) : min(x0 + box + 1, im.shape[1])]
+    return im[s]
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
 del autodoc
-
