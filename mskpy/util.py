@@ -731,13 +731,17 @@ def gaussfit(x, y, err, guess, covar=False):
     if len(guess) == 3:
         output = leastsq(gauss_chi, guess, **opts)
     elif len(guess) == 4:
-        output = leastsq(gauss_chi, guess, **opts)
+        output = leastsq(gauss_offset_chi, guess, **opts)
     elif len(guess) == 5:
-        output = leastsq(gauss_chi, guess, **opts)
+        output = leastsq(gauss_line_chi, guess, **opts)
 
     fit = output[0]
     cov = output[1]
-    err = np.sqrt(np.diag(cov))
+    if cov is None:
+        print output[3]
+        err = None
+    else:
+        err = np.sqrt(np.diag(cov))
 
     if covar:
         return fit, cov

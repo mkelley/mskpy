@@ -615,7 +615,7 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     print('[find] {} good, {} bad sources'.format(len(yx), bad))
     return np.array(yx), np.array(f)
 
-def fwhm(im, yx, unc=None, guess=None, kind='radial', width=3, length=9,
+def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
          **kwargs):
     """Compute the FWHM of an image.
 
@@ -638,7 +638,8 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=3, length=9,
     width : float, optional
       Extraction width for line cuts.
     length : float, optional
-      Extraction length for line cuts.
+      Extraction length for line cuts, from -length/2 to length/2, 1 pixel
+      steps.
     **kwargs
       Any `radprof` or `linecut` keyword.
 
@@ -650,30 +651,32 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=3, length=9,
     """
 
     from scipy.optimize import leastsq as lsq
-    from ..util import gaussian
+    from ..util import gaussfit
+
+    length = np.arange(-length / 2.0, length / 2.0 + 1)
 
     assert kind in ['radial', 'x', 'y'], "Invalid kind."
     if kind == 'radial':
         R, I, n = radprof(im, yx, **kwargs)[:3]
         if guess is None:
-            r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
-            guess = (I.max(), 0.0, r / 2.35, I.min())
+            r = R[I < (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
+            guess = (I.ptp(), 0.0, r / 2.35, I.min())
         args = (R, I)
     elif kind == 'x':
         x, n, I = linecut(im, yx, width, length, 0, **kwargs)
         if guess is None:
-            r = x[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+            r = x[I > (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
             guess = (I.max(), 0.0, r / 2.35, I.min())
         args = (x, I)
     elif kind == 'y':
         y, n, I = linecut(im, yx, width, length, 0, **kwargs)
         if guess is None:
-            r = y[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+            r = y[I > (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
             guess = (I.max(), 0.0, r / 2.35, I.min())
         args = (y, I)
 
     if unc is None:
-        unc = y / y
+        unc = args[1] / args[1]
 
     fit, err = gaussfit(args[0], args[1], unc, guess)
 

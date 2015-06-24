@@ -513,7 +513,7 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     
     return s
 
-def subim(im, yx, box):
+def subim(im, yx, half_box):
     """Extract a sub-image.
 
     If any part of the sub-image is beyond the image edge, it will be
@@ -526,8 +526,10 @@ def subim(im, yx, box):
     yx : array
       The center of the sub-image.  Floating point values will be
       rounded.
-    box : int
-      The desired length of a side of the sub-image.
+    half_box : int
+      The desired half-length of a side of the sub-image.  The image
+      shape will be `half_box * 2 + 1` for each dimension, unless
+      truncated by an image edge.
 
     Returns
     -------
@@ -537,8 +539,8 @@ def subim(im, yx, box):
 
     y0 = int(np.around(yx[0]))
     x0 = int(np.around(yx[0]))
-    s = np.s_[max(y0 - box, 0) : min(y0 + box + 1, im.shape[0]),
-              max(x0 - box, 0) : min(x0 + box + 1, im.shape[1])]
+    s = np.s_[max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
+              max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1])]
     return im[s]
 
 # update module docstring
