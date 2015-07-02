@@ -97,9 +97,10 @@ else:
 
 t = t[between(t['selong'], args.selong)]
 
-print("""# ephemeris
+print("""# ephemeris {}
+#
 # target = {}
-#""".format(' '.join(args.target)))
+#""".format(' '.join(sys.argv[1:]), ' '.join(args.target)))
 for k in arg_list:
     if k[0] == '_':
         continue
