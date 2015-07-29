@@ -701,7 +701,7 @@ def m2qh2o(m_H):
       Q(H2O) at 1 AU.  [molecules/s]
 
     """
-    return 10**(30.675 - 0.2453 * M1)
+    return 10**(30.675 - 0.2453 * m_H)
 
 def Q2flux(Q, wave, geom, g, rap, v):
     """Convert Q to line emission.
