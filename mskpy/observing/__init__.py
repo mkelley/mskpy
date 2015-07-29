@@ -163,6 +163,12 @@ class Observer(object):
 
         """
 
+        if isinstance(target, (list, tuple)):
+            am = []
+            for t in target:
+                am.append(self.airmass(t))
+            return am
+
         ra, dec = self._radec(target, self.date)
         return core.airmass(ra.degree, dec.degree,
                             self.date, self.lon.degree, self.lat.degree,
