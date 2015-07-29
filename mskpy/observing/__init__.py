@@ -391,7 +391,8 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
 
     Returns
     -------
-    None
+    rts : Table
+      A table of rise, transit, and set times.
 
     Notes
     -----
@@ -403,6 +404,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     import itertools
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
+    from astropy.table import Table
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
@@ -423,10 +425,15 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     civil_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
                                        name='Civil twilight')
 
+    names, rise, transit, set_ = [], [], [], []
     for target in targets:
+        names.append(target.name)
         ls, color = linestyles.next()
         observer.plot_am(target, color=color, ls=ls, **kwargs)
-        observer.rts(target, limit=25)
+        rts = observer.rts(target, limit=25)
+        rise.append(rts[0].value)
+        transit.append(rts[1].value)
+        set_.append(rts[2].value)
 
     print()
     for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
@@ -469,6 +476,9 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
 
     plt.draw()
+
+    return Table([names, rise, transit, set_],
+                 names=['target', 'rise', 'transit', 'set'])
 
 def file2targets(filename):
     """Create a list of targets from a file.
