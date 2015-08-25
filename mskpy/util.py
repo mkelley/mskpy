@@ -1875,7 +1875,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
 
     rp = stats.mstats.spearmanr(x, y, use_ties=True)
     r = rp[0]
-    p = rp[1].data[()]
+    p = rp[1]
     Z = spearmanZ(x, y)
 
     if nmc is not None:
