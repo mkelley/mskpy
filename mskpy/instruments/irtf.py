@@ -59,6 +59,10 @@ class MIRSI(Instrument):
     sp20r100 : `LongSlitSpectrometer` for 20-micron spectroscopy.
     mode : The current MIRSI mode (see examples).
 
+    Methods
+    -------
+    standard_fluxd : Flux density of a standard star in a MIRSI filter.
+
     Examples
     --------
 
@@ -120,6 +124,56 @@ class MIRSI(Instrument):
 
         """
         return self.mode.lightcurve(*args, **kwargs)
+
+    def standard_fluxd(self, star, wave, unit=u.Jy):
+        """Flux density of a standard star in a MIRSI filter.
+
+        Parameters
+        ----------
+        star : str
+          The name of a star, passed on to `calib.cohenstandard()`.
+        wave : float or array
+          The central wavelength of the filters for which the flux should
+          be computed.
+        units : str, optional
+          The units of the output.  See `cohenstandard()`.
+
+        Returns
+        -------
+        flux : Quantity
+          The computed flux density of the star in each filter.
+
+        """
+        from .. import calib
+        from .. import util
+
+        # Central wavelengths (micron)
+        filters = np.r_[4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.3,
+                        18.4, 20.6, 24.4]
+        # Width of the filters (percent)
+        width_per = np.r_[21.0, 9.0, 8.9, 9.4, 46.0, 9.9, 9.6,
+                          8.0, 37.4, 7.9]
+        # Half width of the filters
+        hwidth = (filters * width_per * 0.01) / 2.
+
+        sw,  sf = calib.cohen_standard(star, unit=unit)
+        _w = np.array(wave)
+        flux = u.Quantity(np.zeros_like(_w), unit)
+
+        for i in range(len(_w)):
+            j = filters == _w[i]
+            bp = np.r_[filters[j] - hwidth[j], filters[j] + hwidth[j]]
+
+            fw = np.linspace(bp[0] - 1, bp[1] + 1, 10000)
+            ft = fw * 0.0
+            ft[util.between(fw, bp)] = 1.0
+
+            result = util.bandpass(sw.to(u.um).value,
+                                   sf.value, sf.value * 0.001,
+                                   fw=fw, ft=ft, s=0)
+            flux[i] = result[1] * sf.unit
+
+        return flux
 
 class SpeX(LongSlitSpectrometer):
     """SpeX.
