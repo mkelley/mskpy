@@ -72,9 +72,18 @@ class MIRSI(Instrument):
     ps = 0.265 * u.arcsec
     location = Earth
 
+    # Central wavelengths
+    filters = np.r_[4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.3,
+                    18.4, 20.6, 24.4] * u.um
+    # Width of the filters (in percent)
+    width_per = np.r_[21.0, 9.0, 8.9, 9.4, 46.0, 9.9, 9.6,
+                      8.0, 37.4, 7.9]
+    # Half width of the filters
+    hwidth = (filters * width_per * 0.01) / 2.
+
     def __init__(self):
-        w = [4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.7, 20.6, 24.4] * u.um
-        self.imager = Camera(w, self.shape, self.ps, location=self.location)
+        self.imager = Camera(self.filters, self.shape, self.ps,
+                             location=self.location)
 
         self.sp10r200 = LongSlitSpectrometer(10.5 * u.um, self.shape, self.ps,
                                              2.25, 0.022 * u.um, R=200,
@@ -125,6 +134,46 @@ class MIRSI(Instrument):
         """
         return self.mode.lightcurve(*args, **kwargs)
 
+    def filter_atran(self, wave, airmass, pw='2.5'):
+        """Atmospheric transmission through a filter.
+
+        Diane Wooden method.
+
+        Parameters
+        ----------
+        wave : float or array
+          Filter central wavelengths (see `self.filters`).
+        airmass : float
+          Airmass to compute.
+        pw : string, optional
+          Precipitable water vapor.  Must match a saved file.
+
+        Returns
+        -------
+        tr : float or array
+          The filter transmissions.
+
+        """
+
+        from .. import util
+        from ..calib import dw_atran
+
+        _w = np.r_[wave]
+        tr = np.array(_w.shape)
+
+        for i in range(len(_w)):
+            j = self.filters.value == _w[i]
+            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
+                       self.filters.value[j] + self.hwidth.value[j]]
+
+            fw = np.linspace(bp[0] - 1, bp[1] + 1, 10000)
+            ft = fw * 0.0
+            ft[util.between(fw, bp)] = 1.0
+
+            tr[i] = dw_atran(airmass, fw, ft, pw=pw)
+
+        return tr
+
     def standard_fluxd(self, star, wave, unit=u.Jy):
         """Flux density of a standard star in a MIRSI filter.
 
@@ -147,22 +196,14 @@ class MIRSI(Instrument):
         from .. import calib
         from .. import util
 
-        # Central wavelengths (micron)
-        filters = np.r_[4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.3,
-                        18.4, 20.6, 24.4]
-        # Width of the filters (percent)
-        width_per = np.r_[21.0, 9.0, 8.9, 9.4, 46.0, 9.9, 9.6,
-                          8.0, 37.4, 7.9]
-        # Half width of the filters
-        hwidth = (filters * width_per * 0.01) / 2.
-
         sw,  sf = calib.cohen_standard(star, unit=unit)
-        _w = np.array(wave)
+        _w = np.r_[wave]
         flux = u.Quantity(np.zeros_like(_w), unit)
 
         for i in range(len(_w)):
-            j = filters == _w[i]
-            bp = np.r_[filters[j] - hwidth[j], filters[j] + hwidth[j]]
+            j = self.filters.value == _w[i]
+            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
+                       self.filters.value[j] + self.hwidth.value[j]]
 
             fw = np.linspace(bp[0] - 1, bp[1] + 1, 10000)
             ft = fw * 0.0
