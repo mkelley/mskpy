@@ -33,6 +33,7 @@ util --- Short and sweet functions, generic algorithms
    Searching, sorting
    ------------------
    between
+   clusters
    groupby
    leading_num_key
    nearest
@@ -124,6 +125,7 @@ __all__ = [
     'planckfit',
 
     'between',
+    'clusters',
     'groupby',
     'leading_num_key',
     'nearest',
@@ -933,7 +935,30 @@ def between(a, limits, closed=True):
 
     return i.astype(bool)
 
+def clusters(test):
+    """Define array slices based on a test value.
+
+    Parameters
+    ----------
+    test : array
+      The test result.
+
+    Returns
+    -------
+    objects : tuple of slices
+      An array of slices that return each cluster of `True` values in
+      `test`.
+
+    """
+
+    import scipy.ndimage as nd
+
+    labels, n = nd.label(test)
+    print "{} clusters found".format(n)
+    return nd.find_objects(labels)
+
 def groupby(key, *lists):
+
     """Sort elements of `lists` by `unique(key)`.
 
     Note: this is not the same as `itertools.groupby`.
