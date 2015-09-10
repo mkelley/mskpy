@@ -62,6 +62,7 @@ class MIRSI(Instrument):
     Methods
     -------
     standard_fluxd : Flux density of a standard star in a MIRSI filter.
+    fluxd : Flux density of a spectrum through a MIRSI filter.
 
     Examples
     --------
@@ -159,7 +160,7 @@ class MIRSI(Instrument):
         from ..calib import dw_atran
 
         _w = np.r_[wave]
-        tr = np.array(_w.shape)
+        tr = np.zeros_like(_w)
 
         for i in range(len(_w)):
             j = self.filters.value == _w[i]
@@ -174,7 +175,48 @@ class MIRSI(Instrument):
 
         return tr
 
-    def standard_fluxd(self, star, wave, unit=u.Jy):
+    def fluxd(self, sw, sf, wave):
+        """Flux density of a spectrum through a filter.
+
+        Parameters
+        ----------
+        sw : Quantity
+          The wavelenths of the spectrum.
+        sf : Quantity
+          The spectrum (flux per unit wavelength).
+        wave : float or array
+          The central wavelength of the filters for which the flux should
+          be computed.
+
+        Returns
+        -------
+        flux : Quantity
+          The computed flux density of the spectrum through each filter.
+
+        """
+        from .. import calib
+        from .. import util
+
+        _w = np.r_[wave]
+        flux = u.Quantity(np.zeros_like(_w), sf.unit)
+
+        for i in range(len(_w)):
+            j = self.filters.value == _w[i]
+            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
+                       self.filters.value[j] + self.hwidth.value[j]]
+
+            fw = np.linspace(bp[0] - 1, bp[1] + 1, 1000)
+            ft = fw * 0.0
+            ft[util.between(fw, bp)] = 1.0
+
+            result = util.bandpass(sw.to(u.um).value,
+                                   sf.value,
+                                   fw=fw, ft=ft, s=0)
+            flux[i] = result[1] * sf.unit
+
+        return flux
+
+    def standard_fluxd(self, star, wave, unit=u.Unit('W/(m2 um)')):
         """Flux density of a standard star in a MIRSI filter.
 
         Parameters
@@ -197,24 +239,7 @@ class MIRSI(Instrument):
         from .. import util
 
         sw,  sf = calib.cohen_standard(star, unit=unit)
-        _w = np.r_[wave]
-        flux = u.Quantity(np.zeros_like(_w), unit)
-
-        for i in range(len(_w)):
-            j = self.filters.value == _w[i]
-            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
-                       self.filters.value[j] + self.hwidth.value[j]]
-
-            fw = np.linspace(bp[0] - 1, bp[1] + 1, 10000)
-            ft = fw * 0.0
-            ft[util.between(fw, bp)] = 1.0
-
-            result = util.bandpass(sw.to(u.um).value,
-                                   sf.value, sf.value * 0.001,
-                                   fw=fw, ft=ft, s=0)
-            flux[i] = result[1] * sf.unit
-
-        return flux
+        return self.fluxd(sw, sf, wave)
 
 class SpeX(LongSlitSpectrometer):
     """SpeX.

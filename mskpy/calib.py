@@ -372,7 +372,6 @@ def dw_atran(airmass, fw, ft, pw='2.5'):
     tt = np.r_[np.exp(-tb10 * np.sqrt(airmass) - tc10 * airmass),
                np.exp(-tb20 * np.sqrt(airmass) - tc20 * airmass)]
 
-    stop
     return bandpass(tw, tt, fw=fw, ft=ft)[1]
 
 # update module docstring
