@@ -155,9 +155,7 @@ class Asteroid(SolarSysObject):
             print model, fluxd, p
             return chi
 
-        asteroid = copy  Would it
-    be worthwhile to publish your list as an on-line only data table
-    (if A&A allows these)?(self)
+        asteroid = copy(self)
         kwargs['epsfcn'] = kwargs.get('epsfcn', 1e-5)
 
         p = []
