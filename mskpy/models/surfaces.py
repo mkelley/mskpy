@@ -18,6 +18,10 @@ surfaces --- Models for surfaces
    phaseHG
    lambertian
 
+   Convenience functions
+   ---------------------
+   neatm
+
 """
 
 from __future__ import print_function
@@ -32,7 +36,9 @@ __all__ = [
     'NEATM',
 
     'phaseHG',
-    'lambertian'
+    'lambertian',
+
+    'neatm'
 ]
 
 class SurfaceRadiation(object):
@@ -565,6 +571,33 @@ def lambertian(phase):
     """
     phase = np.radians(np.abs(phase))
     return (np.sin(phase) + (pi - phase) * np.cos(phase)) / pi
+
+def neatm(D, Ap, geom, wave, unit=u.Jy, **kwargs):
+    """Convenience function for NEATM.
+
+    Parameters
+    ----------
+    D : Quantity
+      Diameter.
+    Ap : float
+      Geometric albedo.
+    geom : dict of Quantities
+      Geometry of observation: rh, Delta, phase.
+    wave : Quantity
+      Wavelengths at which to evaluate the model.
+    unit : astropy Units, optional
+      The return units.  Must be spectral flux density.
+    **kwargs
+      Any `models.NEATM` keyword argument.
+
+    Returns
+    -------
+    fluxd : Quantity
+      The flux density from the whole asteroid.
+
+    """
+
+    return NEATM(D, Ap, **kwargs).fluxd(geom, wave, unit=unit)
 
 # update module docstring
 from ..util import autodoc

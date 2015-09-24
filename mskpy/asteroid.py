@@ -15,7 +15,7 @@ asteroid --- Asteroids!
 """
 
 __all__ = [
-    'Asteroid'
+    'Asteroid',
 ]
 
 import numpy as np
@@ -193,7 +193,6 @@ class Asteroid(SolarSysObject):
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)'), **kwargs):
-
         """Total flux density as seen by an observer.
 
         Parameters
@@ -233,8 +232,6 @@ class Asteroid(SolarSysObject):
             fluxd += self.thermal.fluxd(g, wave, unit=unit)
 
         return fluxd
-
-
 
 # update module docstring
 from .util import autodoc
