@@ -176,7 +176,10 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
 
     """
     n, f = anphot(im, yx, rap, subsample=subsample, **kwargs)
-    return n.cumsum(-1), f.cumsum(-1)
+    if np.size(rap) > 1:
+        return n.cumsum(-1), f.cumsum(-1)
+    else:
+        return n, f
 
 def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
                   cfunc=None, ckwargs={}, **kwargs):
