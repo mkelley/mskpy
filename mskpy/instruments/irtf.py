@@ -371,6 +371,23 @@ class SpeX(LongSlitSpectrometer):
         tar_e /= atc
         return tar_w, tar_f, tar_e
 
+    def generate_prism60_flat(files):
+        """Generate a flat for prism mode with 60" slit.
+
+        Parameters
+        ----------
+        files : list
+          The filenames of data taken with the SpeX cal macro.
+
+        Returns
+        -------
+
+        """
+
+        
+        
+        
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
