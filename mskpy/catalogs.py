@@ -111,8 +111,8 @@ def find_offset(cat0, cat1, matches, tol=3.0):
     i = np.prod(np.abs(d.T - peak) < tol, 1, dtype=bool)
     j = meanclip(d[0, i], full_output=True)[2]
     k = meanclip(d[1, i], full_output=True)[2]
-    i = i[list(set(np.r_[j, k]))]
-    return d[:, i].mean(1)
+    good = d[:, i][:, list(set(np.r_[j, k]))]
+    return good.mean(1)
 
 def project_catalog(cat, wcs=None):
     """Project a catalog onto the image plane.
