@@ -81,7 +81,7 @@ def faintest(cat0, flux, n, full_output=False):
     else:
         return np.array(cat0)[:, i]
 
-def find_offset(cat0, cat1, matches, tol=3.0):
+def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
     """Find the offset between two catalogs, given matched stars.
 
     The matched star list may have false matches.
@@ -94,24 +94,34 @@ def find_offset(cat0, cat1, matches, tol=3.0):
       The best match for star `i` of `cat0` is `matches[i]` in `cat1`.
     tol : float
       The distance tolerance.
+    mc_thresh : int
+      Process with `meanclip` when the number of points remaining
+      after histogram clipping is `>=mc_thresh`.
 
     Returns
     -------
     dy, dx : float
 
     """
+
     from .util import midstep, meanclip
 
     d = cat0[:, matches.keys()] - cat1[:, matches.values()]
     bins = (np.arange(d[0].min() - 2 * tol, d[0].max() + 2 * tol, 2 * tol),
             np.arange(d[1].min() - 2 * tol, d[1].max() + 2 * tol, 2 * tol))
     h, edges = np.histogramdd(d.T, bins=bins)
+
     i = np.unravel_index(h.argmax(), h.shape)
     peak = midstep(edges[0])[i[0]], midstep(edges[1])[i[1]]
+
     i = np.prod(np.abs(d.T - peak) < tol, 1, dtype=bool)
-    j = meanclip(d[0, i], full_output=True)[2]
-    k = meanclip(d[1, i], full_output=True)[2]
-    good = d[:, i][:, list(set(np.r_[j, k]))]
+    good = d[:, i]
+
+    if i.sum() >= mc_thresh:
+        j = meanclip(d[0, i], full_output=True)[2]
+        k = meanclip(d[1, i], full_output=True)[2]
+        good = good[:, list(set(np.r_[j, k]))]
+
     return good.mean(1)
 
 def project_catalog(cat, wcs=None):
