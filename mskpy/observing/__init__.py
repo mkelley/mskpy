@@ -437,9 +437,9 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
         ls, color = linestyles.next()
         observer.plot_am(target, color=color, ls=ls, **kwargs)
         rts = observer.rts(target, limit=25)
-        rise.append(rts[0].value)
-        transit.append(rts[1].value)
-        set_.append(rts[2].value)
+        rise.append(rts[0].value if rts[0] is not None else -1)
+        transit.append(rts[1].value if rts[1] is not None else -1)
+        set_.append(rts[2].value if rts[2] is not None else -1)
 
     print()
     for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
