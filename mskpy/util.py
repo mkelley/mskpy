@@ -553,7 +553,7 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
                       '{5:>6}', '{6:>20}', '{7:>20}', '{8:>20}',
                       '{9}']
         else:
-            print "{0} not a recognized template".format(keywords)
+            print("{0} not a recognized template".format(keywords))
             return None
 
         if csv:
@@ -886,7 +886,7 @@ def planckfit(wave, fluxd, err, guess, covar=False):
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
-    print output[-2]
+    print(output[-2])
     fit = output[0]
     cov = output[1]
 

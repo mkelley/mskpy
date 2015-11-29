@@ -48,7 +48,7 @@ class TestInstruments():
         for k, v in templates.items():
             f, K0, rtol = templates[k]
             K = irac.ccorrection(f)
-            print k, (K - K0) / K0
+            print(k, (K - K0) / K0)
             if test:
                 assert np.allclose(K, K0, rtol=rtol)
 
