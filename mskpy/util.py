@@ -930,7 +930,7 @@ def between(a, limits, closed=True):
             i = (a > lim[0]) * (a < lim[1])
     else:
         i = np.zeros(b.shape)
-        for j in xrange(lim.shape[0]):
+        for j in range(lim.shape[0]):
             i += between(a, lim[j,:])
 
     return i.astype(bool)
@@ -1664,7 +1664,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
             ys = np.zeros(x2.shape[0])
             yind = ()
             yiter = np.zeros(x2.shape[0])
-            for i in xrange(x2.shape[0]):
+            for i in range(x2.shape[0]):
                 mc = meanclip(x2[i], axis=None, lsig=lsig, hsig=hsig,
                               maxiter=maxiter, minfrac=minfrac,
                               full_output=True)
@@ -1910,7 +1910,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
             yerr = np.zeros(y.shape)
 
         mcZ = np.zeros(nmc)
-        for i in xrange(nmc):
+        for i in range(nmc):
             dx = np.random.randn(N) * xerr
             dy = np.random.rand(N) * yerr
             mcZ[i] = spearmanZ(x + dx, y + dy)
@@ -2270,7 +2270,7 @@ def _redden(wave, S, wave0=0.55):
                      kind='linear')
 
     spec = np.zeros_like(wave)
-    for i in xrange(len(wave)):
+    for i in range(len(wave)):
         # integrate S*dwave from wave0 to wave[i]
         intS = quad(slope, wave0, wave[i], epsabs=1e-3, epsrel=1e-3)[0]
         spec[i] = np.exp(intS)
@@ -2836,7 +2836,7 @@ def autodoc(glbs, width=15, truncate=True):
         return
 
     newdoc = ""
-    for i in xrange(len(docstring)):
+    for i in range(len(docstring)):
         s = docstring[i]
         x = s.strip()
         if x in glbs:
