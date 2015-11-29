@@ -21,11 +21,11 @@ from . import irtf
 from . import spitzer
 from . import vis
 
-from instrument import *
-from hst import *
-from irtf import *
-from spitzer import *
-from vis import *
+from .instrument import *
+from .hst import *
+from .irtf import *
+from .spitzer import *
+from .vis import *
 
 # update module docstring
 from ..util import autodoc
