@@ -590,7 +590,7 @@ class Geom(object):
         ra = g['ra'].to_string('hour', **opts)
         dec = g['dec'].to_string('deg', alwayssign=True, **opts)
 
-        print ("""
+        print(("""
 {:>34s} {:s}{:}
 {:>34s} {:s}{:}
 {:>34s} {:.2f}{:}
@@ -625,7 +625,7 @@ class Geom(object):
            "Projected sun vector (deg):", g['sangle'].degree,
            minmax('sangle', '8.3f'),
            "Projected velocity vector (deg):", g['vangle'].degree,
-           minmax('vangle', '8.3f')))
+           minmax('vangle', '8.3f'))))
 
 def proper_motion(g0, g1):
     """Proper motion from two `Geom` instances.

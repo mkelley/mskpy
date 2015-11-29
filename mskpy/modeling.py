@@ -55,7 +55,7 @@ __all__ = [
 #    >>> coma = ComaSED(geom, rap, 1000 * u.cm)
 #    >>> fit = fitting.NonLinearLSQFitter(coma)
 #    >>> fit(wave, flux)
-#    >>> print (fit.model(wave) - flux) / flux
+#    >>> print(fit.model(wave) - flux) / flux
 #    [ 0.04580127 -0.06261374  0.00882257 -0.00058844]
 #
 #    """
