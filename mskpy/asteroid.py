@@ -48,7 +48,6 @@ class Asteroid(SolarSysObject):
     Methods
     -------
     fluxd : Total flux density as seen by an observer.
-    fit : Least-squares fit to a spectrum.
 
     """
 
@@ -103,95 +102,6 @@ class Asteroid(SolarSysObject):
         self._D = d
         self.reflected.D = d
         self.thermal.D = d
-
-    def fit(self, observer, date, wave, fluxd, unc, free=['D', 'Ap'],
-            **kwargs):
-        """Least-squares fit to a spectrum.
-
-        Parameters
-        ----------
-        observer : SolarSysObject
-          The observer.
-        date : string, float, Astropy Time, datetime
-          The epoch of the spectrum, in any format acceptable to
-          `observer`.
-        wave : Quantity
-          The wavelengths.
-        flxud : Quantity
-          The spectral data (flux density) to fit.
-        unc : Quantity
-          The uncertainty on `fluxd`.
-        free : list, optional
-          The names of the free parameters.  `fit` does not handle
-          units, except with `D`.
-        **kwargs
-          Any `scipy.optimize.leastsq` keyword.
-
-        Returns
-        -------
-        fit : Asteroid
-          Best-fit parameters.
-        fiterr : dict
-          Uncertainties.
-        result : tuple
-          The full output from `scipy.optimize.leastsq`.
-
-        """
-
-        from copy import copy
-        from scipy.optimize import leastsq
-
-        def chi(p, free, asteroid, observer, date, wave, fluxd, unc):
-            for i in range(len(p)):
-                if free[i] == 'D':
-                    asteroid.D = p[i] * u.km
-                elif free[i] == 'Ap':
-                    asteroid.Ap = p[i]
-                elif free[i] in asteroid.reflected.__dict__.keys():
-                    asteroid.reflected.__dict__[free[i]] = p[i]
-                elif free[i] in asteroid.thermal.__dict__.keys():
-                    asteroid.thermal.__dict__[free[i]] = p[i]
-            model = asteroid.fluxd(observer, date, wave, unit=fluxd.unit).value
-            chi = (model - fluxd.value) / unc.value
-            rchisq = (chi**2).sum() / (len(wave) - len(p))
-            print model, fluxd, p
-            return chi
-
-        asteroid = copy(self)
-        kwargs['epsfcn'] = kwargs.get('epsfcn', 1e-5)
-
-        p = []
-        for i in range(len(free)):
-            if free[i] == 'D':
-                p.append(asteroid.D.to(u.km).value)
-            elif free[i] == 'Ap':
-                p.append(asteroid.Ap)
-            elif free[i] in asteroid.reflected.__dict__.keys():
-                p.append(asteroid.reflected.__dict__[free[i]])
-            elif free[i] in asteroid.thermal.__dict__.keys():
-                p.append(asteroid.thermal.__dict__[free[i]])
-
-        kwargs['full_output'] = True
-        args = (free, asteroid, observer, date, wave, fluxd, unc)
-        result = leastsq(chi, p, args, **kwargs)
-    
-        for i in range(len(free)):
-            if free[i] == 'D':
-                asteroid.D = result[0][i] * u.km
-            elif free[i] == 'Ap':
-                asteroid.Ap = result[0][i]
-            elif free[i] in asteroid.reflected.__dict__.keys():
-                asteroid.reflected.__dict__[free[i]] = result[0][i]
-            elif free[i] in asteroid.thermal.__dict__.keys():
-                asteroid.thermal.__dict__[free[i]] = result[0][i]
-
-        cov = result[1]
-        if cov is None:
-            err = None
-        else:
-            err = np.sqrt(np.diagonal(cov))
-
-        return asteroid, err, result
 
     def fluxd(self, observer, date, wave, reflected=True, thermal=True,
               ltt=False, unit=u.Unit('W / (m2 um)'), **kwargs):
