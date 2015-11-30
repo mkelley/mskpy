@@ -68,6 +68,8 @@ class Asteroid(SolarSysObject):
             self.reflected = DAp(D, Ap, **kwargs)
         else:
             self.reflected = reflected
+            self.reflected.D = self.D
+            self.reflected.Ap = self.Ap
         assert isinstance(self.reflected, SurfaceRadiation)
 
         if thermal is None:

@@ -10,6 +10,7 @@ surfaces --- Models for surfaces
    --------------
    SurfaceRadiation
    DAp
+   DApColor
    HG
    NEATM
 
@@ -32,6 +33,7 @@ from astropy.units import Quantity
 __all__ = [
     'SurfaceRadiation',
     'DAp',
+    'DApColor',
     'HG',
     'NEATM',
 
@@ -515,6 +517,72 @@ class DAp(SurfaceRadiation):
         """Radius."""
         return self.D / 2.0
 
+class DApColor(DAp):
+    """Reflected light from asteroids given D, Ap, and a color.
+
+    Parameters
+    ----------
+    D : Quantity
+      Diameter.
+    Ap : float
+      Geometric albedo at 0.55 um.
+    S : float
+      Spectral slope for reflected light:
+        `refl = 1 + (lambda - lambda0) * S / 10`
+      where `S` has units of % per 0.1 um, `lambda` has units of um,
+      and `lambda0` is 0.55 um.  `R` is limited to `0 <= refl <=
+      refl_max`.
+    refl_max : float
+      Use this value as the maximum reflectance.
+    G : float, optional
+      If `phasef` is None, generate an IAU HG system phase function.
+    phasef : function, optional
+      Phase function.  It must only take one parameter, phase angle,
+      in units of degrees.
+
+    Attributes
+    ----------
+    R : radius
+
+    Methods
+    -------
+    H : Absolute magnitude
+
+    """
+
+    def __init__(self, D, Ap, S, refl_max=2.5, **kwargs):
+        self.S = S
+        self.refl_max = refl_max
+        DAp.__init__(self, D, Ap, **kwargs)
+
+    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+        from numpy import pi
+        from ..calib import solar_flux
+
+        if not np.iterable(wave):
+            wave = np.array([wave.value]) * wave.unit
+
+        delta = geom['delta']
+        phase = geom['phase']
+        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
+
+        refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.
+        if np.any(refl > self.refl_max):
+            refl[refl > self.refl_max] = self.refl_max
+        if np.any(refl < 0.0):
+            refl[refl < 0.0] = 0.0
+
+        #fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
+        fsca = (fsun * self.Ap * refl
+                * self.phasef(np.abs(phase.to(u.deg).value))
+                * (self.R / delta).decompose()**2)
+
+        if unit != fsca.unit:
+            fsca = fsca.to(unit, equivalencies=u.spectral_density(u.um, wave))
+
+        return fsca
+
+    fluxd.__doc__ = DAp.__doc__
 
 def _phaseHG_i(i, phase):
     """Helper function for phaseHG.
