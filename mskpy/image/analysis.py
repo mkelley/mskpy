@@ -176,7 +176,10 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
 
     """
     n, f = anphot(im, yx, rap, subsample=subsample, **kwargs)
-    return n.cumsum(-1), f.cumsum(-1)
+    if np.size(rap) > 1:
+        return n.cumsum(-1), f.cumsum(-1)
+    else:
+        return n, f
 
 def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
                   cfunc=None, ckwargs={}, **kwargs):
@@ -518,7 +521,7 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
                         shrink=shrink, silent=silent)
     else:
         if not silent:
-            print("x, y = {0:.1f}, {1:.1f}".format(cx, cy))
+            print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
 
     return cyx
 
@@ -615,8 +618,11 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     print('[find] {} good, {} bad sources'.format(len(yx), bad))
     return np.array(yx), np.array(f)
 
-def fwhm(im, yx, bg=True, **kwargs):
+def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
+         **kwargs):
     """Compute the FWHM of an image.
+
+    Least-squares fit, optionally weighted by uncertainties.
 
     Parameters
     ----------
@@ -624,11 +630,21 @@ def fwhm(im, yx, bg=True, **kwargs):
       The image to fit.
     yx : array
       The center on which to fit.
-    bg : bool, optional
-      Set to `True` if there is a constant background to be
-      considered.
+    unc : array, optional
+      Image uncertainties.
+    guess : tuple, optional
+      Initial guess.  See `util.gaussfit`.  If `guess` is `None`, the
+      default fit is a Gaussian + constant background.  For radial
+      fits, the center (`mu`) must be zero.
+    kind : string, optional
+      'radial', 'x', or 'y'.
+    width : float, optional
+      Extraction width for line cuts.
+    length : float, optional
+      Extraction length for line cuts, from -length/2 to length/2, 1 pixel
+      steps.
     **kwargs
-      Any `radprof` keyword, e.g., `range` or `bins`.
+      Any `radprof` or `linecut` keyword.
 
     Returns
     -------
@@ -638,23 +654,36 @@ def fwhm(im, yx, bg=True, **kwargs):
     """
 
     from scipy.optimize import leastsq as lsq
-    from ..util import gaussian
+    from ..util import gaussfit
 
-    R, I, n = radprof(im, yx, **kwargs)[:3]
-    r = R[I < (I.max() / 2.0)][0]  # guess for Gaussian sigma
+    length = np.arange(-length / 2.0, length / 2.0 + 1)
 
-    if bg:
-        def fitfunc(p, R, I):
-            return I - gaussian(R, 0, p[0]) * p[1] + p[2]
-        guess = (r, I.max(), I.min())
-    else:
-        def fitfunc(p, R, I):
-            return I - gaussian(R, 0, p[0]) * p[1]
-        guess = (r, I.max())
+    assert kind in ['radial', 'x', 'y'], "Invalid kind."
+    if kind == 'radial':
+        R, I, n = radprof(im, yx, **kwargs)[:3]
+        if guess is None:
+            r = R[I < (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
+            guess = (I.ptp(), 0.0, r / 2.35, I.min())
+        args = (R, I)
+    elif kind == 'x':
+        x, n, I = linecut(im, yx, width, length, 0, **kwargs)
+        if guess is None:
+            r = x[I > (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
+            guess = (I.max(), 0.0, r / 2.35, I.min())
+        args = (x, I)
+    elif kind == 'y':
+        y, n, I = linecut(im, yx, width, length, 0, **kwargs)
+        if guess is None:
+            r = y[I > (I.ptp() / 2.0 + I.min())][0]  # guess for Gaussian sigma
+            guess = (I.max(), 0.0, r / 2.35, I.min())
+        args = (y, I)
 
-    fit = lsq(fitfunc, guess, args=(R, I))[0]
+    if unc is None:
+        unc = args[1] / args[1]
 
-    return abs(fit[0]) * 2.35
+    fit, err = gaussfit(args[0], args[1], unc, guess)
+
+    return abs(fit[2]) * 2.35
 
 def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.

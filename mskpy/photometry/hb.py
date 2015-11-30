@@ -55,7 +55,8 @@ cw = {  # center wavelengths
       'GC': u.Quantity(0.5259, 'um'),
     'H2O+': u.Quantity(0.7028, 'um'),
       'RC': u.Quantity(0.7133, 'um'),
-       'R': u.Quantity(0.641, 'um')  # Bessell 1998
+       'R': u.Quantity(0.641,  'um'),  # Bessell 1998
+  'SDSS-R': u.Quantity(0.6261, 'um'),  # Fukugita et al. 1996
 }
 
 cw_50 = {  # 50% power width
@@ -86,7 +87,8 @@ F_0 = {  # Zero magnitude flux density
       'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
       'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
       'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
-       'R': u.Quantity(2.177e-8, 'W/(m2 um)')  # Bessell 1998
+       'R': u.Quantity(2.177e-8, 'W/(m2 um)'), # Bessell 1998
+  'SDSS-R': u.Quantity(2.777e-8, 'W/(m2 um)')  # Smith et al. 2002 for zeropoint in Jy, Fukugita et al. 1996 for effective wavelength 6261 Å.
 }
 
 MmBC_sun = {  # M - BC for the Sun
@@ -129,7 +131,8 @@ Msun = {  # apparent magnitude of the Sun, based on Appendix D.
     'BC': -26.23,
     'GC': -26.77,
     'RC': -27.44,
-     'R': -27.13,  # Bessell 1998
+     'R': -27.13,  # Bessell 1998, Vsun=-26.76, (V-R)sun=0.370
+'SDSS-R': -26.93,  # Smith et al. 2002 + Bessel 1998
 }
 
 S0 = {  # Solar flux density at 1 AU, based on Appendix D.
@@ -137,7 +140,8 @@ S0 = {  # Solar flux density at 1 AU, based on Appendix D.
     'BC': u.Quantity(1934, 'W/(m2 um)'),
     'GC': u.Quantity(1841, 'W/(m2 um)'),
     'RC': u.Quantity(1250, 'W/(m2 um)'),
-     'R': u.Quantity(1534, 'W/(m2 um)')  # Bessell 1998
+     'R': u.Quantity(1534, 'W/(m2 um)'), # Bessell 1998
+'SDSS-R': u.Quantity(1643, 'W/(m2 um)')  # From Msun and zeropoint above
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),

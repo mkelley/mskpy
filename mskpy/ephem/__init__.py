@@ -20,7 +20,7 @@ Requres PySPICE.
    Built-in SolarSysObjects
    ------------------------
    Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
-   Neptune, PlutoSys, Spitzer (optional), DeepImpact (optional)
+   Neptune, PlutoSys.  Optional: Spitzer, DeepImpact, Kepler.
 
    Exceptions
    ----------
@@ -39,8 +39,9 @@ Three SPICE kernels are required:
   - planets.bsp : a planetary ephemeris kernel, e.g., de421.
 
 There are three optional kernels:
-  - spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope,
-  - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby,
+  - spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope, ftp://naif.jpl.nasa.gov/pub/naif/SIRTF/kernels/spk/
+  - kepler.bsp : an ephemeris kernel for the Kepler Telescope, https://archive.stsci.edu/pub/k2/spice/
+  - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby, ftp://naif.jpl.nasa.gov/pub/naif/
   - naif-names.txt : your own body to ID code mappings.
 
 About dates
@@ -109,7 +110,14 @@ try:
     __all__.append('DeepImpact')
 except OSError:
     pass
-    
+
+try:
+    Kepler = getspiceobj('-227', kernel='kepler.bsp', name='Kepler')
+    _loaded_objects['kepler'] = Kepler
+    __all__.append('Kepler')
+except OSError:
+    pass
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())

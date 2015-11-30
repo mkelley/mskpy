@@ -1,0 +1,61 @@
+#!/usr/bin/python
+"""Generate ephemeris files for DCT/LMI from HORIZONS output.
+
+The new file names are generated from the originals, e.g.,
+  c2013x1.eph --> c2013x1-dct.txt
+
+* This script assumes time precision is no less than 1 min.
+
+* In HORIZONS, be sure to select Apparent RA, Dec for output.  Do not
+use extended precision.  Use site G37 for the DCT.
+
+2015-10-24: Initial version.
+
+Requires Python 2.6 or later.
+
+- Michael S. P. Kelley, UMD
+
+"""
+
+from __future__ import print_function
+import sys
+import os.path
+
+def horizons_file(filename):
+    month = dict()
+    for i, m in enumerate('Jan Feb Mar Apr May Jun'
+                          ' Jul Aug Sep Oct Nov Dec'.split()):
+        month[m] = '{0:02d}'.format(i + 1)
+
+    line = ''
+    with open(filename, 'r') as inf:
+        while not line.startswith(' Date__(UT)__'):
+            line = inf.readline()
+
+        # find apparent RA, Dec
+        assert 'R.A.__(a-apparent' in line, "Apparent RA, Dec required"
+        i = line.find('R.A.__(a-apparent')
+        radec = slice(i, i+23)
+        
+        # find ephemerides
+        while not line.startswith('$$SOE'):
+            line = inf.readline()
+
+        # yield formatted data
+        # yyyy mm dd hh mm ss rh rm rs.ss +dd dm ds.s
+        line = inf.readline()
+        while not line.startswith('$$EOE'):
+            yield '{0} {1} {2} {3} {4} 00 {5}\n'.format(line[1:5], month[line[6:9]], line[10:12], line[13:15], line[16:18], line[radec])
+            line = inf.readline()
+
+    return
+
+if len(sys.argv) <= 1:
+    print("""usage: {0} [files...]
+
+Generate ephemeris files for DCT/LMI from HORIZONS output.""".format(os.path.basename(sys.argv[0])))
+
+for f in sys.argv[1:]:
+    with open(os.path.splitext(f)[0] + '-dct.txt', 'w') as outf:
+        for line in horizons_file(f):
+            outf.write(line)

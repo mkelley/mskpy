@@ -83,6 +83,7 @@ class Observer(object):
     finding_chart
     lst
     lst0
+    observe
     plot_am
     rts
 
@@ -134,7 +135,6 @@ class Observer(object):
             return '<Observer: {}, {}, {}>'.format(
                 self.lon.degree, self.lat.degree, self.date.iso[:10])
 
-
     def _radec(self, target, date):
         from ..ephem import Earth, SolarSysObject
         if isinstance(target, SolarSysObject):
@@ -162,6 +162,12 @@ class Observer(object):
           Target airmass.
 
         """
+
+        if isinstance(target, (list, tuple)):
+            am = []
+            for t in target:
+                am.append(self.airmass(t))
+            return am
 
         ra, dec = self._radec(target, self.date)
         return core.airmass(ra.degree, dec.degree,
@@ -281,6 +287,10 @@ class Observer(object):
 
         return ds9
 
+    def observe(self, target):
+        from ..ephem import Earth
+        return Earth.observe(target, self.date)
+
     def plot_am(self, target, N=100, ax=None, **kwargs):
         """Plot the airmass of this target, centered on the current date.
 
@@ -372,7 +382,9 @@ class Observer(object):
 
         return r, t, s
 
-def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
+def am_plot(targets, observer, fig=None, ylim=[2.5, 1],
+            table_columns=['rh', 'delta', 'phase', 'ra', 'dec'],
+            **kwargs):
     """Generate a letter-sized, pretty airmass plot for a night.
 
     Parameters
@@ -386,12 +398,16 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
       None: Use current figure.
     ylim : array
       Y-axis limits (airmass).
+    table_columns : list of strings
+      List of additional table columns to pull from the target's
+      observing geometry (see `Geom`).
     **kwargs
       Keyword arguments for `Observer.plot_am`.
 
     Returns
     -------
-    None
+    rts : Table
+      A table of rise, transit, and set times.
 
     Notes
     -----
@@ -403,6 +419,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     import itertools
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
+    from astropy.table import Table
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
@@ -423,10 +440,22 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     civil_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
                                        name='Civil twilight')
 
+    table_columns = [] if table_columns is None else table_columns
+    tab = Table(names=['target'] + table_columns + ['rise', 'transit', 'set'],
+                dtype=['S255'] + [float] * (len(table_columns) + 3))
     for target in targets:
+        row = [target.name]
+        g = observer.observe(target)
+        for c in table_columns:
+            row.append(g[c].value)
+
         ls, color = linestyles.next()
         observer.plot_am(target, color=color, ls=ls, **kwargs)
-        observer.rts(target, limit=25)
+        rts = observer.rts(target, limit=25)
+        row.append(rts[0].value if rts[0] is not None else -1)
+        row.append(rts[1].value if rts[1] is not None else -1)
+        row.append(rts[2].value if rts[2] is not None else -1)
+        tab.add_row(row)
 
     print()
     for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
@@ -469,6 +498,8 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
 
     plt.draw()
+
+    return tab
 
 def file2targets(filename):
     """Create a list of targets from a file.
