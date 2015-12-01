@@ -29,7 +29,10 @@ from datetime import datetime
 
 import numpy as np
 from astropy.time import Time
-import spice
+try:
+    import spiceypy.wrapper as spice
+except ImportError:
+    import spice
 
 from . import core
 
@@ -267,7 +270,6 @@ class SpiceState(State):
     """
 
     def __init__(self, obj, kernel=None):
-        import spice
 
         if not core._spice_setup:
             core._setup_spice()
