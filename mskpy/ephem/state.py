@@ -281,13 +281,15 @@ class SpiceState(State):
         self.obj = obj
         self.naifid = naifid
 
-    def rv(self, date):
+    def rv(self, date, frame="ECLIPJ2000"):
         """Position and velocity vectors.
 
         Parameters
         ----------
         date : string, float, astropy Time, datetime
           Processed via `util.date2time`.
+        frame : string
+          The name of a SPICE reference frame.
 
         Returns
         -------
@@ -301,5 +303,5 @@ class SpiceState(State):
         from .. import util
         et = core.date2et(date)
         # no light corrections, sun = 10
-        state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
+        state, lt = spice.spkez(self.naifid, et, frame, "NONE", 10)
         return np.array(state[:3]), np.array(state[3:])
