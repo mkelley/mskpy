@@ -254,7 +254,7 @@ class AfrhoThermal(AfrhoRadiation):
 
         """
 
-        from ..util import phase_integral, planck
+        from ..util import planck
 
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
@@ -329,8 +329,6 @@ def phaseH(phase):
         The phase function.
 
     """
-
-    from util import phase_integral
 
     phasef = np.poly1d([0.000177, -0.01807, 1])
     return phasef(np.abs(phase))
