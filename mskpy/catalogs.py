@@ -376,10 +376,10 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
     good = d <= tol
 
     if verbose:
-        print ("""[triangle_match] cat0 = {} triangles, cat1 = {} triangles
+        print(("""[triangle_match] cat0 = {} triangles, cat1 = {} triangles
 [triangle_match] Best match score = {:.2g}, worst match sorce = {:.2g}
 [triangle_match] {} triangle pairs at or below given tolerance ({})""").format(
-                v0.shape[1], v1.shape[1], min(d), max(d), sum(d <= tol), tol)
+                v0.shape[1], v1.shape[1], min(d), max(d), sum(d <= tol), tol))
 
     # reject based on perimeter
     perimeter_ratios = s1[0] / s0[0, i]
@@ -390,23 +390,23 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             good *= np.abs(perimeter_ratios - pscale) < sig * psig
         b = good.sum()
         if verbose:
-            print ("""[triangle_match] One time perimeter_ratio sigma clip about {}
-[triangle_match] {} triangles rejected.""").format(pscale, a - b)
+            print(("""[triangle_match] One time perimeter_ratio sigma clip about {}
+[triangle_match] {} triangles rejected.""").format(pscale, a - b))
 
 
     mc = meanclip(perimeter_ratios[good], lsig=psig, hsig=psig,
                   full_output=True)
             
     if mc[1] <= 0:
-        print "[triangle_match] Low measured perimeter ratio sigma ({}), skipping perimeter rejection".format(mc[1])
+        print("[triangle_match] Low measured perimeter ratio sigma ({}), skipping perimeter rejection".format(mc[1]))
     else:
         p_good = (np.abs(perimeter_ratios - mc[0]) / mc[1] <= psig) * good
         good *= p_good
 
         if verbose:
-            print ("""[triangle_match] Sigma-clipped perimeter ratios = {} +/- {}
+            print(("""[triangle_match] Sigma-clipped perimeter ratios = {} +/- {}
 [triangle_match] {} triangle pairs with perimeter ratios within {} sigma."""
-               ).format(mc[0], mc[1], p_good.sum(), psig)
+               ).format(mc[0], mc[1], p_good.sum(), psig))
 
     # reject based on orientation of vertices
     ccw = s0[3, i] == s1[3]
@@ -418,10 +418,10 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
         good *= ~ccw
 
     if verbose:
-        print ("""[triangle_match] Orientation matches = {}{}
+        print(("""[triangle_match] Orientation matches = {}{}
 [triangle_match] Anti-orientation matches = {}{}""").format(
     cw_count, " (rejected)" if cw_count <= ccw_count else "",
-    ccw_count, " (rejected)" if cw_count > ccw_count else "")
+    ccw_count, " (rejected)" if cw_count > ccw_count else ""))
 
     match_matrix = np.zeros((N0, N1), int)
     for k, j in enumerate(i):
@@ -447,14 +447,14 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             frac[i] = peak / float(total)
 
     if verbose:
-        print "[triangle_match] {} stars failed the msig test".format(rej)
+        print("[triangle_match] {} stars failed the msig test".format(rej))
 
     for k in matches.keys():
         if frac[k] < min_frac:
             del matches[k], frac[k]
 
     if verbose:
-        print "[triangle_match] {} stars matched".format(len(matches))
+        print("[triangle_match] {} stars matched".format(len(matches)))
 
     if full_output:
         return matches, frac, match_matrix, d
