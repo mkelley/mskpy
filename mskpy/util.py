@@ -278,7 +278,7 @@ def davint(x, y, x0, x1, axis=0):
       The result.
 
     """
-    from lib import davint as _davint
+    from .lib import davint as _davint
 
     y = np.array(y)
     if y.ndim == 1:
@@ -1156,7 +1156,7 @@ def whist(x, y, w, errors=True, **keywords):
 
     """
 
-    if keywords.has_key('weights'):
+    if 'weights' in keywords:
         raise RuntimeError('weights not allowed in keywords')
 
     _x = np.array(x)
@@ -1541,7 +1541,7 @@ def kuiper(x, y):
 
     """
 
-    data1, data2 = map(np.asarray, (x, y))
+    data1, data2 = list(map(np.asarray, (x, y)))
     n1 = data1.shape[0]
     n2 = data2.shape[0]
     data1 = np.sort(data1)
@@ -1886,9 +1886,9 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
 
         # find the corrections for ties
         ties = stats.mstats.count_tied_groups(x)
-        sx = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sx = sum((k**3 - k) * v for k, v in ties.items())
         ties = stats.mstats.count_tied_groups(y)
-        sy = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sy = sum((k**3 - k) * v for k, v in ties.items())
 
         D = sum((rankx - ranky)**2)
         meanD = (N**3 - N) / 6.0 - (sx + sy) / 12.0
@@ -2331,10 +2331,8 @@ def savitzky_golay(x, kernel=11, order=4):
     if kernel < order + 2:
         raise ValueError("kernel is to small for the polynomals\nshould be > order + 2")
 
-    # a second order polynomal has 3 coefficients
-    order_range = range(order + 1)
     half_window = (kernel - 1) // 2
-    b = np.mat([[k**i for i in order_range]
+    b = np.mat([[k**i for i in range(order + 1)]
                 for k in range(-half_window, half_window+1)])
 
     # since we don't want the derivative, else choose [1] or [2], respectively
@@ -2343,8 +2341,7 @@ def savitzky_golay(x, kernel=11, order=4):
     half_window = (window_size - 1) // 2
 
     # precompute the offset values for better performance
-    offsets = range(-half_window, half_window + 1)
-    offset_data = zip(offsets, m)
+    offsets = zip(range(-half_window, half_window + 1), m)
 
     # temporary data, extended with a mirror image to the left and right
     # left extension: f(x0-x) = f(x0)-(f(x)-f(x0)) = 2f(x0)-f(x)
@@ -2361,7 +2358,7 @@ def savitzky_golay(x, kernel=11, order=4):
     smooth_data = list()
     for i in range(half_window, len(data) - half_window):
         value = 0.0
-        for offset, weight in offset_data:
+        for offset, weight in offsets:
             value += weight * data[i + offset]
         smooth_data.append(value)
 

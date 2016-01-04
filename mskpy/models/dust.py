@@ -24,7 +24,6 @@ dust --- Models for dust
 
 """
 
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 from astropy.units import Quantity

@@ -12,7 +12,6 @@ Module under development and waiting for final Astropy modeling API.
 
 """
 
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 #from astropy.modeling import Parameter, ParametricModel

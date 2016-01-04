@@ -20,7 +20,6 @@ image.process --- Process (astronomical) images.
 
 """
 
-from __future__ import print_function
 import numpy as np
 from . import core, analysis
 

@@ -106,7 +106,7 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
 
     from .util import midstep, meanclip
 
-    d = cat0[:, matches.keys()] - cat1[:, matches.values()]
+    d = cat0[:, list(matches.keys())] - cat1[:, list(matches.values())]
     bins = (np.arange(d[0].min() - 2 * tol, d[0].max() + 2 * tol, 2 * tol),
             np.arange(d[1].min() - 2 * tol, d[1].max() + 2 * tol, 2 * tol))
     h, edges = np.histogramdd(d.T, bins=bins)
@@ -186,7 +186,8 @@ def nearest_match(cat0, cat1, tol=1.0, **kwargs):
       are not returned.
     dyx : ndarray
       Sigma-clipped mean offset.  Clipping is done in x and y
-      separately, and only the union of the two is returned.
+      separately, and only the union of the two is returned.  The
+      order for `dxy` is undefined.
 
     """
 
@@ -204,7 +205,7 @@ def nearest_match(cat0, cat1, tol=1.0, **kwargs):
         if d[k] < tol:
             matches[j] = k
 
-    dyx = cat0[:, matches.keys()] - cat1[:, matches.values()]
+    dyx = cat0[:, list(matches.keys())] - cat1[:, list(matches.values())]
     mcx = meanclip(dyx[1], full_output=True)
     mcy = meanclip(dyx[0], full_output=True)
     j = list(set(np.concatenate((mcx[2], mcy[2]))))

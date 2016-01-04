@@ -30,7 +30,6 @@ image.analysis --- Analyze (astronomical) images.
 
 """
 
-from __future__ import print_function
 import numpy as np
 from . import core
 
@@ -1101,7 +1100,7 @@ def trace(im, err, guess):
     y0 = np.arange(im.shape[0])
     last = guess
 
-    for i in xrange(im.shape[1]):
+    for i in range(im.shape[1]):
         if err is None:
             err = np.ones_like(y)
         fit, err = lsq(chi, last, (np.array(x), np.array(y), np.array(err)))

@@ -15,7 +15,7 @@ observing --- Observing stuff
    plot_transit_time
 
 """
-from __future__ import print_function
+
 import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
@@ -449,7 +449,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1],
         for c in table_columns:
             row.append(g[c].value)
 
-        ls, color = linestyles.next()
+        ls, color = next(linestyles)
         observer.plot_am(target, color=color, ls=ls, **kwargs)
         rts = observer.rts(target, limit=25)
         row.append(rts[0].value if rts[0] is not None else -1)

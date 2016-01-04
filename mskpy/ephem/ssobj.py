@@ -190,7 +190,7 @@ class SolarSysObject(object):
             else:
                 step = (dates[-1] - dates[0]) / float(num - 1)
                 time = []
-                for i in xrange(num):
+                for i in range(num):
                     time += [dates[0] + step * i]
         else:
             time = dates
