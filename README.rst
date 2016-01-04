@@ -29,8 +29,8 @@ run mskpy).
 SPICE Kernels
 -------------
 
-To use the `ephem` and `observing` modules, `pyspice` is required.  At
-a minimum, three kernels are needed to be present in your kernel
+To use the `ephem` and `observing` modules, `spiceypy` is required.
+At a minimum, three kernels are needed to be present in your kernel
 directory (as set by the module configuration):
 - naif.tls : a leap seconds kernel,
 - pck.tpc : a planetary constants kernel,
