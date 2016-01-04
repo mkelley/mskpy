@@ -453,9 +453,9 @@ def rotmat(th):
     --------
     import numpy as np
     from mskpy import rotmat
-    print np.array([1, 0]) * rotmat(np.radians(90.0))
+    print(np.array([1, 0]) * rotmat(np.radians(90.0)))
     --> matrix([[  6.12323400e-17,   1.00000000e+00]])
-    print ap.array([0, 1]) * rotmat(np.pi)
+    print(np.array([0, 1]) * rotmat(np.pi))
     --> matrix([[ -1.00000000e+00,   6.12323400e-17]])
 
     """
@@ -740,7 +740,7 @@ def gaussfit(x, y, err, guess, covar=False):
     fit = output[0]
     cov = output[1]
     if cov is None:
-        print output[3]
+        print(output[3])
         err = None
     else:
         err = np.sqrt(np.diag(cov))
@@ -954,7 +954,7 @@ def clusters(test):
     import scipy.ndimage as nd
 
     labels, n = nd.label(test)
-    print "{} clusters found".format(n)
+    print("{} clusters found".format(n))
     return nd.find_objects(labels)
 
 def groupby(key, *lists):
@@ -983,7 +983,7 @@ def groupby(key, *lists):
     >>> import numpy as np
     >>> from mskpy.util import groupby
     >>> keys = (np.random.rand(26) * 3).astype(int)
-    >>> print keys
+    >>> print(keys)
     [1 2 2 0 1 1 1 1 1 1 2 1 2 1 0 0 0 1 2 2]
     >>> lists = (list('abcdefghijklmnopqrstuvwxyz'), range(26))
     >>> groupby(keys, *lists)
@@ -2250,7 +2250,7 @@ def _redden(wave, S, wave0=0.55):
     >>> from mskpy.util import redden
     >>> wave = np.array([0.4, 0.45, 0.5, 0.55, 0.65, 1.55])
     >>> S = 12. * 0.01 / 0.1  # 12% / (0.1 um)
-    >>> print redden(wave, S)
+    >>> print(redden(wave, S))
     [ 0.83527021  0.88692044  0.94176453  1.          1.12749685  3.32011692]
 
     """

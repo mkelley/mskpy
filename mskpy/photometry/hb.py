@@ -561,7 +561,7 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
         E_unc = 4 * (E_0 + E_25) * frac_unc
     else:
         #assert frac < 0.25, "Continuum = {:%}, more than 25% of observed OH band flux density.  Untested code.".format(frac)
-        #print "Etot", 4 * ((0.25 - frac) * E_0 + frac * E_25), E_tot
+        #print("Etot", 4 * ((0.25 - frac) * E_0 + frac * E_25), E_tot)
         # the following yields the same as above at the <0.001 mag level
         E_tot = ((1 - frac) * E_25 + (frac - 0.25) * E_100) / 0.75
         E_unc = np.abs(E_100 - E_25) * frac_unc / 0.75
