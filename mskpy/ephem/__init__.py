@@ -3,7 +3,7 @@
 ephem --- Ephemeris tools
 =========================
 
-Requres PySPICE.
+Requres SpiceyPy.
 
    Classes
    -------

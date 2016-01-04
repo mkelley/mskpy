@@ -18,12 +18,10 @@ from os.path import expanduser
 
 import numpy as np
 from astropy.time import Time
-try:
-    import spiceypy.wrapper as spice
-except ImportError:
-    import spice
+import spiceypy.wrapper as spice
+from ..config import config
 
-_kernel_path = expanduser('/data/kernels')
+_kernel_path = config.get('ephem.core', 'kernel_path')
 _spice_setup = False
 
 def _setup_spice():
@@ -270,7 +268,8 @@ def load_kernel(filename):
         if not os.path.exists(filename):
             raise OSError("{} not found".format(filename))
 
-    if spice.kinfo(filename) is None:
+    test = spice.kinfo(filename, 512, 512)
+    if test[3]:
         spice.furnsh(filename)
 
 # update module docstring

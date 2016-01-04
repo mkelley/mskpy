@@ -29,10 +29,7 @@ from datetime import datetime
 
 import numpy as np
 from astropy.time import Time
-try:
-    import spiceypy.wrapper as spice
-except ImportError:
-    import spice
+import spiceypy.wrapper as spice
 
 from . import core
 
