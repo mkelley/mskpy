@@ -2,7 +2,9 @@
 mskpy
 =====
 
-MSK's personal Python library, mostly for astronomy work.
+MSK's personal Python library, mostly for astronomy work.  **This
+version is for Python 2.7 and as of January 2016 is not actively
+maintained.**
 
 Requires: numpy, scipy, astropy v1.0.
 
