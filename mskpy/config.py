@@ -5,10 +5,7 @@ config --- mskpy configuration.
 
 """
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 def _find_config():
     """Locate the config file."""
