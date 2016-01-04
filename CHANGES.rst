@@ -1,3 +1,16 @@
+2.3.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `ephem`
+  - `Geom` objects have been made more dictionary-like (i.e.,
+    Mappable).
+  - `SpiceState` exposes some more SPICE functionality through
+    `r()`, `v()`, and `rv()`: now aberration corrections, observer,
+    and frame can be set.
+
 2.3.1
 -----
 
