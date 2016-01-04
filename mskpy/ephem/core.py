@@ -14,12 +14,16 @@ core --- Basic functions, mostly time, for ephem.
 """
 
 from datetime import datetime
+from os.path import expanduser
 
 import numpy as np
 from astropy.time import Time
-import spice
+try:
+    import spiceypy.wrapper as spice
+except ImportError:
+    import spice
 
-_kernel_path = '/home/msk/data/kernels'
+_kernel_path = expanduser('/data/kernels')
 _spice_setup = False
 
 def _setup_spice():

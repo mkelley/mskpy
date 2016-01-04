@@ -510,7 +510,7 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
             rho = (u.Quantity(rap, u.arcsec) * 725e3 * u.m / u.arcsec / u.au
                    * delta)
         except u.UnitsError:
-            print 'rap must have units of length or angluar size.'
+            print('rap must have units of length or angluar size.')
             raise
 
     v1 = u.Quantity(v1, u.m / u.s)
@@ -655,7 +655,7 @@ def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
       Afrho.  [cm]
 
     """
-    print "    *** EXPERIMENTAL ***   "
+    print("    *** EXPERIMENTAL ***   ")
     #M = m - 5 * np.log10(geom['rh'].to(u.au).value
     #                     * geom['delta'].to(u.au).value)
     #return 4.0e6 * 10**(M / -2.5)
