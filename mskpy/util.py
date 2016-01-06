@@ -103,7 +103,10 @@ util --- Short and sweet functions, generic algorithms
 
 """
 
+from functools import singledispatch
+import datetime
 import numpy as np
+import astropy.time
 
 __all__ = [
     'archav',
@@ -2406,8 +2409,6 @@ def cal2iso(cal):
 
     """
 
-    from datetime import datetime, timedelta
-
     if isinstance(cal, (list, tuple, np.ndarray)):
         return [cal2iso(x) for x in cal]
 
@@ -2437,8 +2438,9 @@ def cal2iso(cal):
         d = d[:1] + [1.0] + d[2:]
     if d[2] == 0.0:
         d = d[:2] + [1.0] + d[3:]
-    dt = timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
-    d = datetime(int(d[0]), int(d[1]), 1) + dt
+    dt = datetime.timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4],
+                            seconds=d[5])
+    d = datetime.datetime(int(d[0]), int(d[1]), 1) + dt
     return d.isoformat()
 
 def cal2time(cal, scale='utc'):
@@ -2492,6 +2494,7 @@ def date_len(date):
     else:
         return len(date)
 
+@singledispatch
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
 
@@ -2507,25 +2510,34 @@ def date2time(date, scale='utc'):
     date : astropy Time
 
     """
-    from datetime import datetime
-    from astropy.time import Time
-
-    if date is None:
-        date = Time(datetime.utcnow(), scale=scale, format='datetime')
-    elif isinstance(date, Time):
-        pass
-    elif isinstance(date, float):
-        date = jd2time(date, scale=scale)
-    elif isinstance(date, str):
-        date = cal2time(date, scale=scale)
-    elif isinstance(date, datetime):
-        date = Time(date, scale=scale)
-    elif isinstance(date, (list, tuple, np.ndarray)):
-        date = [date2time(d, scale=scale) for d in date]
-        date = Time(date)
-    else:
+    if (date is not None):
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return date
+    return astropy.time.Time(datetime.datetime.utcnow(), scale=scale,
+                             format='datetime')
+
+@date2time.register(astropy.time.Time)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(int)
+@date2time.register(float)
+def _(date, scale='utc'):
+    return jd2time(date, scale=scale)
+
+@date2time.register(str)
+def _(date, scale='utc'):
+    return cal2time(date, scale=scale)
+
+@date2time.register(datetime.datetime)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(list)
+@date2time.register(tuple)
+@date2time.register(np.ndarray)
+def _(date, scale='utc'):
+    date = [date2time(d, scale=scale) for d in date]
+    return astropy.time.Time(date)
 
 def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
