@@ -21,7 +21,6 @@ from astropy.time import Time
 import spiceypy.wrapper as spice
 from ..config import config
 
-_kernel_path = config.get('ephem.core', 'kernel_path')
 _spice_setup = False
 
 def _setup_spice():
@@ -188,7 +187,8 @@ def time2et(t):
 def find_kernel(obj):
     """Find a planetary ephemeris kernel, based on object name.
 
-    Searches the current directory first, then `_kernel_path`.
+    First searches the current directory, then the path set in the
+    mskpy config file.
     
     Three steps are taken to find the appropriate kernel:
 
@@ -216,22 +216,22 @@ def find_kernel(obj):
 
     """
 
-    from os import path
+    import os
     from functools import reduce
     from operator import add
-    global _kernel_path
 
+    kernel_path = config.get('ephem.core', 'kernel_path')
     kernel = str(obj) + '.bsp'
-    if path.isfile(kernel):
+    if os.path.isfile(kernel):
         return kernel
-    elif path.isfile(path.join(_kernel_path, kernel)):
-        return path.join(_kernel_path, kernel)
+    elif os.path.isfile(os.path.join(kernel_path, kernel)):
+        return os.path.join(kernel_path, kernel)
 
     kernel = reduce(add, filter(str.isalnum, str(obj))).lower() + '.bsp'
-    if path.isfile(kernel):
+    if os.path.isfile(kernel):
         return kernel
-    elif path.isfile(path.join(_kernel_path, kernel)):
-        return path.join(_kernel_path, kernel)
+    elif os.path.isfile(os.path.join(kernel_path, kernel)):
+        return os.path.join(kernel_path, kernel)
 
     if isinstance(obj, int):
         if obj < 1000000:
@@ -244,7 +244,8 @@ def find_kernel(obj):
 def load_kernel(filename):
     """Load the named kernel into memory.
 
-    The kernel must be in the current directory, or in `_kernel_path`.
+    The kernel must be in the current directory, or in the path given
+    by the mskpy config file.
 
     No-op if the kernel is already loaded.
 
@@ -263,15 +264,15 @@ def load_kernel(filename):
     """
 
     import os.path
-    global _kernel_path
 
+    kernel_path = config.get('ephem.core', 'kernel_path')
     if not os.path.exists(filename):
-        filename = os.path.join(_kernel_path, filename)
+        filename = os.path.join(kernel_path, filename)
         if not os.path.exists(filename):
             raise OSError("{} not found".format(filename))
 
     test = spice.kinfo(filename, 512, 512)
-    if test[3]:
+    if not test[3]:
         spice.furnsh(filename)
 
 # update module docstring
