@@ -267,7 +267,6 @@ class SpiceState(State):
     """
 
     def __init__(self, obj, kernel=None):
-
         if not core._spice_setup:
             core._setup_spice()
 
@@ -278,10 +277,12 @@ class SpiceState(State):
 
         if isinstance(obj, int):
             obj = str(obj)
-        naifid = spice.bods2c(obj)
-        if naifid is None:
-            raise ObjectError(("NAIF ID of {} cannot be found"
-                               " in kernel {}.").format(obj, kernel))
+        naifid, success = spice.bods2c(obj)
+        if not success:
+            s = ("NAIF ID of {} cannot be found in kernel {}"
+                 " or kernel pool.").format(obj, kernel)
+            raise ObjectError(s)
+
         self.obj = obj
         self.naifid = naifid
 
