@@ -217,6 +217,8 @@ def find_kernel(obj):
     """
 
     from os import path
+    from functools import reduce
+    from operator import add
     global _kernel_path
 
     kernel = str(obj) + '.bsp'
@@ -225,7 +227,7 @@ def find_kernel(obj):
     elif path.isfile(path.join(_kernel_path, kernel)):
         return path.join(_kernel_path, kernel)
 
-    kernel = filter(lambda s: s.isalnum(), str(obj)).lower() + '.bsp'
+    kernel = reduce(add, filter(str.isalnum, str(obj))).lower() + '.bsp'
     if path.isfile(kernel):
         return kernel
     elif path.isfile(path.join(_kernel_path, kernel)):
