@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """Generate ephemeris files for DCT/LMI from HORIZONS output.
 
 The new file names are generated from the originals, e.g.,
@@ -9,15 +9,14 @@ The new file names are generated from the originals, e.g.,
 * In HORIZONS, be sure to select Apparent RA, Dec for output.  Do not
 use extended precision.  Use site G37 for the DCT.
 
-2015-10-24: Initial version.
+2015-10-24: Initial version.  Requires Python 2.6 or later.
 
-Requires Python 2.6 or later.
+2016-01-12: Requires Python 2.7 or later.
 
 - Michael S. P. Kelley, UMD
 
 """
 
-from __future__ import print_function
 import sys
 import os.path
 

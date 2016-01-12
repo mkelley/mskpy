@@ -1,15 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 """Generate a DCT/LMI dither macro.
 
-2015-10-24: Initial version.
+2015-10-24: Initial version. Requires Python 2.6 or later.
 
-Requires Python 2.6 or later.
+2015-01-12: Requires Python 2.7 or later.
 
 - Michael S. P. Kelley, UMD
 
 """
 
-from __future__ import print_function
 import sys
 import argparse
 
