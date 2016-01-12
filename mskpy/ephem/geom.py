@@ -16,12 +16,12 @@ proper_motion
 __all__ = ['Geom', 'proper_motion']
 
 from datetime import datetime
-
+from collections import Mapping
 import numpy as np
 from astropy.time import Time
 import astropy.units as u
 
-class Geom(object):
+class Geom(Mapping):
     """Observing geometry parameters for Solar System objects.
 
     Coordinates are all in the heliocentric ecliptic J2000 frame.
@@ -187,6 +187,10 @@ class Geom(object):
             return Geom(ro, rt, vo=vo, vt=vt, date=date)
         else:
             return self.__getattribute__(key)
+
+    def __iter__(self):
+        for k in self._keys:
+            yield k
 
     def __str__(self):
         keys = ['date', 'rh', 'delta', 'phase', 'obsrh', 'so', 'st',
@@ -590,7 +594,7 @@ class Geom(object):
         ra = g['ra'].to_string('hour', **opts)
         dec = g['dec'].to_string('deg', alwayssign=True, **opts)
 
-        print ("""
+        print(("""
 {:>34s} {:s}{:}
 {:>34s} {:s}{:}
 {:>34s} {:.2f}{:}
@@ -625,7 +629,7 @@ class Geom(object):
            "Projected sun vector (deg):", g['sangle'].degree,
            minmax('sangle', '8.3f'),
            "Projected velocity vector (deg):", g['vangle'].degree,
-           minmax('vangle', '8.3f')))
+           minmax('vangle', '8.3f'))))
 
 def proper_motion(g0, g1):
     """Proper motion from two `Geom` instances.

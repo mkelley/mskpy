@@ -13,7 +13,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    calib       - Photometric calibration.
    comet       - Defines a comet for observing, flux estimates.
    config      - mskpy configuration parameters.
-   ephem       - Solar System object ephemerides (requires PySPICE).
+   ephem       - Solar System object ephemerides (requires SpiceyPy).
    graphics    - Helper functions for making plots.
    image       - Image generators, analysis, and processing.
    instruments - Cameras, spectrometers, etc. for astronomy.
@@ -40,13 +40,9 @@ from . import models
 from . import modeling
 from . import observing
 
-# the following block depends on PySPICE
+# depends on SpiceyPy
 try:
-    import spice
-except ImportError:
-    spice = None
-
-if spice is not None:
+    import spiceypy.wrapper as spice
     from . import ephem
     from . import asteroid
     from . import comet
@@ -54,7 +50,8 @@ if spice is not None:
     from .ephem import *
     from .comet import *
     from .asteroid import *
-# end dependency on PySPICE
+except ImportError:
+    pass
 
 # depends on matplotlib
 try:
@@ -62,4 +59,3 @@ try:
     from .graphics import *
 except (ImportError, RuntimeError):
     pass
-# end matplotlib

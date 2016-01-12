@@ -1,3 +1,87 @@
+2.3.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `ephem`
+  - `Geom` objects have been made more dictionary-like (i.e.,
+    Mappable).
+  - `SpiceState` exposes some more SPICE functionality through
+    `r()`, `v()`, and `rv()`: now aberration corrections, observer,
+    and frame can be set.
+
+2.3.1
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `image.analysis.apphot` single aperture photometry using multiple
+  images was returning nonsense.  Fixed.
+
+- `catalogs.find_offset` fixed to use the correct data points when
+  computing the final offset.
+
+New features
+^^^^^^^^^^^^
+
+- `calib`
+  - `dw_atran` to use the Diane Wooden method to compute the
+    transmission of the atmosphere through a filter.
+
+- `catalogs.find_offset` may skip meanclip step when there are not
+  enough sources based on a user defined threshold.
+
+- `ephem`
+  - A `Kepler` object is created when the Kepler Telescope's ephemeris
+    kernel is available as kepler.bsp.
+
+- `image`
+  - New `process.subim` function to return image cutouts given a
+    center position and box size.
+  - `analysis.fwhm` can now independently fit x and y directions.
+
+- `instruments.irtf.MIRSI`
+  - New `standard_fluxd` for standard star flux densities
+    in MIRSI filters.
+  - New `filter_atran` for atmospheric transmission.
+  - New `fluxd` to observe a spectrum through MIRSI filters.
+
+- `models`
+  - `DApColor` for asteroids with linear reflectance slopes.
+  - `neatm` convenience function for quick NEATM calls.
+
+- `observing`
+  - `am_plot` now returns a table of target rise, transit, and set
+    times, and geometric quantities (e.g., rh, delta, phase, ra, dec).
+
+- `photometry.hb` add r' filter.
+
+- `util`
+  - `gaussfit` may now consider a linear term.
+  - `clusters` to define array slices based on a test array.
+
+- Scripts
+  - `ephemeris`
+    - Will now translate numbers into asteroid designations (e.g., 24
+      becomes 2000024).
+    - Allows diameter, IR beaming parameter, and albedo as inputs for
+      quick NEATM brightness estimates.
+  - `horizons2dct-tcs` and `lmi-dither` new scripts for DCT observing.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `asteroid.Asteroid` fixed diameter and albedo initialization of
+  `reflected` when the user provides their own model.
+
+- `ephemeris`
+  - Will provide the command-line options in the output.
+
+- `util.spearman` fixed due to new output from `scipy`.
+
+
 2.3.0
 -----
 

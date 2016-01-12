@@ -103,7 +103,10 @@ util --- Short and sweet functions, generic algorithms
 
 """
 
+from functools import singledispatch
+import datetime
 import numpy as np
+import astropy.time
 
 __all__ = [
     'archav',
@@ -278,7 +281,7 @@ def davint(x, y, x0, x1, axis=0):
       The result.
 
     """
-    from lib import davint as _davint
+    from .lib import davint as _davint
 
     y = np.array(y)
     if y.ndim == 1:
@@ -453,9 +456,9 @@ def rotmat(th):
     --------
     import numpy as np
     from mskpy import rotmat
-    print np.array([1, 0]) * rotmat(np.radians(90.0))
+    print(np.array([1, 0]) * rotmat(np.radians(90.0)))
     --> matrix([[  6.12323400e-17,   1.00000000e+00]])
-    print ap.array([0, 1]) * rotmat(np.pi)
+    print(np.array([0, 1]) * rotmat(np.pi))
     --> matrix([[ -1.00000000e+00,   6.12323400e-17]])
 
     """
@@ -553,7 +556,7 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
                       '{5:>6}', '{6:>20}', '{7:>20}', '{8:>20}',
                       '{9}']
         else:
-            print "{0} not a recognized template".format(keywords)
+            print("{0} not a recognized template".format(keywords))
             return None
 
         if csv:
@@ -740,7 +743,7 @@ def gaussfit(x, y, err, guess, covar=False):
     fit = output[0]
     cov = output[1]
     if cov is None:
-        print output[3]
+        print(output[3])
         err = None
     else:
         err = np.sqrt(np.diag(cov))
@@ -886,7 +889,7 @@ def planckfit(wave, fluxd, err, guess, covar=False):
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
-    print output[-2]
+    print(output[-2])
     fit = output[0]
     cov = output[1]
 
@@ -930,7 +933,7 @@ def between(a, limits, closed=True):
             i = (a > lim[0]) * (a < lim[1])
     else:
         i = np.zeros(b.shape)
-        for j in xrange(lim.shape[0]):
+        for j in range(lim.shape[0]):
             i += between(a, lim[j,:])
 
     return i.astype(bool)
@@ -954,7 +957,7 @@ def clusters(test):
     import scipy.ndimage as nd
 
     labels, n = nd.label(test)
-    print "{} clusters found".format(n)
+    print("{} clusters found".format(n))
     return nd.find_objects(labels)
 
 def groupby(key, *lists):
@@ -983,7 +986,7 @@ def groupby(key, *lists):
     >>> import numpy as np
     >>> from mskpy.util import groupby
     >>> keys = (np.random.rand(26) * 3).astype(int)
-    >>> print keys
+    >>> print(keys)
     [1 2 2 0 1 1 1 1 1 1 2 1 2 1 0 0 0 1 2 2]
     >>> lists = (list('abcdefghijklmnopqrstuvwxyz'), range(26))
     >>> groupby(keys, *lists)
@@ -1156,7 +1159,7 @@ def whist(x, y, w, errors=True, **keywords):
 
     """
 
-    if keywords.has_key('weights'):
+    if 'weights' in keywords:
         raise RuntimeError('weights not allowed in keywords')
 
     _x = np.array(x)
@@ -1541,7 +1544,7 @@ def kuiper(x, y):
 
     """
 
-    data1, data2 = map(np.asarray, (x, y))
+    data1, data2 = list(map(np.asarray, (x, y)))
     n1 = data1.shape[0]
     n2 = data2.shape[0]
     data1 = np.sort(data1)
@@ -1664,7 +1667,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
             ys = np.zeros(x2.shape[0])
             yind = ()
             yiter = np.zeros(x2.shape[0])
-            for i in xrange(x2.shape[0]):
+            for i in range(x2.shape[0]):
                 mc = meanclip(x2[i], axis=None, lsig=lsig, hsig=hsig,
                               maxiter=maxiter, minfrac=minfrac,
                               full_output=True)
@@ -1886,9 +1889,9 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
 
         # find the corrections for ties
         ties = stats.mstats.count_tied_groups(x)
-        sx = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sx = sum((k**3 - k) * v for k, v in ties.items())
         ties = stats.mstats.count_tied_groups(y)
-        sy = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sy = sum((k**3 - k) * v for k, v in ties.items())
 
         D = sum((rankx - ranky)**2)
         meanD = (N**3 - N) / 6.0 - (sx + sy) / 12.0
@@ -1910,7 +1913,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
             yerr = np.zeros(y.shape)
 
         mcZ = np.zeros(nmc)
-        for i in xrange(nmc):
+        for i in range(nmc):
             dx = np.random.randn(N) * xerr
             dy = np.random.rand(N) * yerr
             mcZ[i] = spearmanZ(x + dx, y + dy)
@@ -2250,7 +2253,7 @@ def _redden(wave, S, wave0=0.55):
     >>> from mskpy.util import redden
     >>> wave = np.array([0.4, 0.45, 0.5, 0.55, 0.65, 1.55])
     >>> S = 12. * 0.01 / 0.1  # 12% / (0.1 um)
-    >>> print redden(wave, S)
+    >>> print(redden(wave, S))
     [ 0.83527021  0.88692044  0.94176453  1.          1.12749685  3.32011692]
 
     """
@@ -2270,7 +2273,7 @@ def _redden(wave, S, wave0=0.55):
                      kind='linear')
 
     spec = np.zeros_like(wave)
-    for i in xrange(len(wave)):
+    for i in range(len(wave)):
         # integrate S*dwave from wave0 to wave[i]
         intS = quad(slope, wave0, wave[i], epsabs=1e-3, epsrel=1e-3)[0]
         spec[i] = np.exp(intS)
@@ -2331,10 +2334,8 @@ def savitzky_golay(x, kernel=11, order=4):
     if kernel < order + 2:
         raise ValueError("kernel is to small for the polynomals\nshould be > order + 2")
 
-    # a second order polynomal has 3 coefficients
-    order_range = range(order + 1)
     half_window = (kernel - 1) // 2
-    b = np.mat([[k**i for i in order_range]
+    b = np.mat([[k**i for i in range(order + 1)]
                 for k in range(-half_window, half_window+1)])
 
     # since we don't want the derivative, else choose [1] or [2], respectively
@@ -2343,8 +2344,7 @@ def savitzky_golay(x, kernel=11, order=4):
     half_window = (window_size - 1) // 2
 
     # precompute the offset values for better performance
-    offsets = range(-half_window, half_window + 1)
-    offset_data = zip(offsets, m)
+    offsets = zip(range(-half_window, half_window + 1), m)
 
     # temporary data, extended with a mirror image to the left and right
     # left extension: f(x0-x) = f(x0)-(f(x)-f(x0)) = 2f(x0)-f(x)
@@ -2361,7 +2361,7 @@ def savitzky_golay(x, kernel=11, order=4):
     smooth_data = list()
     for i in range(half_window, len(data) - half_window):
         value = 0.0
-        for offset, weight in offset_data:
+        for offset, weight in offsets:
             value += weight * data[i + offset]
         smooth_data.append(value)
 
@@ -2409,8 +2409,6 @@ def cal2iso(cal):
 
     """
 
-    from datetime import datetime, timedelta
-
     if isinstance(cal, (list, tuple, np.ndarray)):
         return [cal2iso(x) for x in cal]
 
@@ -2440,8 +2438,9 @@ def cal2iso(cal):
         d = d[:1] + [1.0] + d[2:]
     if d[2] == 0.0:
         d = d[:2] + [1.0] + d[3:]
-    dt = timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
-    d = datetime(int(d[0]), int(d[1]), 1) + dt
+    dt = datetime.timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4],
+                            seconds=d[5])
+    d = datetime.datetime(int(d[0]), int(d[1]), 1) + dt
     return d.isoformat()
 
 def cal2time(cal, scale='utc'):
@@ -2495,6 +2494,7 @@ def date_len(date):
     else:
         return len(date)
 
+@singledispatch
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
 
@@ -2510,25 +2510,34 @@ def date2time(date, scale='utc'):
     date : astropy Time
 
     """
-    from datetime import datetime
-    from astropy.time import Time
-
-    if date is None:
-        date = Time(datetime.utcnow(), scale=scale, format='datetime')
-    elif isinstance(date, Time):
-        pass
-    elif isinstance(date, float):
-        date = jd2time(date, scale=scale)
-    elif isinstance(date, str):
-        date = cal2time(date, scale=scale)
-    elif isinstance(date, datetime):
-        date = Time(date, scale=scale)
-    elif isinstance(date, (list, tuple, np.ndarray)):
-        date = [date2time(d, scale=scale) for d in date]
-        date = Time(date)
-    else:
+    if (date is not None):
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return date
+    return astropy.time.Time(datetime.datetime.utcnow(), scale=scale,
+                             format='datetime')
+
+@date2time.register(astropy.time.Time)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(int)
+@date2time.register(float)
+def _(date, scale='utc'):
+    return jd2time(date, scale=scale)
+
+@date2time.register(str)
+def _(date, scale='utc'):
+    return cal2time(date, scale=scale)
+
+@date2time.register(datetime.datetime)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(list)
+@date2time.register(tuple)
+@date2time.register(np.ndarray)
+def _(date, scale='utc'):
+    date = [date2time(d, scale=scale) for d in date]
+    return astropy.time.Time(date)
 
 def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
@@ -2836,7 +2845,7 @@ def autodoc(glbs, width=15, truncate=True):
         return
 
     newdoc = ""
-    for i in xrange(len(docstring)):
+    for i in range(len(docstring)):
         s = docstring[i]
         x = s.strip()
         if x in glbs:

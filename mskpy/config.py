@@ -5,7 +5,7 @@ config --- mskpy configuration.
 
 """
 
-import ConfigParser
+import configparser
 
 def _find_config():
     """Locate the config file."""
@@ -28,7 +28,7 @@ def _create_config(fn):
             os.mkdir(x)
 
     home = os.path.expanduser("~")
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     config.add_section('ephem.core')
     config.set('ephem.core', 'kernel_path',
                os.path.sep.join([home, 'data', 'kernels']))
@@ -43,5 +43,5 @@ def _create_config(fn):
         config.write(outf)
 
 config_file = _find_config()
-config = ConfigParser.RawConfigParser()
+config = configparser.RawConfigParser()
 config.read(config_file)

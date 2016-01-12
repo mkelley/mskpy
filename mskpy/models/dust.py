@@ -24,7 +24,6 @@ dust --- Models for dust
 
 """
 
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 from astropy.units import Quantity
@@ -254,7 +253,7 @@ class AfrhoThermal(AfrhoRadiation):
 
         """
 
-        from ..util import phase_integral, planck
+        from ..util import planck
 
         if rap.unit.is_equivalent(u.cm):
             rho = rap.to(self.Afrho.unit)
@@ -329,8 +328,6 @@ def phaseH(phase):
         The phase function.
 
     """
-
-    from util import phase_integral
 
     phasef = np.poly1d([0.000177, -0.01807, 1])
     return phasef(np.abs(phase))

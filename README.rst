@@ -4,9 +4,9 @@ mskpy
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: numpy, scipy, astropy v1.0.
+Requires: python3, numpy, scipy, astropy v1.0.
 
-Recommended: pyspice, matplotlib.
+Recommended: spiceypy, matplotlib.
 
 Optional: pyds9.
 
@@ -26,6 +26,20 @@ This file currently contains paths to your SPICE kernels, Cohen
 mid-IR standards, and IRTF spextool data files. (none are required to
 run mskpy).
 
+SPICE Kernels
+-------------
+
+To use the `ephem` and `observing` modules, `spiceypy` is required.
+At a minimum, three kernels are needed to be present in your kernel
+directory (as set by the module configuration):
+- naif.tls : a leap seconds kernel,
+- pck.tpc : a planetary constants kernel,
+- planets.bsp : a planetary ephemeris kernel, e.g., DE430.
+These kernels are available from the NAIF group at JPL:
+
+  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/
+
+See the `ephem` module documentation for more details.
 
 Known Issues
 ============

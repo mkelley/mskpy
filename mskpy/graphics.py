@@ -125,13 +125,13 @@ def circle(x, y, r, ax=None, segments=100, **kwargs):
         ax = plt.gca()
 
     if np.iterable(x) and np.iterable(y) and np.iterable(r):
-        for i in xrange(len(x)):
+        for i in range(len(x)):
             circle(x[i], y[i], r[i], ax=ax, **kwargs)
     elif np.iterable(x) and np.iterable(y):
-        for i in xrange(len(x)):
+        for i in range(len(x)):
             circle(x[i], y[i], r, ax=ax, **kwargs)
     elif np.iterable(r):
-        for i in xrange(len(r)):
+        for i in range(len(r)):
             circle(x, y, r[i], ax=ax, **kwargs)
     else:
         th = np.linspace(0, 2 * np.pi, segments)
@@ -181,7 +181,7 @@ def jdaxis2date(axis, fmt):
     labels : matplotlib tick labels
 
     """
-    from util import jd2time
+    from .util import jd2time
     jd = axis.get_ticklocs()
     return axis.set_ticklabels(
         [jd2time(t).datetime.strftime(fmt) for t in jd])

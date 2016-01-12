@@ -1,5 +1,4 @@
-#!/usr/bin/python
-from __future__ import print_function
+#!/usr/bin/python3
 import sys
 import argparse
 import datetime
@@ -42,7 +41,7 @@ args = parser.parse_args()
 if args.target == ['']:
     parser.print_help()
     print()
-    exit()
+    sys.exit()
 
 if args.end is None:
     start = cal2time(args.start)

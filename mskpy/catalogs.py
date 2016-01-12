@@ -81,7 +81,7 @@ def faintest(cat0, flux, n, full_output=False):
     else:
         return np.array(cat0)[:, i]
 
-def find_offset(cat0, cat1, matches, tol=3.0):
+def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
     """Find the offset between two catalogs, given matched stars.
 
     The matched star list may have false matches.
@@ -94,25 +94,35 @@ def find_offset(cat0, cat1, matches, tol=3.0):
       The best match for star `i` of `cat0` is `matches[i]` in `cat1`.
     tol : float
       The distance tolerance.
+    mc_thresh : int
+      Process with `meanclip` when the number of points remaining
+      after histogram clipping is `>=mc_thresh`.
 
     Returns
     -------
     dy, dx : float
 
     """
+
     from .util import midstep, meanclip
 
-    d = cat0[:, matches.keys()] - cat1[:, matches.values()]
+    d = cat0[:, list(matches.keys())] - cat1[:, list(matches.values())]
     bins = (np.arange(d[0].min() - 2 * tol, d[0].max() + 2 * tol, 2 * tol),
             np.arange(d[1].min() - 2 * tol, d[1].max() + 2 * tol, 2 * tol))
     h, edges = np.histogramdd(d.T, bins=bins)
+
     i = np.unravel_index(h.argmax(), h.shape)
     peak = midstep(edges[0])[i[0]], midstep(edges[1])[i[1]]
+
     i = np.prod(np.abs(d.T - peak) < tol, 1, dtype=bool)
-    j = meanclip(d[0, i], full_output=True)[2]
-    k = meanclip(d[1, i], full_output=True)[2]
-    i = i[list(set(np.r_[j, k]))]
-    return d[:, i].mean(1)
+    good = d[:, i]
+
+    if i.sum() >= mc_thresh:
+        j = meanclip(d[0, i], full_output=True)[2]
+        k = meanclip(d[1, i], full_output=True)[2]
+        good = good[:, list(set(np.r_[j, k]))]
+
+    return good.mean(1)
 
 def project_catalog(cat, wcs=None):
     """Project a catalog onto the image plane.
@@ -176,7 +186,8 @@ def nearest_match(cat0, cat1, tol=1.0, **kwargs):
       are not returned.
     dyx : ndarray
       Sigma-clipped mean offset.  Clipping is done in x and y
-      separately, and only the union of the two is returned.
+      separately, and only the union of the two is returned.  The
+      order for `dxy` is undefined.
 
     """
 
@@ -194,7 +205,7 @@ def nearest_match(cat0, cat1, tol=1.0, **kwargs):
         if d[k] < tol:
             matches[j] = k
 
-    dyx = cat0[:, matches.keys()] - cat1[:, matches.values()]
+    dyx = cat0[:, list(matches.keys())] - cat1[:, list(matches.values())]
     mcx = meanclip(dyx[1], full_output=True)
     mcy = meanclip(dyx[0], full_output=True)
     j = list(set(np.concatenate((mcx[2], mcy[2]))))
@@ -366,10 +377,10 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
     good = d <= tol
 
     if verbose:
-        print ("""[triangle_match] cat0 = {} triangles, cat1 = {} triangles
+        print(("""[triangle_match] cat0 = {} triangles, cat1 = {} triangles
 [triangle_match] Best match score = {:.2g}, worst match sorce = {:.2g}
 [triangle_match] {} triangle pairs at or below given tolerance ({})""").format(
-                v0.shape[1], v1.shape[1], min(d), max(d), sum(d <= tol), tol)
+                v0.shape[1], v1.shape[1], min(d), max(d), sum(d <= tol), tol))
 
     # reject based on perimeter
     perimeter_ratios = s1[0] / s0[0, i]
@@ -380,23 +391,23 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             good *= np.abs(perimeter_ratios - pscale) < sig * psig
         b = good.sum()
         if verbose:
-            print ("""[triangle_match] One time perimeter_ratio sigma clip about {}
-[triangle_match] {} triangles rejected.""").format(pscale, a - b)
+            print(("""[triangle_match] One time perimeter_ratio sigma clip about {}
+[triangle_match] {} triangles rejected.""").format(pscale, a - b))
 
 
     mc = meanclip(perimeter_ratios[good], lsig=psig, hsig=psig,
                   full_output=True)
             
     if mc[1] <= 0:
-        print "[triangle_match] Low measured perimeter ratio sigma ({}), skipping perimeter rejection".format(mc[1])
+        print("[triangle_match] Low measured perimeter ratio sigma ({}), skipping perimeter rejection".format(mc[1]))
     else:
         p_good = (np.abs(perimeter_ratios - mc[0]) / mc[1] <= psig) * good
         good *= p_good
 
         if verbose:
-            print ("""[triangle_match] Sigma-clipped perimeter ratios = {} +/- {}
+            print(("""[triangle_match] Sigma-clipped perimeter ratios = {} +/- {}
 [triangle_match] {} triangle pairs with perimeter ratios within {} sigma."""
-               ).format(mc[0], mc[1], p_good.sum(), psig)
+               ).format(mc[0], mc[1], p_good.sum(), psig))
 
     # reject based on orientation of vertices
     ccw = s0[3, i] == s1[3]
@@ -408,10 +419,10 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
         good *= ~ccw
 
     if verbose:
-        print ("""[triangle_match] Orientation matches = {}{}
+        print(("""[triangle_match] Orientation matches = {}{}
 [triangle_match] Anti-orientation matches = {}{}""").format(
     cw_count, " (rejected)" if cw_count <= ccw_count else "",
-    ccw_count, " (rejected)" if cw_count > ccw_count else "")
+    ccw_count, " (rejected)" if cw_count > ccw_count else ""))
 
     match_matrix = np.zeros((N0, N1), int)
     for k, j in enumerate(i):
@@ -437,14 +448,14 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             frac[i] = peak / float(total)
 
     if verbose:
-        print "[triangle_match] {} stars failed the msig test".format(rej)
+        print("[triangle_match] {} stars failed the msig test".format(rej))
 
     for k in matches.keys():
         if frac[k] < min_frac:
             del matches[k], frac[k]
 
     if verbose:
-        print "[triangle_match] {} stars matched".format(len(matches))
+        print("[triangle_match] {} stars matched".format(len(matches)))
 
     if full_output:
         return matches, frac, match_matrix, d

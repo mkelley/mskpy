@@ -38,8 +38,8 @@ __all__ = [
 from . import surfaces
 from . import dust
 
-from surfaces import *
-from dust import *
+from .surfaces import *
+from .dust import *
 
 # update module docstring
 from ..util import autodoc
