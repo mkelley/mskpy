@@ -12,6 +12,7 @@ irtf --- NASA IRTF instruments.
 
 """
 
+from functools import singledispatch
 import numpy as np
 import astropy.units as u
 
@@ -371,23 +372,237 @@ class SpeX(LongSlitSpectrometer):
         tar_e /= atc
         return tar_w, tar_f, tar_e
 
-    def generate_prism60_flat(files):
-        """Generate a flat for prism mode with 60" slit.
+class SpeXPrism60(SpeX):
+    """Reduce uSpeX 60" prism data."""
+
+    config = { # Based on Spextool v4.1
+        'hard_saturation': 40000,
+        'y range': np.array((625, 1225)),  # generous boundaries
+        'x range': np.array((1050, 1860)),
+        'step': 5,
+        'bottom': 624,  # based on _edges()
+        'top': 1223
+    }
+
+    def __init__(self, *args, **kwargs):
+        from .. import config as C
+        calpath = C.get('spex', 'spextool_path') + '/instruments/uspex/data/'
+        self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
+        self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
+        self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
+        self.bias /= fits.getheader(calpath + 'uSpeX_bias.fits')['divisor']
+        self.mask = ~self.bpm.astype(bool)
+        self.mask[:, :self.config['x range'][0]] = 1
+        self.mask[:, self.config['x range'][1]:] = 1
+        self.mask[:self.config['bottom']] = 1
+        self.mask[self.config['top']:] = 1
+        SpeX.__init__(self, *args, **kwargs)
+    
+    def _edges(self, im, order=2, plot=False):
+        """Find the edges of the spectrum using a flat.
 
         Parameters
         ----------
-        files : list
-          The filenames of data taken with the SpeX cal macro.
+        im : ndarray
+          A flat field.
+        order : int, optional
+          The order of the polynomial fit to determine the edge.
+        plot : bool, optional
+          If `True`, show the image and edges in a matplotlib window.
 
         Returns
         -------
+        b, t : ndarray
+          The polynomial coefficients of the bottom and top edges,
+          e.g., `bedge = np.polyval(b, x)`
+
+        Notes
+        -----
+        Based on mc_findorders in Spextool v4.1 (M. Cushing).
 
         """
 
-        
-        
-        
+        from .. import image
+        import scipy.ndimage as nd
 
+        y = image.yarray(im.shape)
+        x = image.xarray(im.shape)
+
+        binf = 4
+        rebin = lambda im: np.mean(
+            im.reshape((im.shape[0], binf, im.shape[1] / binf)),
+            1).astype(int)
+        
+        rim = rebin(im)
+        ry = rebin(y)
+        rx = rebin(x)
+
+        # find where signal falls to 0.75 x center        
+        i = int(self.config['y range'].mean())
+        fcen = rim[i]
+
+        bguess, tguess = np.zeros((2, rim.shape[1]), int)
+        for j in range(rim.shape[1]):
+            bguess[j] = np.min(ry[:i, j][rim[:i, j] > 0.75 * fcen[j]])
+            tguess[j] = np.max(ry[i:, j][rim[i:, j] > 0.75 * fcen[j]])
+
+        # scale back up to 2048
+        bguess = np.repeat(bguess, binf)
+        tguess = np.repeat(tguess, binf)
+        
+        # find actual edge by centroiding (center of mass) on Sobel
+        # filtered image
+        def center(yg, y, sim):
+            s = slice(yg - 5, yg + 6)
+            yy = y[s]
+            f = sim[s]
+            return nd.center_of_mass(f) + yy[0]
+
+        sim = np.abs(nd.sobel(im * 1000 / im.max(), 0))
+        bcen, tcen = np.zeros((2, im.shape[1]))
+        for i in range(*self.config['x range']):
+            bcen[i] = center(bguess[i], y[:, i], sim[:, i])
+            tcen[i] = center(tguess[i], y[:, i], sim[:, i])
+
+        def fit(x, centers):
+            A = np.vstack((x**2, x, np.ones(len(x)))).T
+            return np.linalg.lstsq(A, centers)[0]
+
+        xx = np.arange(im.shape[1])
+        s = slice(*self.config['x range'])
+        b = fit(xx[s], bcen[s])
+        t = fit(xx[s], tcen[s])
+
+        if plot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure(figsize=(8, 8))
+            ax = plt.gca()
+            ax.imshow(im, cmap=plt.cm.gray)
+            ax.plot(xx[::binf], bcen[::binf], 'gx')
+            ax.plot(xx[::binf], tcen[::binf], 'gx')
+            ax.plot(xx, np.polyval(b, xx), 'r-')
+            ax.plot(xx, np.polyval(t, xx), 'r-')
+            plt.draw()
+
+        return b, t
+
+    def _ampcor(self, im):
+        """Correct an image for amplifier noise.
+
+        The median of the reference pixels is subtracted from each
+        amplifier column.
+
+        Notes
+        -----
+        Based on mc_findorders in Spextool v4.1 (M. Cushing).
+
+        """
+
+        amps = np.rollaxis(im[2044:].reshape((4, 64, 32)), 1).reshape(64, 128)
+        m = np.median(amps, 1)
+        return im - np.tile(np.repeat(m, 32), 2048).reshape(im.shape)
+
+    def read(self, files, pair=False, ampcor=True, lincor=True):
+        """Read uSpeX files.
+
+        Parameters
+        ----------
+        files : string or list
+          A file name or list thereof.
+        pair : bool, optional
+          Assume the observations are taken in ABBA mode and return
+          A-B for each pair.
+        ampcor : bool optional
+          Set to `True` to apply the amplifcation noise correction.
+        lincor : bool, optional
+          Set to `True` to apply the linearity correction.
+
+        Returns
+        -------
+        images : MaskedArray
+          The resultant image(s).
+        
+        """
+
+        stack = np.dstack([fits.getdata(_f) for _f in f])
+        hlist = [fits.getheader(f) for f in files]
+        h = h[0]
+        mask = self.mask + stack > self.config['hard saturation']
+
+        if pair:
+            stack = stack[::4] - stack[1::4]  # AB
+            if len(files) > 2:
+                stack = np.dstack((stack, stack[3::4] - stack[2::4]))
+                stack = stack.reshape((len(files) / 2, 2048, 2048))
+
+            stop  # need 
+
+        if ampcor:
+            stop
+
+        if lincor:
+            stop
+    
+    def flat(self, files):
+        """Generate or read in a flat.
+
+        Parameters
+        ----------
+        files : list or string
+          A list of file names of data taken with the SpeX cal macro,
+          or the name of an already prepared flat.
+
+        Notes
+        -----
+        Based on Spextool v4.1 (M. Cushing).
+
+        """
+
+        from numpy.ma import MaskedArray
+        
+        if isinstance(files, str):
+            self.flat_im = fits.getdata(files)
+            self.flat_var = fits.getdata(files, ext=1)
+        else:
+            stack, h = self.read(files)
+            scale = np.array([np.median(im) for im in stack])
+            stack *= scale / np.mean(scale)
+
+            flat = np.median(stack, 2)
+            var = np.var(stack, 2) / len(stack)
+
+            c = np.zeros(flat.shape)
+            x = np.arange(flat.shape[1])
+            for i in range(flat.shape[1]):
+                if all(flat[i].mask):
+                    continue
+                j = ~flat[i].mask
+                y = nd.gaussian_filter(flat[i][j], 3.0)
+                c[i] = splev(x, splrep(x[j], y))
+
+            h.add_history('Flat generated from: ' + ' '.join(files))
+            h.add_history('Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
+                
+            self.flat_im = (flat / c).data
+            self.flat_var = (var / c).data
+            self.flat_h = h
+
+    def wavecal(self, f):
+        """Generate or read in a wavelength calibration.
+
+        Parameters
+        ----------
+        f : list or string
+          A list of file names of data taken with the SpeX cal macro,
+          or the name of an already prepared wavecal.
+
+        Notes
+        -----
+        Based on Spextool v4.1 (M. Cushing).
+
+        """
+        
+            
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
