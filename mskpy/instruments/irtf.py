@@ -13,7 +13,6 @@ irtf --- NASA IRTF instruments.
 
 """
 
-from functools import singledispatch
 import numpy as np
 import astropy.units as u
 
@@ -396,7 +395,7 @@ class SpeXPrism60(SpeX):
         self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
         self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
-        self.bias /= fits.getheader(calpath + 'uSpeX_bias.fits')['divisor']
+        self.bias /= fits.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR']
         self.mask = ~self.bpm.astype(bool)
         self.mask[:, :self.config['x range'][0]] = 1
         self.mask[:, self.config['x range'][1]:] = 1
@@ -525,6 +524,19 @@ class SpeXPrism60(SpeX):
             y = y * im + self.lincoeff[-(i + 1)]
         return y
 
+    def getheader(self, filename, ext=0):
+        """Get a header from a SpeX FITS file.
+
+        The header will be silently fixed.
+
+        """
+        from astropy.io import fits
+        inf = fits.open(filename)
+        inf[0].verify('silentfix')
+        h = inf[0].header.copy()
+        inf.close()
+        return h
+    
     def read(self, files, pair=False, ampcor=True, lincor=True, flatcor=True,
              abba_test=True):
         """Read uSpeX files.
@@ -606,6 +618,7 @@ class SpeXPrism60(SpeX):
 
         print('Reading {}'.format(files))
         data = fits.open(files)
+        h = data[0].verify('silentfix')
         h = data[0].header.copy()
         read_var = (2 * self.config['readnoise']**2
                     / h['NDR']
@@ -620,6 +633,7 @@ class SpeXPrism60(SpeX):
         
         im_p = data[1].data / h['DIVISOR']
         im_s = data[2].data / h['DIVISOR']
+        data.close()
 
         mask_p = im_p < (self.bias - self.config['lincor max'])
         mask_s = im_s < (self.bias - self.config['lincor max'])
@@ -658,6 +672,85 @@ class SpeXPrism60(SpeX):
         im = im / h['ITIME']
         return im, var, h
 
+    def process_cal(self, files, path=None):
+        """Generate flat field and wavelength calibration files.
+
+        Parameters
+        ----------
+        files : list
+          A list of images created by SpeX calibration macros.  Only
+          60" prism data will be considered.
+        path : string
+          Save files to this directory.  If `None`, they will be saved
+          to "cal-YYYYMMDD".
+
+        """
+        import re
+        import os
+        import os.path
+        from astropy.io import fits
+
+        # flats
+        flats = sorted(filter(lambda f: os.path.split(f)[1].startswith('flat'),
+                              files))
+        fset = []
+        n_sets = 0
+        first_n = -1
+        last_n = -1
+        for i in range(len(flats)):
+            h = self.getheader(flats[i])
+            test = (h['OBJECT'] != 'Inc lamp'
+                    or h['GRAT'] != 'Prism'
+                    or 'x60' not in h['SLIT'])
+            if test:
+                fset = []
+                continue
+
+            m = re.findall('flat-([0-9]+).a.fits$', flats[i])
+            assert len(m) == 1, 'Cannot parse file name: {}'.format(flats[i])
+            n = int(m[0])
+
+            fset.append(flats[i])
+            print('Found {}  ({})'.format(flats[i], len(fset)))
+
+            if len(fset) == 1:
+                first_n = n
+            elif len(fset) > 2:
+                step = n - last_n
+                last_n = n
+                if step != 1:
+                    print('  Bad image sequence.')
+                    fset = []
+                    continue
+            else:
+                last_n = n
+            
+            if len(fset) == 5:
+                if path is None:
+                    _path = 'cal-' + h['DATE_OBS'].replace('-', '')
+                else:
+                    _path = path
+
+                try:
+                    os.mkdir(_path)
+                except FileExistsError:
+                    pass
+
+                fn = '{}/flat{:05d}-{:05d}.fits'.format(_path, first_n, last_n)
+                self.flat(fset)
+                outf = fits.HDUList()
+                outf.append(fits.PrimaryHDU(self.flat_im, self.flat_h))
+                outf.append(fits.ImageHDU(self.flat_var, name='var'))
+                outf.writeto(fn, output_verify='silentfix')
+
+                fset = []
+
+        # done with flats
+
+        # arcs
+        arcs = sorted(filter(lambda f: os.path.split(f)[1].startswith('arc'),
+                             files))
+    
     def flat(self, files):
         """Generate or read in a flat.
 
@@ -666,13 +759,17 @@ class SpeXPrism60(SpeX):
         files : list or string
           A list of file names of data taken with the SpeX cal macro,
           or the name of an already prepared flat.
+        save : bool, optional
+          If `True`, save the new flat and variance data as a FITS
+          file.  The name will be generated from the file list
+          assuming they originated from a SpeX calibration macro.
 
         """
 
         from numpy.ma import MaskedArray
         import scipy.ndimage as nd
         from scipy.interpolate import splrep, splev
-        
+
         if isinstance(files, str):
             self.flat_im = fits.getdata(files)
             self.flat_var = fits.getdata(files, ext=1)
@@ -717,7 +814,7 @@ class SpeXPrism60(SpeX):
         Based on Spextool v4.1 (M. Cushing).
 
         """
-        
+        raise NotImplemented
             
 # update module docstring
 from ..util import autodoc
