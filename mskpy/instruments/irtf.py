@@ -9,6 +9,7 @@ irtf --- NASA IRTF instruments.
    BASS
    MIRSI
    SpeX
+   SpeXPrism60
 
 """
 
@@ -27,7 +28,8 @@ from .instrument import CircularApertureSpectrometer, LongSlitSpectrometer
 __all__ = [
     'BASS',
     'MIRSI',
-    'SpeX'
+    'SpeX',
+    'SpeXPrism60',
 ]
 
 class BASS(CircularApertureSpectrometer):
@@ -376,16 +378,20 @@ class SpeXPrism60(SpeX):
     """Reduce uSpeX 60" prism data."""
 
     config = { # Based on Spextool v4.1
-        'hard_saturation': 40000,
+        'lincor max': 35000,
         'y range': np.array((625, 1225)),  # generous boundaries
         'x range': np.array((1050, 1860)),
         'step': 5,
         'bottom': 624,  # based on _edges()
-        'top': 1223
+        'top': 1223,
+        'readnoise': 12,  # per single read
+        'gain': 1.5
     }
 
     def __init__(self, *args, **kwargs):
-        from .. import config as C
+        from astropy.io import fits
+        from ..config import config as C
+        
         calpath = C.get('spex', 'spextool_path') + '/instruments/uspex/data/'
         self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
@@ -396,6 +402,10 @@ class SpeXPrism60(SpeX):
         self.mask[:, self.config['x range'][1]:] = 1
         self.mask[:self.config['bottom']] = 1
         self.mask[self.config['top']:] = 1
+        self.flat_im = None
+        self.flat_var = None
+        self.flat_h = None
+        
         SpeX.__init__(self, *args, **kwargs)
     
     def _edges(self, im, order=2, plot=False):
@@ -502,7 +512,21 @@ class SpeXPrism60(SpeX):
         m = np.median(amps, 1)
         return im - np.tile(np.repeat(m, 32), 2048).reshape(im.shape)
 
-    def read(self, files, pair=False, ampcor=True, lincor=True):
+    def _lincor(self, im):
+        """Linearity correction for an image.
+
+        Notes
+        -----
+        Following mc_imgpoly from Spextool v4.1 (M. Cushing).
+
+        """
+        y = 0
+        for i in range(len(self.lincoeff)):
+            y = y * im + self.lincoeff[-(i + 1)]
+        return y
+
+    def read(self, files, pair=False, ampcor=True, lincor=True, flatcor=True,
+             abba_test=True):
         """Read uSpeX files.
 
         Parameters
@@ -516,33 +540,124 @@ class SpeXPrism60(SpeX):
           Set to `True` to apply the amplifcation noise correction.
         lincor : bool, optional
           Set to `True` to apply the linearity correction.
+        flatcor : bool, optional
+          Set to `True` to apply flat field correction.
+        abba_test : bool, optional
+          Set to `True` to test for ABBA ordering when `pair` is
+          `True`.  If `abba_test` is `False`, then the file order is
+          not checked.
 
         Returns
         -------
-        images : MaskedArray
-          The resultant image(s).
-        
+        stack : MaskedArray
+          The resultant image(s).  [counts / s]
+        var : MaskedArray
+          The variance.  [total DN]
+        headers : list or astropy FITS header
+          If `pair` is `True`, the headers will be a list of lists,
+          where each element is a list containing the A and B headers.
+
         """
 
-        stack = np.dstack([fits.getdata(_f) for _f in f])
-        hlist = [fits.getheader(f) for f in files]
-        h = h[0]
-        mask = self.mask + stack > self.config['hard saturation']
+        from numpy.ma import MaskedArray
+        from astropy.io import fits
 
-        if pair:
-            stack = stack[::4] - stack[1::4]  # AB
-            if len(files) > 2:
-                stack = np.dstack((stack, stack[3::4] - stack[2::4]))
-                stack = stack.reshape((len(files) / 2, 2048, 2048))
+        if isinstance(files, (list, tuple)):
+            print('Loading {} files.'.format(len(files)))
+            stack = MaskedArray(np.empty((len(files), 2048, 2048)))
+            var = np.empty((len(files), 2048, 2048))
+            headers = []
+            for i in range(len(files)):
+                kwargs = dict(pair=False, ampcor=ampcor, lincor=lincor,
+                              flatcor=flatcor)
+                stack[i], var[i], h = self.read(files[i], **kwargs)
+                headers.append(h)
 
-            stop  # need 
+            if pair:
+                print('\nABBA pairing and subtracting.')
+                if abba_test:
+                    # Require ABBA ordering
+                    msg = 'Files not in an ABBA sequence'
+                    assert all([h['BEAM'] == 'A' for h in headers[::4]]), msg
+                    assert all([h['BEAM'] == 'B' for h in headers[1::4]]), msg
+                    assert all([h['BEAM'] == 'B' for h in headers[2::4]]), msg
+                    assert all([h['BEAM'] == 'A' for h in headers[3::4]]), msg
+                
+                # fancy slicing, stacking, and reshaping to get:
+                #   [0 - 1, 3 - 2, 4 - 5, 7 - 6, ...]
+                stack_A = stack[::4] - stack[1::4]  # A - B
+                var_A = var[::4] + var[1::4]
+                headers_A = [[a, b] for a, b in zip(headers[::4], headers[1::4])]
+                if len(files) > 2:
+                    stack_B = stack[3::4] - stack[2::4] # -(B - A)
+                    stack = np.ma.hstack((stack_A, stack_B))
+                    stack = stack.reshape((len(files) / 2, 2048, 2048))
+
+                    var_B = var[2::4] + var[3::4]
+                    var = np.hstack((var_A, var_B))
+                    var = var.reshape((len(files) / 2, 2048, 2048))
+
+                    headers_B = [[a, b] for a, b in zip(headers[3::4], headers[2::4])]
+                    headers = []
+                    for a, b in zip(headers_A, headers_B):
+                        headers.extend([a, b])
+
+            return stack, var, headers
+
+        print('Reading {}'.format(files))
+        data = fits.open(files)
+        h = data[0].header.copy()
+        read_var = (2 * self.config['readnoise']**2
+                    / h['NDR']
+                    / h['CO_ADDS']
+                    / h['ITIME']**2
+                    / self.config['gain']**2)
+
+        # TABLE_SE is read time, not sure what crtn is.
+        crtn = (1 - h['TABLE_SE'] * (h['NDR'] - 1)
+                / 3.0 / h['ITIME'] / h['NDR'])
+        t_exp = h['ITIME'] * h['CO_ADDS']
+        
+        im_p = data[1].data / h['DIVISOR']
+        im_s = data[2].data / h['DIVISOR']
+
+        mask_p = im_p < (self.bias - self.config['lincor max'])
+        mask_s = im_s < (self.bias - self.config['lincor max'])
+        mask = mask_p + mask_s
+        h.add_history('Masked saturated pixels')
+
+        im = MaskedArray(im_p - im_s, mask)
 
         if ampcor:
-            stop
+            im = self._ampcor(im)
+            h.add_history('Corrected for amplifier noise.')
 
         if lincor:
-            stop
-    
+            cor = self._lincor(im)
+            cor[mask] = 1.0
+            cor[:4] = 1.0
+            cor[:, :4] = 1.0
+            cor[2044:] = 1.0
+            cor[:, 2044:] = 1.0
+            im /= cor
+            h.add_history('Applied linearity correction.')
+
+        if flatcor:
+            assert self.flat_im is not None, "Flat correction requested but flat not loaded."
+            im /= self.flat_im
+            h.add_history('Flat corrected.')
+            
+        # total DN
+        var = (np.abs(im * h['DIVISOR'])
+               * crtn
+               / h['CO_ADDS']**2
+               / h['ITIME']**2
+               / self.config['gain']
+               + read_var) # / h['DIVISOR']**2 / h['ITIME']**2
+        # counts / s
+        im = im / h['ITIME']
+        return im, var, h
+
     def flat(self, files):
         """Generate or read in a flat.
 
@@ -552,29 +667,30 @@ class SpeXPrism60(SpeX):
           A list of file names of data taken with the SpeX cal macro,
           or the name of an already prepared flat.
 
-        Notes
-        -----
-        Based on Spextool v4.1 (M. Cushing).
-
         """
 
         from numpy.ma import MaskedArray
+        import scipy.ndimage as nd
+        from scipy.interpolate import splrep, splev
         
         if isinstance(files, str):
             self.flat_im = fits.getdata(files)
             self.flat_var = fits.getdata(files, ext=1)
         else:
-            stack, h = self.read(files)
+            stack, headers = self.read(files, flatcor=False)[::2]
+            h = headers[0]
             scale = np.array([np.median(im) for im in stack])
-            stack *= scale / np.mean(scale)
+            scale /= np.mean(scale)
+            for i in range(len(stack)):
+                stack[i] /= scale[i]
 
-            flat = np.median(stack, 2)
-            var = np.var(stack, 2) / len(stack)
+            flat = np.median(stack, 0)
+            var = np.var(stack, 0) / len(stack)
 
             c = np.zeros(flat.shape)
             x = np.arange(flat.shape[1])
             for i in range(flat.shape[1]):
-                if all(flat[i].mask):
+                if np.all(flat[i].mask):
                     continue
                 j = ~flat[i].mask
                 y = nd.gaussian_filter(flat[i][j], 3.0)
