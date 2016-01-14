@@ -685,7 +685,7 @@ class SpeXPrism60(SpeX):
         im = im / h['ITIME']
         return im, var, h
 
-    def process_cal(self, files, path=None):
+    def process_cal(self, files, path=None, overwrite=True):
         """Generate flat field and wavelength calibration files.
 
         Parameters
@@ -693,11 +693,14 @@ class SpeXPrism60(SpeX):
         files : list
           A list of images created by SpeX calibration macros.  Only
           60" prism data will be considered.
-        path : string
+        path : string, optional
           Save files to this directory.  If `None`, they will be saved
           to "cal-YYYYMMDD".
+        overwrite : bool, optional
+          Set to `True` to overwrite previous calibration files.
 
         """
+        
         import re
         import os
         import os.path
@@ -754,7 +757,7 @@ class SpeXPrism60(SpeX):
                 outf = fits.HDUList()
                 outf.append(fits.PrimaryHDU(self.flat, self.flat_h))
                 outf.append(fits.ImageHDU(self.flat_var, name='var'))
-                outf.writeto(fn, output_verify='silentfix')
+                outf.writeto(fn, output_verify='silentfix', clobber=overwrite)
 
                 fset = []
 
@@ -789,7 +792,7 @@ class SpeXPrism60(SpeX):
             fn = '{}/arc{:05d}.fits'.format(_path, n)
             self.load_wavecal(arcs[i])
             fits.writeto(fn, self.wavecal, self.wavecal_h,
-                         output_verify='silentfix')
+                         output_verify='silentfix', clobber=overwrite)
         # done with arcs
     
     def load_flat(self, files):
