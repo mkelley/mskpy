@@ -378,8 +378,8 @@ class SpeXPrism60(SpeX):
 
     config = { # Based on Spextool v4.1
         'lincor max': 35000,
-        'y range': np.array((625, 1225)),  # generous boundaries
-        'x range': np.array((1050, 1860)),
+        'y range': [625, 1225],  # generous boundaries
+        'x range': [1050, 1860],
         'step': 5,
         'bottom': 624,  # based on _edges()
         'top': 1223,
@@ -388,14 +388,17 @@ class SpeXPrism60(SpeX):
     }
 
     def __init__(self, *args, **kwargs):
-        from astropy.io import fits
+        from astropy.io import ascii, fits
         from ..config import config as C
-        
+
         calpath = C.get('spex', 'spextool_path') + '/instruments/uspex/data/'
         self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
         self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
         self.bias /= fits.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR']
+        self.linecal = fits.getdata(calpath + 'Prism_LineCal.fits')
+        self.linecal_header = fits.getheader(calpath + 'Prism_LineCal.fits')
+        self.lines = ascii.read(calpath + 'lines.dat', names=('wave', 'type'))
         self.mask = ~self.bpm.astype(bool)
         self.mask[:, :self.config['x range'][0]] = 1
         self.mask[:, self.config['x range'][1]:] = 1
@@ -447,7 +450,7 @@ class SpeXPrism60(SpeX):
         rx = rebin(x)
 
         # find where signal falls to 0.75 x center        
-        i = int(self.config['y range'].mean())
+        i = int(np.mean(self.config['y range']))
         fcen = rim[i]
 
         bguess, tguess = np.zeros((2, rim.shape[1]), int)
@@ -638,7 +641,7 @@ class SpeXPrism60(SpeX):
         mask_p = im_p < (self.bias - self.config['lincor max'])
         mask_s = im_s < (self.bias - self.config['lincor max'])
         mask = mask_p + mask_s
-        h.add_history('Masked saturated pixels')
+        h.add_history('Masked saturated pixels.')
 
         im = MaskedArray(im_p - im_s, mask)
 
@@ -773,49 +776,85 @@ class SpeXPrism60(SpeX):
         if isinstance(files, str):
             self.flat_im = fits.getdata(files)
             self.flat_var = fits.getdata(files, ext=1)
-        else:
-            stack, headers = self.read(files, flatcor=False)[::2]
-            h = headers[0]
-            scale = np.array([np.median(im) for im in stack])
-            scale /= np.mean(scale)
-            for i in range(len(stack)):
-                stack[i] /= scale[i]
+            return
 
-            flat = np.median(stack, 0)
-            var = np.var(stack, 0) / len(stack)
+        stack, headers = self.read(files, flatcor=False)[::2]
+        h = headers[0]
+        scale = np.array([np.median(im) for im in stack])
+        scale /= np.mean(scale)
+        for i in range(len(stack)):
+            stack[i] /= scale[i]
 
-            c = np.zeros(flat.shape)
-            x = np.arange(flat.shape[1])
-            for i in range(flat.shape[1]):
-                if np.all(flat[i].mask):
-                    continue
-                j = ~flat[i].mask
-                y = nd.gaussian_filter(flat[i][j], 3.0)
-                c[i] = splev(x, splrep(x[j], y))
+        flat = np.median(stack, 0)
+        var = np.var(stack, 0) / len(stack)
 
-            h.add_history('Flat generated from: ' + ' '.join(files))
-            h.add_history('Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
-                
-            self.flat_im = (flat / c).data
-            self.flat_var = (var / c).data
-            self.flat_h = h
+        c = np.zeros(flat.shape)
+        x = np.arange(flat.shape[1])
+        for i in range(flat.shape[1]):
+            if np.all(flat[i].mask):
+                continue
+            j = ~flat[i].mask
+            y = nd.median_filter(flat[i][j], 7)
+            c[i] = splev(x, splrep(x[j], y))
 
-    def wavecal(self, f):
-        """Generate or read in a wavelength calibration.
+        h.add_history('Flat generated from: ' + ' '.join(files))
+        h.add_history('Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
+
+        self.flat_im = (flat / c).data
+        self.flat_var = (var / c).data
+        self.flat_h = h
+
+    def load_wavecal(self, fn):
+        """Generate a wavelength calibration.
 
         Parameters
         ----------
-        f : list or string
-          A list of file names of data taken with the SpeX cal macro,
-          or the name of an already prepared wavecal.
+        fn : string
+          The name of an arc file taken with the SpeX cal macro.
 
         Notes
         -----
         Based on Spextool v4.1 (M. Cushing).
 
         """
-        raise NotImplemented
-            
+
+        import scipy.ndimage as nd
+        from astropy.io import fits
+        from .. import util, image
+        
+        arc, h = self.read(fn, flatcor=False)[::2]
+        slit = h['SLIT']
+        slitw = float(slit[slit.find('x') + 1:])
+
+        flux_anchor = self.linecal[1]
+        wave_anchor = self.linecal[0]
+        offset = np.arange(len(wave_anchor)) - int(len(wave_anchor) / 2.0)
+        self.wavecal = image.xarray(arc.shape, dtype=float)
+        self.wavecal[self.mask] = np.nan
+
+        disp_deg = self.linecal_header['DISPDEG']
+        w2p = []
+        p2w = []
+        for i in range(disp_deg + 1):
+            w2p.append(self.linecal_header['W2P01_A{}'.format(i)])
+            p2w.append(self.linecal_header['P2W_A0{}'.format(i)])
+
+        xr = slice(*self.config['x range'])
+        for i in range(self.config['bottom'], self.config['top']):
+            spec = arc[i, xr]
+
+            xcor = nd.correlate(spec, flux_anchor, mode='constant')
+            j = np.argmax(xcor)
+            s = slice(j - 10, j + 10)
+            guess = (np.max(xcor), j, 10, 0.0)
+            xcor_offset = util.gaussfit(offset[s], xcor[s], None, guess)[1]
+
+            # update wave cal with solution
+            x = self.wavecal[i, xr]
+            self.wavecal[i, xr] = np.polyval(p2w[::-1], x - xcor_offset)
+
+
+        
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
