@@ -379,7 +379,7 @@ class SpeXPrism60(SpeX):
     config = { # Based on Spextool v4.1
         'lincor max': 35000,
         'y range': [625, 1225],  # generous boundaries
-        'x range': [1050, 1860],
+        'x range': [1040, 1901],
         'step': 5,
         'bottom': 624,  # based on _edges()
         'top': 1223,
@@ -404,7 +404,7 @@ class SpeXPrism60(SpeX):
         self.mask[:, self.config['x range'][1]:] = 1
         self.mask[:self.config['bottom']] = 1
         self.mask[self.config['top']:] = 1
-        self.flat_im = None
+        self.flat = None
         self.flat_var = None
         self.flat_h = None
         
@@ -660,8 +660,8 @@ class SpeXPrism60(SpeX):
             h.add_history('Applied linearity correction.')
 
         if flatcor:
-            assert self.flat_im is not None, "Flat correction requested but flat not loaded."
-            im /= self.flat_im
+            assert self.flat is not None, "Flat correction requested but flat not loaded."
+            im /= self.flat
             h.add_history('Flat corrected.')
             
         # total DN
@@ -740,9 +740,9 @@ class SpeXPrism60(SpeX):
                     pass
 
                 fn = '{}/flat{:05d}-{:05d}.fits'.format(_path, first_n, last_n)
-                self.flat(fset)
+                self.load_flat(fset)
                 outf = fits.HDUList()
-                outf.append(fits.PrimaryHDU(self.flat_im, self.flat_h))
+                outf.append(fits.PrimaryHDU(self.flat, self.flat_h))
                 outf.append(fits.ImageHDU(self.flat_var, name='var'))
                 outf.writeto(fn, output_verify='silentfix')
 
@@ -754,7 +754,7 @@ class SpeXPrism60(SpeX):
         arcs = sorted(filter(lambda f: os.path.split(f)[1].startswith('arc'),
                              files))
     
-    def flat(self, files):
+    def load_flat(self, files):
         """Generate or read in a flat.
 
         Parameters
@@ -774,7 +774,7 @@ class SpeXPrism60(SpeX):
         from scipy.interpolate import splrep, splev
 
         if isinstance(files, str):
-            self.flat_im = fits.getdata(files)
+            self.flat, self.flat_h = fits.getdata(files, header=True)
             self.flat_var = fits.getdata(files, ext=1)
             return
 
@@ -800,17 +800,19 @@ class SpeXPrism60(SpeX):
         h.add_history('Flat generated from: ' + ' '.join(files))
         h.add_history('Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
 
-        self.flat_im = (flat / c).data
+        self.flat = (flat / c).data
         self.flat_var = (var / c).data
         self.flat_h = h
 
-    def load_wavecal(self, fn):
+    def load_wavecal(self, fn, plot=False):
         """Generate a wavelength calibration.
 
         Parameters
         ----------
         fn : string
           The name of an arc file taken with the SpeX cal macro.
+        plot : bool, optional
+          Set to `True` to plot representative wavelength solutions.
 
         Notes
         -----
@@ -830,7 +832,6 @@ class SpeXPrism60(SpeX):
         wave_anchor = self.linecal[0]
         offset = np.arange(len(wave_anchor)) - int(len(wave_anchor) / 2.0)
         self.wavecal = image.xarray(arc.shape, dtype=float)
-        self.wavecal[self.mask] = np.nan
 
         disp_deg = self.linecal_header['DISPDEG']
         w2p = []
@@ -845,16 +846,24 @@ class SpeXPrism60(SpeX):
 
             xcor = nd.correlate(spec, flux_anchor, mode='constant')
             j = np.argmax(xcor)
-            s = slice(j - 10, j + 10)
-            guess = (np.max(xcor), j, 10, 0.0)
-            xcor_offset = util.gaussfit(offset[s], xcor[s], None, guess)[1]
+            s = slice(j - 5, j + 6)
+            guess = (np.max(xcor), offset[j], 2.5, 0.0)
+            xcor_offset = util.gaussfit(offset[s], xcor[s], None, guess)[0][1]
 
             # update wave cal with solution
             x = self.wavecal[i, xr]
             self.wavecal[i, xr] = np.polyval(p2w[::-1], x - xcor_offset)
 
+        self.wavecal[self.mask] = np.nan
 
-        
+        if plot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            plt.clf()
+            for y in (700, 920, 1150):
+                plt.plot(self.wavecal[y, xr], arc[y, xr])
+            plt.draw()
+            
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
