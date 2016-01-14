@@ -678,7 +678,7 @@ def getrot(h):
 
     return cdelt * 3600.0, np.degrees(rot1)
 
-def gaussfit(x, y, err, guess, covar=False):
+def gaussfit(x, y, err, guess, covar=False, **kwargs):
     """A quick Gaussian fitting function, optionally including a line.
 
     Parameters
@@ -696,6 +696,8 @@ def gaussfit(x, y, err, guess, covar=False):
     covar : bool, optional
       Set to `True` to return the covariance matrix rather than the
       error.
+    **kwargs
+      Keyword arguments to pass to `scipy.optimize.leastsq`.
 
     Returns
     -------
@@ -732,7 +734,9 @@ def gaussfit(x, y, err, guess, covar=False):
 
     assert len(guess) in (3, 4, 5), "guess must have length of 3, 4, or 5."
 
-    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4)
+    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4,
+                xtol=1e-4, ftol=1e-4)
+    opts.update(**kwargs)
     if len(guess) == 3:
         output = leastsq(gauss_chi, guess, **opts)
     elif len(guess) == 4:
