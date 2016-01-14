@@ -279,6 +279,20 @@ class SpeX(LongSlitSpectrometer):
         else:
             raise KeyError("Invalid mode: {:}".format(self._mode))
 
+    def getheader(self, filename, ext=0):
+        """Get a header from a SpeX FITS file.
+
+        SpeX headers tend to be missing quotes around strings.  The
+        header will be silently fixed.
+
+        """
+        from astropy.io import fits
+        inf = fits.open(filename)
+        inf[0].verify('silentfix')
+        h = inf[0].header.copy()
+        inf.close()
+        return h
+    
     def sed(self, *args, **kwargs):
         """Spectral energy distribution of a target.
 
@@ -393,20 +407,29 @@ class SpeXPrism60(SpeX):
 
         calpath = C.get('spex', 'spextool_path') + '/instruments/uspex/data/'
         self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
+        
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
+        
         self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
-        self.bias /= fits.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR']
+        self.bias /= self.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR']
+        
         self.linecal = fits.getdata(calpath + 'Prism_LineCal.fits')
-        self.linecal_header = fits.getheader(calpath + 'Prism_LineCal.fits')
+        # Prism_LineCal header is bad and will throw a warning
+        self.linecal_header = self.getheader(calpath + 'Prism_LineCal.fits')
+        
         self.lines = ascii.read(calpath + 'lines.dat', names=('wave', 'type'))
+        
         self.mask = ~self.bpm.astype(bool)
         self.mask[:, :self.config['x range'][0]] = 1
         self.mask[:, self.config['x range'][1]:] = 1
         self.mask[:self.config['bottom']] = 1
         self.mask[self.config['top']:] = 1
+        
         self.flat = None
         self.flat_var = None
         self.flat_h = None
+        self.wavecal = None
+        self.wavecal_h = None
         
         SpeX.__init__(self, *args, **kwargs)
     
@@ -527,19 +550,6 @@ class SpeXPrism60(SpeX):
             y = y * im + self.lincoeff[-(i + 1)]
         return y
 
-    def getheader(self, filename, ext=0):
-        """Get a header from a SpeX FITS file.
-
-        The header will be silently fixed.
-
-        """
-        from astropy.io import fits
-        inf = fits.open(filename)
-        inf[0].verify('silentfix')
-        h = inf[0].header.copy()
-        inf.close()
-        return h
-    
     def read(self, files, pair=False, ampcor=True, lincor=True, flatcor=True,
              abba_test=True):
         """Read uSpeX files.
@@ -621,7 +631,7 @@ class SpeXPrism60(SpeX):
 
         print('Reading {}'.format(files))
         data = fits.open(files)
-        h = data[0].verify('silentfix')
+        data[0].verify('silentfix')
         h = data[0].header.copy()
         read_var = (2 * self.config['readnoise']**2
                     / h['NDR']
@@ -753,6 +763,34 @@ class SpeXPrism60(SpeX):
         # arcs
         arcs = sorted(filter(lambda f: os.path.split(f)[1].startswith('arc'),
                              files))
+        for i in range(len(arcs)):
+            h = self.getheader(arcs[i])
+            test = (h['OBJECT'] != 'Argon lamp'
+                    or h['GRAT'] != 'Prism'
+                    or 'x60' not in h['SLIT'])
+            if test:
+                continue
+
+            m = re.findall('arc-([0-9]+).a.fits$', arcs[i])
+            assert len(m) == 1, 'Cannot parse file name: {}'.format(arcs[i])
+            n = int(m[0])
+
+            # only one arc lamp observation per Prism 60" cal
+            if path is None:
+                _path = 'cal-' + h['DATE_OBS'].replace('-', '')
+            else:
+                _path = path
+
+            try:
+                os.mkdir(_path)
+            except FileExistsError:
+                pass
+
+            fn = '{}/arc{:05d}.fits'.format(_path, n)
+            self.load_wavecal(arcs[i])
+            fits.writeto(fn, self.wavecal, self.wavecal_h,
+                         output_verify='silentfix')
+        # done with arcs
     
     def load_flat(self, files):
         """Generate or read in a flat.
@@ -841,20 +879,37 @@ class SpeXPrism60(SpeX):
             p2w.append(self.linecal_header['P2W_A0{}'.format(i)])
 
         xr = slice(*self.config['x range'])
+        xcor_offset = np.zeros(2048)
         for i in range(self.config['bottom'], self.config['top']):
             spec = arc[i, xr]
 
             xcor = nd.correlate(spec, flux_anchor, mode='constant')
             j = np.argmax(xcor)
-            s = slice(j - 5, j + 6)
-            guess = (np.max(xcor), offset[j], 2.5, 0.0)
-            xcor_offset = util.gaussfit(offset[s], xcor[s], None, guess)[0][1]
+            s = slice(j - 7, j + 8)
+            guess = (np.max(xcor), offset[j], 5, 0.0)
 
-            # update wave cal with solution
-            x = self.wavecal[i, xr]
-            self.wavecal[i, xr] = np.polyval(p2w[::-1], x - xcor_offset)
+            xx = offset[s]
+            yy = xcor[s]
+            j = np.isfinite(xx * yy)
+            fit = util.gaussfit(xx[j], yy[j], None, guess)
+            xcor_offset[i] = fit[0][1]
+
+        # smooth out bad fits
+        i = xcor_offset != 0
+        y = np.arange(2048)
+        p = np.polyfit(y[i], xcor_offset[i], 2)
+        r = np.abs(xcor_offset - np.polyval(p, y))
+
+        i = (xcor_offset != 0) * (r < 1)
+        p = np.polyfit(y[i], xcor_offset[i], 2)
+        
+        # update wave cal with solution
+        for i in range(self.config['bottom'], self.config['top']):
+            x = self.wavecal[i, xr] - np.polyval(p, y[i])
+            self.wavecal[i, xr] = np.polyval(p2w[::-1], x)
 
         self.wavecal[self.mask] = np.nan
+        self.wavecal_h = h
 
         if plot:
             import matplotlib.pyplot as plt
