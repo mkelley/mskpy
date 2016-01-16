@@ -845,7 +845,7 @@ class SpeXPrism60(SpeX):
         self.flat_var = (var / c).data
         self.flat_h = h
 
-    def load_wavecal(self, fn, plot=False):
+    def load_wavecal(self, fn, plot=False, debug=False):
         """Generate a wavelength calibration.
 
         Parameters
@@ -913,6 +913,7 @@ class SpeXPrism60(SpeX):
 
         self.wavecal[self.mask] = np.nan
         self.wavecal_h = h
+        self.arc = arc
 
         if plot:
             import matplotlib.pyplot as plt
@@ -921,6 +922,9 @@ class SpeXPrism60(SpeX):
             for y in (700, 920, 1150):
                 plt.plot(self.wavecal[y, xr], arc[y, xr])
             plt.draw()
+
+        if debug:
+            return offset, xcor_offset
             
 # update module docstring
 from ..util import autodoc
