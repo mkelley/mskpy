@@ -24,7 +24,7 @@ image.analysis --- Analyze (astronomical) images.
    trace
 
 .. todo:: Re-write anphot to generate pixel weights via rarray, rather
-   than sub-sampling the images.  Update apphot and azavg, if needed.
+   than sub-sampling the images?  Update apphot and azavg, if needed.
 
 .. todo:: Re-write linecut to generate pixel weights via xarray?
 
@@ -53,6 +53,10 @@ __all__ = [
 
 class UnableToCenter(Exception):
     pass
+
+class LostTraceWarning(Warning):
+    pass
+
 
 def anphot(im, yx, rap, subsample=4, squeeze=True):
     """Simple annular aperture photometry.
@@ -1062,52 +1066,105 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     return rc, f, n, rmean
 
-def trace(im, err, guess):
-    """Trace the peak pixels along the second axis of an image.
+def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
+          **imshow_kwargs):
+    """Trace the peak pixels along an axis of a 2D image.
 
     Parameters
     ----------
-    im : array
-      The image to trace.
-    err : array
+    im : ndarray
+      The image to trace.  If a `MaskedArray`, masked values will be
+      ignored.
+    err : ndaarray
       The image uncertainties.  Set to None for unweighted fitting.
     guess : array
-      The initial guesses for Gaussian fitting the y-value at x=0:
-      (mu, sigma, height, [m, b]) = position (mu), width (sigma),
-      height, and linear background m*x + b.
+      The initial guesses for Gaussian fitting.  Fitting begins at the
+      lowest index that is not masked.  Subsequent fits use the
+      previous fit as a guess: (mu, sigma, height, [m, b]) = position
+      (mu), width (sigma), height, and linear background m*x + b.
+    rap : int, optional
+      The size of the aperture (radius) to use around the peak guess.
+    axis : int, optional
+      The axis along which to measure the peaks.
+    polyfit : bool, optional
+      Set to `True` to fit the resulting array with a polynomial.  The
+      polynomial coefficients will be added to the output and are
+      suitable for the `np.polyval` function.  After an initial fit,
+      the residuals will be inspected and outliers rejected before
+      performing an additional fit.
+    order : bool, optional
+      The degree of the polynomial fit.
+    plot : bool, optional
+      Set to `True` to plot the result.
+    **imshow_kwargs
+      Any `matplotlib.imshow` keyword arguments for the plot.
 
     Returns
     -------
-    y : ndarray
-      y-axis positions of the peak, along the second axis.
+    peaks : ndarray
+      Positions of the peaks.
+    p : ndarray, optional
+      Polynomial coefficients of the trace when the `fit` parameter is
+      enabled.
 
     """
 
-    from scipy.optimize import leastsq as lsq
-    from ..util import gaussian
+    import warnings
+    from ..util import between, gaussfit, meanclip
 
-    def chi(p, x, y, err):
-        if len(p) > 3:
-            mu, sigma, height, m, b = p
+    if axis == 0:
+        if err is None:
+            _err = None
         else:
-            mu, sigma, height = p
-            m, b = 0, 0
-        model = gaussian(x, mu, sigma) * height + m * x + b
-        chi = (y - model) / err
-        return chi
+            err = err.T
+        return trace(im.T, _err, guess, axis=1, polyfit=polyfit, order=order)
 
-    y = np.zeros(im.shape[1])
-    y0 = np.arange(im.shape[0])
-    last = guess
+    # The remainder is coded for dispersion along axis 1.
+    if isinstance(im, np.ma.MaskedArray):
+        mask = im.mask
+        if im.mask.shape == ():
+            mask = np.zeros(im.shape, bool)
+            mask[:, :] = im.mask
+    else:
+        mask = np.zeros(im.shape, bool)
+
+    peaks = np.ma.MaskedArray(np.zeros(im.shape[1]),
+                              np.zeros(im.shape[1], bool))
+    x = np.arange(im.shape[1])
+    y = np.zeros(im.shape[0])
+
+    if err is None:
+        err = np.ones_like(y)
 
     for i in range(im.shape[1]):
-        if err is None:
-            err = np.ones_like(y)
-        fit, err = lsq(chi, last, (np.array(x), np.array(y), np.array(err)))
-        y[i] = fit[0]
-        last = fit
+        c = round(guess[1])
+        aper = (max(0, c - rap), min(c + rap, im.shape[0]))
+        j = mask[slice(*aper), i]
+        if not np.any(mask[j, i]):
+            peaks.mask[i] = True
+            continue
 
-    return y
+        y = im[:, i]
+        fit = gaussfit(x, y, err, guess)[0]
+        if not between(fit[1], aper):
+            peaks.mask[i] = True
+            warnings.warn("Best-fit peak outside of aperture.",
+                          LostTraceWarning)
+            continue
+
+        peaks[i] = fit[0]
+        guess = fit
+
+    if polyfit:
+        i = ~peaks.mask
+        y = np.arange(im.shape[1])
+        p = np.polyfit(y[i], peaks[i], order)
+        good = meanclip((peaks - np.polyval(p, y))[i], full_output=True)[2]
+
+        p = np.polyfit(y[i][good], peaks[i][good], order)
+        return peaks, p
+    else:
+        return peaks
 
 
 # update module docstring
