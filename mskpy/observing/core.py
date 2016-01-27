@@ -223,7 +223,7 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
         ha0 -= 360.0
 
     i = nearest(ha, ha0)
-    ha = np.roll(ha, precision / 2 - i)
+    ha = np.roll(ha, int(precision / 2 - i))
 
     alt = hadec2altaz(ha, dec, lat)[0]
 
