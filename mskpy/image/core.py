@@ -294,7 +294,7 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     refined_c *= subsample**scale
 
     # The region to be refined: xi, yi
-    yi, xi = np.indices((N, N)) - N / 2
+    yi, xi = np.indices((N, N)) - N // 2
     yi += int(round(yx[0]))
     xi += int(round(yx[1]))
 
@@ -347,7 +347,7 @@ def yx2rt(im, yx, dtdr=0, scale=None, bins=100, range=None,
     if scale is not None:
         image = rebin(im, scale)
         if scale < 0:
-            scale = 1.0 / float(scale)
+            scale = 1.0 / scale
         yx = np.array(yx, float) * scale + (scale - 1) / 2.0
     else:
         image = im
