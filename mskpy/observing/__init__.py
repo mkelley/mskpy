@@ -382,7 +382,7 @@ class Observer(object):
 
         return r, t, s
 
-def am_plot(targets, observer, fig=None, ylim=[2.5, 1],
+def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
             table_columns=['rh', 'delta', 'phase', 'ra', 'dec'],
             **kwargs):
     """Generate a letter-sized, pretty airmass plot for a night.
@@ -393,12 +393,14 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1],
       A list of targets to plot.
     observer : Observer
       The observer.
-    fig : matplotlib Figure or None
+    fig : matplotlib Figure or None, optional
       Figure: The matplotlib figure (number) to use.
       None: Use current figure.
-    ylim : array
+    ylim : array, optional
       Y-axis limits (airmass).
-    table_columns : list of strings
+    limit : float, optional
+      Consider an object "risen" at this elevation. [deg]
+    table_columns : list of strings, optional
       List of additional table columns to pull from the target's
       observing geometry (see `Geom`).
     **kwargs
@@ -451,7 +453,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1],
 
         ls, color = next(linestyles)
         observer.plot_am(target, color=color, ls=ls, **kwargs)
-        rts = observer.rts(target, limit=25)
+        rts = observer.rts(target, limit=limit)
         row.append(rts[0].value if rts[0] is not None else -1)
         row.append(rts[1].value if rts[1] is not None else -1)
         row.append(rts[2].value if rts[2] is not None else -1)
