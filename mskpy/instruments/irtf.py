@@ -925,7 +925,83 @@ class SpeXPrism60(SpeX):
 
         if debug:
             return offset, xcor_offset
-            
+
+    def peak(self, stack, mode='ab', smooth=0):
+        """Find approximate locations of profile peaks in an image or stack.
+
+        Just finds the peak through `argmax`.
+
+        Parameters
+        ----------
+        stack : ndarray or MaskedArray
+          An image, or a stack of images.  If a stack, the first
+          dimension iterates over the images.
+        mode : string
+          'AB' if there is both a positive and a negative peak.  Else,
+          set to 'A' for a single positive peak.
+        smooth : float
+          Smooth the profile with a `smooth`-width Gaussian before
+          searching for the peak.
+
+        Returns
+        -------
+        peaks : ndarray
+          The peaks.  For a stack: NxM array where N is the number of
+          images, and M is the number of peaks.
+
+        """
+
+        import scipy.ndimage as nd
+
+        if stack.ndim == 3:
+            n = 2 if mode.upper() == 'AB' else 1
+            peaks = np.zeros((stack.shape[0], n))
+            for i in range(stack.shape[0]):
+                peaks[i] = self.peak(stack[i], mode=mode)
+            return peaks
+
+        profile = stack.mean(0)
+        if smooth > 0:
+            profile = nd.gaussian_filter(profile, smooth)
+
+        if mode.upper() == 'AB':
+            return np.r_[profile.argmax(), profile.argmin()]
+        else:
+            return profile.argmax()
+
+    def trace(self, im, peak):
+        """Trace the peak of an object.
+
+        Best executed with standard stars.
+
+        Parameters
+        ----------
+        im : MaskedArray
+          The 2D spectrum to trace.
+        peak : float
+          The approximate location of the peak.
+
+        Returns
+        -------
+        p : ndarray
+          The best-fit polynomical coefficients of the trace.
+
+        """
+
+        from mskpy import image
+
+        profile = im.mean(0)
+        guess = (profile.max(), peak, 2.)
+        peaks, p = image.trace(im, None, guess, rap=10, polyfit=True, order=7)
+        return p
+        
+    def extract(self, stack, peaks, rap, bg, bgorder=0, trace=None):
+        """Extract a spectrum from an image or stack.
+
+
+        """
+        pass
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
