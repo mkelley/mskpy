@@ -1080,8 +1080,8 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
     guess : array
       The initial guesses for Gaussian fitting.  Fitting begins at the
       lowest index that is not masked.  Subsequent fits use the
-      previous fit as a guess: (mu, sigma, height, [m, b]) = position
-      (mu), width (sigma), height, and linear background m*x + b.
+      previous fit as a guess: (height, mu, sigma, [m, b]) = height,
+      position (mu), width (sigma), and linear background m*x + b.
     rap : int, optional
       The size of the aperture (radius) to use around the peak guess.
     axis : int, optional
@@ -1130,29 +1130,26 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
 
     peaks = np.ma.MaskedArray(np.zeros(im.shape[1]),
                               np.zeros(im.shape[1], bool))
-    x = np.arange(im.shape[1])
-    y = np.zeros(im.shape[0])
-
+    x = np.arange(im.shape[1], dtype=float)
     if err is None:
-        err = np.ones_like(y)
+        err = np.ones_like(im)
 
     for i in range(im.shape[1]):
-        c = round(guess[1])
+        c = int(round(guess[1]))
         aper = (max(0, c - rap), min(c + rap, im.shape[0]))
-        j = mask[slice(*aper), i]
-        if not np.any(mask[j, i]):
+        j = slice(*aper)
+        if np.all(mask[j, i]):
             peaks.mask[i] = True
             continue
 
-        y = im[:, i]
-        fit = gaussfit(x, y, err, guess)[0]
+        fit = gaussfit(x[j], im[j, i], err[j, i], guess)[0]
         if not between(fit[1], aper):
             peaks.mask[i] = True
             warnings.warn("Best-fit peak outside of aperture.",
                           LostTraceWarning)
             continue
 
-        peaks[i] = fit[0]
+        peaks[i] = fit[1]
         guess = fit
 
     if polyfit:
