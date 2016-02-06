@@ -21,6 +21,7 @@ image.analysis --- Analyze (astronomical) images.
    linecut
    polyfit2d
    radprof
+   spextract
    trace
 
 .. todo:: Re-write anphot to generate pixel weights via rarray, rather
@@ -48,6 +49,7 @@ __all__ = [
     'linecut',
     'polyfit2d',
     'radprof',
+    'spextract',
     'trace'
 ]
 
@@ -878,7 +880,7 @@ def linecut(im, yx, width, length, pa, subsample=4):
       The number of pixels per bin.
     f : ndarray
       The line cut photometry.
-      
+
     """
 
     from ..util import midstep
@@ -1069,13 +1071,136 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     return rc, f, n, rmean
 
+def spextract(im, cen, rap, axis=0, trace=None, mean=False,
+              bgap=None, bgorder=0, subsample=5):
+    """Extract a spectrum, or similar, from an image.
+
+    To account for potential pixel aliasing and missing values, each
+    element is scaled to the same aperture size, defined as `2 * rap`.
+
+    Parameters
+    ----------
+    im : ndarray or MaskedArray
+      The 2D spectral image or similar.  If `im` is not a
+      `MaskedArray`, then a bad value mask will be created from all
+      non-finite elements.
+    cen : int, float or array thereof
+      The center(s) of the extraction.  The extraction will be along axis
+      `axis`.
+    rap : int or float
+      Aperture radius.
+    axis : int, optional
+      The axis of the extraction.
+    trace : array, optional
+      An array of polynomial coefficients to use to adjust the
+      aperture center based on axis index.  The first element is the
+      coefficient of the highest order.  `cen` will be added to the
+      last element.  If `cen` is an array, then `trace` may be an
+      array of polynomial sets for each `cen`.  The first axis
+      iterates over each set.
+    mean : bool, optional
+      Set to `True` to return the average value within the aperture,
+      rather than the sum.
+    bgap : array, optional
+      Inner and outer radii for a background aperture.  If defined,
+      the background will be removed, and the `nbg`, `mbg`, `bgvar`
+      arrays will be returned.
+    bgorder : int, optional
+      Fit the background with a `bgorder` polynomial.  Currently
+      limited to 0.
+    subsample : int, optional
+      The image is linearly subsampled to define the aperture edges.
+      Set to `None` for no subsampling.
+
+    Returns
+    -------
+    n : MaskedArray
+      The aperture size in pixels for each element in `spec`.
+    spec : MaskedArray
+      The extracted spectrum, background removed when `bgap` is
+      defined.
+    nbg : MaskedArray, optional
+      The background area in pixels for each element in `bg`.
+    mbg : MaskedArray, optional
+      The mean background spectrum.
+    bgvar : MaskedArray, optional
+      The background variance spectrum.
+
+    """
+
+    from numpy.ma import MaskedArray
+    from . import yarray
+    
+    assert bgorder == 0, "bgorder must be 0"
+
+    if axis == 1:
+        return spectract(im.T, cen, rap, axis=0, trace=trace, mean=mean,
+                         bgap=bgap, bgorder=bgorder, subsample=subsample)
+
+    # parameter normalization
+    if not np.iterable(cen):
+        cen = [cen]
+    N_aper = len(cen)
+
+    if trace is not None:
+        trace = np.array(trace)
+        if trace.ndim != 2:
+            order = len(trace)
+            trace = np.tile(trace, N_aper).reshape((N_aper, order))
+    else:
+        trace = np.zeros(N_aper).reshape((N_aper, 1))
+
+    # setup arrays for results
+    n, spec = MaskedArray(np.zeros((2, N_aper, im.shape[1])))
+    if bgap is not None:
+        nbg, mbg, bgvar = MaskedArray(np.zeros((3, N_aper, im.shape[1])))
+
+    y = yarray((im.shape[0] * subsample, im.shape[1])) / subsample
+    x = np.arange(im.shape[1])
+
+    for i in range(N_aper):
+        p = trace[i].copy()
+        p[-1] += cen[i]
+        tr = np.polyval(p, x)
+
+        aper = _spextract_mask(y, tr, rap, subsample)
+        n[i] = np.sum(aper * ~im.mask, 0)
+        spec[i] = np.sum(aper * im, 0) / n[i]
+        if not mean:
+            spec[i] *= 2 * rap
+
+        if bgap is not None:
+            c = np.mean(bgap)
+            r = np.ptp(bgap)
+            w = (_spextract_mask(y, tr + c, r, subsample)
+                 + _spextract_mask(y, tr - c, r, subsample))
+            nbg[i] = np.sum(w, 0)
+            mbg[i] = np.sum(w * im, 0) / nbg[i]
+            bgvar[i] = (np.sum(w * im**2, 0) - mbg[i]) / nbg[i]
+            if mean:
+                spec[i] -= mbg[i]
+            else:
+                spec[i] -= 2 * rap * mbg[i]
+        
+    if bgap is None:
+        return n, spec
+    else:
+        return n, spec, nbg, mbg, bgvar
+
+def _spextract_mask(y, trace, rap, subsample):
+    """Create an photometry mask for `spextract`."""
+    aper = (y >= trace - rap) * (y < trace + rap)
+    aper = aper.reshape(y.shape[0] // subsample, subsample, y.shape[1])
+    aper = aper.sum(1) / subsample
+    return aper
+        
 def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
           **imshow_kwargs):
     """Trace the peak pixels along an axis of a 2D image.
 
     Parameters
     ----------
-    im : ndarray
+    im : ndarray or MaskedArray
       The image to trace.  If a `MaskedArray`, masked values will be
       ignored.
     err : ndaarray

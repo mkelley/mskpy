@@ -877,7 +877,8 @@ class SpeXPrism60(SpeX):
         from .. import util, image
 
         h = self.getheader(fn)
-        if h['wavecal'] == 'T':
+        if 'wavecal' in h:
+            assert h['wavecal'] == 'T', "WAVECAL keyword present in FITS header, but is not 'T'."
             print('Loading stored wavelength solution.')
             wavecal = fits.getdata(fn)
             mask = ~np.isfinite(wavecal)
@@ -1073,13 +1074,14 @@ class SpeXPrism60(SpeX):
         aper = aper.reshape(y.shape[0] // subsample, subsample, y.shape[1])
         aper = aper.sum(1) / subsample
         return aper
-            
+
     def extract(self, im, rap, bgap=None, bgorder=0, traces=True,
                 append=False):
         """Extract a spectrum from an image.
 
-        Extraction positions are from `self.peaks`.  Pixels are
-        linearly interpolated at aperture edges.
+        Extraction positions are from `self.peaks`.
+
+        See `image.spextract` for implementation details.
 
         Parameters
         ----------
@@ -1091,7 +1093,7 @@ class SpeXPrism60(SpeX):
           Inner and outer radii for the background aperture, or `None`
           for no background subtraction.
         bgorder : int, optional
-          Fit the background with a `bgorder` polynomial: 0 or 1.
+          Fit the background with a `bgorder` polynomial.
         traces : bool, optional
           Use `self.traces` for each peak.
         append : bool, optional
@@ -1110,50 +1112,30 @@ class SpeXPrism60(SpeX):
 
         from .. import image
 
-        assert bgorder in [0, 1], "bgorder must be 0 or 1"
-        if bgorder == 1:
-            raise NotImplemented("bgorder = 1 not implemented")
+        N_peaks = len(self.peaks)
         
-        subsample = 5
-        shape = (im.shape[0] * subsample, im.shape[1])
-        y = image.yarray(shape) / subsample
-        x = np.arange(im.shape[1])
+        if traces:
+            trace = self.trace_fits
+        else:
+            trace = None
 
-        # dummy wavelengths, only used if the wavecal isn't loaded
-        wave = np.repeat(np.arange(im.shape[1], dtype=float), len(self.peaks))
-        wave = wave.reshape((im.shape[1], len(self.peaks))).T
+        if bgap is None:
+            spec = image.spextract(im, self.peaks, rap, trace=trace,
+                                   subsample=5)[1]
+            var = np.zeros(spec.shape)
+        else:
+            r = image.spextract(im, self.peaks, rap, trace=trace,
+                                bgap=bgap, bgorder=bgorder, subsample=5)
+            spec = r[1]
+            var = r[4]
 
-        spec = np.zeros((len(self.peaks), im.shape[1]))
-        var = np.zeros(spec.shape)
-
-        for i in range(len(self.peaks)):
-            if traces:
-                p = np.r_[self.trace_fits[i][:-1],
-                          self.trace_fits[i][-1] + self.peaks[i]]
-            else:
-                p = [0]
-            trace = np.polyval(p, x)
-
-            aper = self._aper(y, trace, rap, subsample)
-            bg = np.zeros(im.shape[1])
-            if bgap is not None:
-                bg1 = self._aper(y, trace + np.mean(bgap), np.ptp(bgap),
-                                 subsample)
-                bg2 = self._aper(y, trace - np.mean(bgap), np.ptp(bgap),
-                                 subsample)
-                w = bg1 + bg2
-                sw = np.sum(w, 0)
-                mu = np.sum(w * im, 0) / sw
-                bg = mu * np.sum(aper, 0)
-                var[i] = (np.sum(w * im**2, 0) - mu) / sw
-
-            if self.wavecal is not None:
-                sw = np.sum(aper * ~(self.wavecal.mask + im.mask), 0)
-                wave[i] = np.sum(aper * self.wavecal, 0) / sw
-                self.savewave = wave
-                self.saveaper = aper
-
-            spec[i] = np.sum(aper * im, 0) - bg
+        if self.wavecal is None:
+            # dummy wavelengths
+            wave = np.tile(np.arange(im.shape[1], dtype=float), N_peaks)
+            wave = wave.reshape((N_peaks, im.shape[1]))
+        else:
+            wave = image.spextract(self.wavecal, self.peaks, rap, mean=True,
+                                   trace=trace, subsample=5)[1]
 
         if (self.spec is None) or (self.spec is not None and not append):
             self.wave = wave
