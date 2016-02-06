@@ -430,6 +430,10 @@ class SpeXPrism60(SpeX):
         self.flat_h = None
         self.wavecal = None
         self.wavecal_h = None
+
+        self.wave = None
+        self.spec = None
+        self.var = None
         
         SpeX.__init__(self, *args, **kwargs)
     
@@ -626,6 +630,10 @@ class SpeXPrism60(SpeX):
                     headers = []
                     for a, b in zip(headers_A, headers_B):
                         headers.extend([a, b])
+                else:
+                    stack = stack_A[0]
+                    var = var_A[0]
+                    headers = headers_A[0]
 
             return stack, var, headers
 
@@ -683,6 +691,7 @@ class SpeXPrism60(SpeX):
                + read_var) # / h['DIVISOR']**2 / h['ITIME']**2
         # counts / s
         im = im / h['ITIME']
+        im.mask += self.mask
         return im, var, h
 
     def process_cal(self, files, path=None, overwrite=True):
@@ -752,7 +761,8 @@ class SpeXPrism60(SpeX):
                 except FileExistsError:
                     pass
 
-                fn = '{}/flat{:05d}-{:05d}.fits'.format(_path, first_n, last_n)
+                fn = '{}/flat-{:05d}-{:05d}.fits'.format(
+                    _path, first_n, last_n)
                 self.load_flat(fset)
                 outf = fits.HDUList()
                 outf.append(fits.PrimaryHDU(self.flat, self.flat_h))
@@ -789,7 +799,7 @@ class SpeXPrism60(SpeX):
             except FileExistsError:
                 pass
 
-            fn = '{}/arc{:05d}.fits'.format(_path, n)
+            fn = '{}/wavecal-{:05d}.fits'.format(_path, n)
             self.load_wavecal(arcs[i])
             fits.writeto(fn, self.wavecal, self.wavecal_h,
                          output_verify='silentfix', clobber=overwrite)
@@ -846,12 +856,13 @@ class SpeXPrism60(SpeX):
         self.flat_h = h
 
     def load_wavecal(self, fn, plot=False, debug=False):
-        """Generate a wavelength calibration.
+        """Load or generate a wavelength calibration.
 
         Parameters
         ----------
         fn : string
-          The name of an arc file taken with the SpeX cal macro.
+          The name of an arc file taken with the SpeX cal macro or an
+          already prepared wavelength calibration.
         plot : bool, optional
           Set to `True` to plot representative wavelength solutions.
 
@@ -864,8 +875,18 @@ class SpeXPrism60(SpeX):
         import scipy.ndimage as nd
         from astropy.io import fits
         from .. import util, image
+
+        h = self.getheader(fn)
+        if h['wavecal'] == 'T':
+            print('Loading stored wavelength solution.')
+            wavecal = fits.getdata(fn)
+            mask = ~np.isfinite(wavecal)
+            self.wavecal = np.ma.MaskedArray(wavecal, mask=mask)
+            self.wavecal_h = h
+            return
         
-        arc, h = self.read(fn, flatcor=False)[::2]
+        arc = self.read(fn, flatcor=False)[0]
+
         slit = h['SLIT']
         slitw = float(slit[slit.find('x') + 1:])
 
@@ -911,6 +932,9 @@ class SpeXPrism60(SpeX):
             x = self.wavecal[i, xr] - np.polyval(p, y[i])
             self.wavecal[i, xr] = np.polyval(p2w[::-1], x)
 
+        h['wavecal'] = 'T'
+        h['bunit'] = 'um'
+
         self.wavecal[self.mask] = np.nan
         self.wavecal_h = h
         self.arc = arc
@@ -926,10 +950,11 @@ class SpeXPrism60(SpeX):
         if debug:
             return offset, xcor_offset
 
-    def peak(self, im, mode='AB', smooth=0, plot=True):
+    def peak(self, im, mode='AB', rap=5, smooth=0, plot=True):
         """Find approximate locations of profile peaks in an image.
 
-        Just finds the peak through `argmax`.
+        The strongest peaks are found via centroid on the profile
+        min/max.
 
         Parameters
         ----------
@@ -938,6 +963,8 @@ class SpeXPrism60(SpeX):
         mode : string, optional
           'AB' if there is both a positive and a negative peak.  Else,
           set to 'A' for a single positive peak.
+        rap : int, optional
+          Radius of the fitting aperture.
         smooth : float, optional
           Smooth the profile with a `smooth`-width Gaussian before
           searching for the peak.
@@ -953,15 +980,25 @@ class SpeXPrism60(SpeX):
         """
 
         import scipy.ndimage as nd
+        from ..util import between, gaussfit
 
-        profile = im.mean(1)
+        profile = np.ma.median(im, 1)
         if smooth > 0:
             profile = nd.gaussian_filter(profile, smooth)
 
+        self.peaks = []
+        x = np.arange(im.shape[1])
+
+        i = between(x, profile.argmax() + np.r_[-rap, rap])
+        c = nd.center_of_mass(profile[i]) + x[i][0]
+        self.peaks.append(c[0])
+        
         if mode.upper() == 'AB':
-            self.peaks = np.r_[profile.argmax(), profile.argmin()]
-        else:
-            self.peaks = np.r_[profile.argmax()]
+            i = between(x, profile.argmin() + np.r_[-rap, rap])
+            c = nd.center_of_mass(-profile[i]) + x[i][0]
+            self.peaks.append(c[0])
+
+        self.peaks = np.array(self.peaks)
 
         if plot:
             import matplotlib.pyplot as plt
@@ -1001,15 +1038,17 @@ class SpeXPrism60(SpeX):
 
         from .. import image
 
-        profile = im.mean(0)
+        profile = np.ma.median(im, 1)
         self.traces = []
         self.trace_fits = []
         for i in range(len(self.peaks)):
             s = (-1)**i
             guess = ((s * profile).max(), self.peaks[i], 2.)
-            r = image.trace(s * im, None, guess, rap=10, polyfit=True, order=7)
-            self.traces.append(r[0])
-            self.trace_fits.append(r[1])
+            trace, fit = image.trace(s * im, None, guess, rap=10,
+                                     polyfit=True, order=7)
+            fit = np.r_[fit[:-1], fit[-1] - self.peaks[i]]
+            self.traces.append(trace)
+            self.trace_fits.append(fit)
 
         if plot:
             import matplotlib.pyplot as plt
@@ -1020,20 +1059,110 @@ class SpeXPrism60(SpeX):
             for i in range(len(self.traces)):
                 j = ~self.traces[i].mask
                 x = np.arange(len(self.traces[i]))
-                ax.plot(x, self.traces[i], color='k')
-                ax.plot(x[j], np.polyval(self.trace_fits[i], x[j]), color='r')
+                ax.plot(x, self.traces[i], color='k', marker='+', ls='none')
+                fit = np.r_[self.trace_fits[i][:-1],
+                            self.trace_fits[i][-1] + self.peaks[i]]
+                ax.plot(x[j], np.polyval(fit, x[j]), color='r')
 
             fig.canvas.draw()
             fig.show()
-        
-    def extract(self, im, peaks, rap, bg, bgorder=0, traces=None):
+
+    def _aper(self, y, trace, rap, subsample):
+        """Create an aperture array for `extract`."""
+        aper = (y >= trace - rap) * (y <= trace + rap)
+        aper = aper.reshape(y.shape[0] // subsample, subsample, y.shape[1])
+        aper = aper.sum(1) / subsample
+        return aper
+            
+    def extract(self, im, rap, bgap=None, bgorder=0, traces=True,
+                append=False):
         """Extract a spectrum from an image.
+
+        Extraction positions are from `self.peaks`.  Pixels are
+        linearly interpolated at aperture edges.
 
         Parameters
         ----------
+        im : MaskedArray
+          The 2D spectral image.
+        rap : float
+          Aperture radius.
+        bgap : array, optional
+          Inner and outer radii for the background aperture, or `None`
+          for no background subtraction.
+        bgorder : int, optional
+          Fit the background with a `bgorder` polynomial: 0 or 1.
+        traces : bool, optional
+          Use `self.traces` for each peak.
+        append : bool, optional
+          Append results to arrays, rather than creating new ones.
+
+        Results
+        -------
+        self.wave : list of ndarray
+          The wavelengths.
+        self.spec : list of ndarray
+          The spectra.
+        self.var : list of ndarray
+          The background variance.
 
         """
-        pass
+
+        from .. import image
+
+        assert bgorder in [0, 1], "bgorder must be 0 or 1"
+        if bgorder == 1:
+            raise NotImplemented("bgorder = 1 not implemented")
+        
+        subsample = 5
+        shape = (im.shape[0] * subsample, im.shape[1])
+        y = image.yarray(shape) / subsample
+        x = np.arange(im.shape[1])
+
+        # dummy wavelengths, only used if the wavecal isn't loaded
+        wave = np.repeat(np.arange(im.shape[1], dtype=float), len(self.peaks))
+        wave = wave.reshape((im.shape[1], len(self.peaks))).T
+
+        spec = np.zeros((len(self.peaks), im.shape[1]))
+        var = np.zeros(spec.shape)
+
+        for i in range(len(self.peaks)):
+            if traces:
+                p = np.r_[self.trace_fits[i][:-1],
+                          self.trace_fits[i][-1] + self.peaks[i]]
+            else:
+                p = [0]
+            trace = np.polyval(p, x)
+
+            aper = self._aper(y, trace, rap, subsample)
+            bg = np.zeros(im.shape[1])
+            if bgap is not None:
+                bg1 = self._aper(y, trace + np.mean(bgap), np.ptp(bgap),
+                                 subsample)
+                bg2 = self._aper(y, trace - np.mean(bgap), np.ptp(bgap),
+                                 subsample)
+                w = bg1 + bg2
+                sw = np.sum(w, 0)
+                mu = np.sum(w * im, 0) / sw
+                bg = mu * np.sum(aper, 0)
+                var[i] = (np.sum(w * im**2, 0) - mu) / sw
+
+            if self.wavecal is not None:
+                sw = np.sum(aper * ~(self.wavecal.mask + im.mask), 0)
+                wave[i] = np.sum(aper * self.wavecal, 0) / sw
+                self.savewave = wave
+                self.saveaper = aper
+
+            spec[i] = np.sum(aper * im, 0) - bg
+
+        if (self.spec is None) or (self.spec is not None and not append):
+            self.wave = wave
+            self.spec = spec
+            self.var = var
+        else:
+            self.wave = np.concatenate((self.wave, wave))
+            self.spec = np.concatenate((self.spec, spec))
+            self.var = np.concatenate((self.var, var))
 
 # update module docstring
 from ..util import autodoc
