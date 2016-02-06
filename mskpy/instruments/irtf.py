@@ -926,26 +926,27 @@ class SpeXPrism60(SpeX):
         if debug:
             return offset, xcor_offset
 
-    def peak(self, stack, mode='ab', smooth=0):
-        """Find approximate locations of profile peaks in an image or stack.
+    def peak(self, im, mode='AB', smooth=0, plot=True):
+        """Find approximate locations of profile peaks in an image.
 
         Just finds the peak through `argmax`.
 
         Parameters
         ----------
-        stack : ndarray or MaskedArray
-          An image, or a stack of images.  If a stack, the first
-          dimension iterates over the images.
-        mode : string
+        im : ndarray or MaskedArray
+          An image.
+        mode : string, optional
           'AB' if there is both a positive and a negative peak.  Else,
           set to 'A' for a single positive peak.
-        smooth : float
+        smooth : float, optional
           Smooth the profile with a `smooth`-width Gaussian before
           searching for the peak.
+        plot : bool, optional
+          Plot results.
 
-        Returns
-        -------
-        peaks : ndarray
+        Result
+        ------
+        self.peaks : ndarray
           The peaks.  For a stack: NxM array where N is the number of
           images, and M is the number of peaks.
 
@@ -953,51 +954,83 @@ class SpeXPrism60(SpeX):
 
         import scipy.ndimage as nd
 
-        if stack.ndim == 3:
-            n = 2 if mode.upper() == 'AB' else 1
-            peaks = np.zeros((stack.shape[0], n))
-            for i in range(stack.shape[0]):
-                peaks[i] = self.peak(stack[i], mode=mode)
-            return peaks
-
-        profile = stack.mean(0)
+        profile = im.mean(1)
         if smooth > 0:
             profile = nd.gaussian_filter(profile, smooth)
 
         if mode.upper() == 'AB':
-            return np.r_[profile.argmax(), profile.argmin()]
+            self.peaks = np.r_[profile.argmax(), profile.argmin()]
         else:
-            return profile.argmax()
+            self.peaks = np.r_[profile.argmax()]
 
-    def trace(self, im, peak):
-        """Trace the peak of an object.
+        if plot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            fig.clear()
+            ax = fig.add_subplot(111)
+            ax.plot(profile, color='k')
+            for p in self.peaks:
+                ax.axvline(p, color='r')
+            fig.canvas.draw()
+            fig.show()
+
+    def trace(self, im, plot=True):
+        """Trace the peak(s) of an object.
 
         Best executed with standard stars.
+
+        Initial peak guesses taken from `self.peaks`.  If there are
+        multiple, even-indexed peaks are assumed to be the positive,
+        odd-indexed peaks are assumed to be the negative beam.
 
         Parameters
         ----------
         im : MaskedArray
           The 2D spectrum to trace.
-        peak : float
-          The approximate location of the peak.
+        plot : bool, optional
+          Plot results.
 
-        Returns
-        -------
-        p : ndarray
-          The best-fit polynomical coefficients of the trace.
+        Result
+        ------
+        self.traces : list of ndarray
+          The traces of each peak.
+        self.trace_fits : list of ndarray
+          The best-fit polynomical coefficients of the traces.
 
         """
 
-        from mskpy import image
+        from .. import image
 
         profile = im.mean(0)
-        guess = (profile.max(), peak, 2.)
-        peaks, p = image.trace(im, None, guess, rap=10, polyfit=True, order=7)
-        return p
-        
-    def extract(self, stack, peaks, rap, bg, bgorder=0, trace=None):
-        """Extract a spectrum from an image or stack.
+        self.traces = []
+        self.trace_fits = []
+        for i in range(len(self.peaks)):
+            s = (-1)**i
+            guess = ((s * profile).max(), self.peaks[i], 2.)
+            r = image.trace(s * im, None, guess, rap=10, polyfit=True, order=7)
+            self.traces.append(r[0])
+            self.trace_fits.append(r[1])
 
+        if plot:
+            import matplotlib.pyplot as plt
+            fig = plt.figure()
+            fig.clear()
+            ax = fig.add_subplot(111)
+
+            for i in range(len(self.traces)):
+                j = ~self.traces[i].mask
+                x = np.arange(len(self.traces[i]))
+                ax.plot(x, self.traces[i], color='k')
+                ax.plot(x[j], np.polyval(self.trace_fits[i], x[j]), color='r')
+
+            fig.canvas.draw()
+            fig.show()
+        
+    def extract(self, im, peaks, rap, bg, bgorder=0, traces=None):
+        """Extract a spectrum from an image.
+
+        Parameters
+        ----------
 
         """
         pass

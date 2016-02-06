@@ -57,6 +57,9 @@ class UnableToCenter(Exception):
 class LostTraceWarning(Warning):
     pass
 
+class UnableToTrace(Exception):
+    pass
+
 
 def anphot(im, yx, rap, subsample=4, squeeze=True):
     """Simple annular aperture photometry.
@@ -1151,6 +1154,9 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
 
         peaks[i] = fit[1]
         guess = fit
+
+    if np.all(peaks.mask):
+        raise UnableToTrace("No peaks found.")
 
     if polyfit:
         i = ~peaks.mask
