@@ -1075,8 +1075,8 @@ class SpeXPrism60(SpeX):
         aper = aper.sum(1) / subsample
         return aper
 
-    def extract(self, im, rap, bgap=None, bgorder=0, traces=True,
-                append=False):
+    def extract(self, im, h, rap, bgap=None, bgorder=0, traces=True,
+                abcombine=True, append=False):
         """Extract a spectrum from an image.
 
         Extraction positions are from `self.peaks`.
@@ -1087,6 +1087,8 @@ class SpeXPrism60(SpeX):
         ----------
         im : MaskedArray
           The 2D spectral image.
+        h : astropy FITS header
+          The header for im.
         rap : float
           Aperture radius.
         bgap : array, optional
@@ -1096,6 +1098,9 @@ class SpeXPrism60(SpeX):
           Fit the background with a `bgorder` polynomial.
         traces : bool, optional
           Use `self.traces` for each peak.
+        abcombine : bool, optional
+          Combine (sum) apertures as if they were AB pairs.  The
+          B-beam will be linearly interpolated onto A's wavelengths.
         append : bool, optional
           Append results to arrays, rather than creating new ones.
 
@@ -1106,14 +1111,17 @@ class SpeXPrism60(SpeX):
         self.spec : list of ndarray
           The spectra.
         self.var : list of ndarray
-          The background variance.
+          The variance on the spectrum due to background.
 
         """
 
         from .. import image
 
         N_peaks = len(self.peaks)
-        
+        if abcombine:
+            assert N_peaks == 2, "There must be two peaks when abcombine is requested."
+            print('Combining (sum) AB apertures.')
+
         if traces:
             trace = self.trace_fits
         else:
@@ -1122,12 +1130,12 @@ class SpeXPrism60(SpeX):
         if bgap is None:
             spec = image.spextract(im, self.peaks, rap, trace=trace,
                                    subsample=5)[1]
-            var = np.zeros(spec.shape)
+            var = np.ma.MaskedArray(np.zeros(spec.shape))
         else:
-            r = image.spextract(im, self.peaks, rap, trace=trace,
-                                bgap=bgap, bgorder=bgorder, subsample=5)
-            spec = r[1]
-            var = r[4]
+            n, spec, nbg, mbg, bgvar = image.spextract(
+                im, self.peaks, rap, trace=trace, bgap=bgap,
+                bgorder=bgorder, subsample=5)
+            var = 2 * rap * bgvar * (2 * rap / nbg)
 
         if self.wavecal is None:
             # dummy wavelengths
@@ -1137,14 +1145,71 @@ class SpeXPrism60(SpeX):
             wave = image.spextract(self.wavecal, self.peaks, rap, mean=True,
                                    trace=trace, subsample=5)[1]
 
+        if abcombine:
+            w = wave[::2]
+            s = spec[::2]
+            v = var[::2]
+            h = h[::2]
+            for i in range(len(s)):
+                h[i].add_history('AB beam combined (sum)')
+                b = i * 2 + 1
+
+                mask = s[i].mask + wave[b].mask + spec[b].mask + var[b].mask
+
+                x = np.interp(w[i], wave[b, ~mask], spec[b, ~mask])
+                s[i] -= np.ma.MaskedArray(x, mask=mask)
+
+                x = np.interp(w[i], wave[b, ~mask], var[b, ~mask])
+                v[i] += np.ma.MaskedArray(x, mask=mask)
+
+            wave = w
+            spec = s
+            var = v
+            
         if (self.spec is None) or (self.spec is not None and not append):
             self.wave = wave
             self.spec = spec
             self.var = var
+            self.h = h
         else:
-            self.wave = np.concatenate((self.wave, wave))
-            self.spec = np.concatenate((self.spec, spec))
-            self.var = np.concatenate((self.var, var))
+            self.wave = np.ma.concatenate((self.wave, wave))
+            self.spec = np.ma.concatenate((self.spec, spec))
+            self.var = np.ma.concatenate((self.var, var))
+            self.h.extend(h)
+
+    def save_spec(self, fnformat='spec-{n}.fits', **kwargs):
+        """Write extracted spectra to FITS files.
+
+        The file columns are wavelength, DN/s, and uncertainty.
+
+        The files should be compatible with xspextool.
+
+        Parameters
+        ----------
+        fnformat : string, optional
+          The format string for file names.  Use '{n}' for the
+          spectrum number which will be gleaned from the FITS headers.
+        **kwargs
+          `astropy.io.fits.writeto` keyword arguments.
+
+        """
+
+        import re
+        from astropy.io import fits
+
+        assert self.spec is not None, "No spectra have been extracted"
+        kwargs['output_verify'] = kwargs.get('output_verify', 'silentfix')
+
+        for i in range(len(self.spec)):
+            n = re.findall('.*-([0-9]+).[ab].fits', self.h[i]['IRAFNAME'],
+                           re.IGNORECASE)[0]
+            fn = fnformat.format(n=n)
+    
+            x = np.c_[self.wave[i].filled(np.nan),
+                      self.spec[i].filled(np.nan),
+                      np.sqrt(self.var[i]).filled(np.nan)].T
+            j = np.flatnonzero(np.isfinite(np.prod(x, 0)))
+            fits.writeto(fn, x[:, j], self.h[i], **kwargs)
 
 # update module docstring
 from ..util import autodoc
