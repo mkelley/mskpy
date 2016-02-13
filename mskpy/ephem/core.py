@@ -19,6 +19,7 @@ from os.path import expanduser
 import numpy as np
 from astropy.time import Time
 import spiceypy.wrapper as spice
+from spiceypy.support_types import SpiceyError
 from ..config import config
 
 _spice_setup = False
@@ -271,8 +272,9 @@ def load_kernel(filename):
         if not os.path.exists(filename):
             raise OSError("{} not found".format(filename))
 
-    test = spice.kinfo(filename, 512, 512)
-    if not test[3]:
+    try:
+        spice.kinfo(filename, 512, 512)
+    except SpiceyError:
         spice.furnsh(filename)
 
 # update module docstring
