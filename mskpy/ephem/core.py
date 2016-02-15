@@ -14,13 +14,10 @@ core --- Basic functions, mostly time, for ephem.
 """
 
 from datetime import datetime
-from os.path import expanduser
 
 import numpy as np
-from astropy.time import Time
 import spiceypy.wrapper as spice
 from spiceypy.support_types import SpiceyError
-from ..config import config
 
 _spice_setup = False
 
@@ -107,6 +104,8 @@ def date2et(date):
       SPICE ephemeris time.
 
     """
+
+    from astropy.time import Time
 
     if date is None:
         date = Time(datetime.now(), scale='utc')
@@ -220,6 +219,7 @@ def find_kernel(obj):
     import os
     from functools import reduce
     from operator import add
+    from ..config import config
 
     kernel_path = config.get('ephem.core', 'kernel_path')
     kernel = str(obj) + '.bsp'
@@ -265,6 +265,7 @@ def load_kernel(filename):
     """
 
     import os.path
+    from ..config import config
 
     kernel_path = config.get('ephem.core', 'kernel_path')
     if not os.path.exists(filename):

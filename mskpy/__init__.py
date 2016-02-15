@@ -43,6 +43,12 @@ from . import observing
 # depends on SpiceyPy
 try:
     import spiceypy.wrapper as spice
+    _spiceypy = True
+except ImportError:
+    _spiceypy = False
+    raise UserWarning("MSKPY: spiceypy not available.  ephem, asteroid, and comet modules will not be loaded.")
+
+if _spiceypy:
     from . import ephem
     from . import asteroid
     from . import comet
@@ -50,12 +56,17 @@ try:
     from .ephem import *
     from .comet import *
     from .asteroid import *
-except ImportError:
-    pass
 
 # depends on matplotlib
 try:
+    import matplotlib
+    _matplotlib = True
+except (ImportError, RuntimeError):
+    _matplotlib = False
+    raise UserWarning("MSKPY: matplotlib not available.  Graphics module will not be loaded.")
+
+if _matplotlib:
     from . import graphics
     from .graphics import *
-except (ImportError, RuntimeError):
-    pass
+
+del _spiceypy, _matplotlib

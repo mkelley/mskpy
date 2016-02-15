@@ -30,7 +30,7 @@ from datetime import datetime
 import numpy as np
 from astropy.time import Time
 import spiceypy.wrapper as spice
-from spiceypy.support_types import SpiceyPy
+from spiceypy.support_types import SpiceyError
 
 from . import core
 
