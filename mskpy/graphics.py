@@ -207,7 +207,7 @@ def ksplot(x, ax=None, **kwargs):
     """
 
     xx = np.sort(x)
-    yy = np.ones(x.size).cumsum() / float(x.size)
+    yy = np.ones(x.size).cumsum() / x.size
     ls = keywords.pop('ls', keywords.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()

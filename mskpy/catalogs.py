@@ -445,7 +445,7 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             matches[i] = m0[i]
             peak = match_matrix[i, m0[i]] * 2
             total = match_matrix[i, :].sum() + match_matrix[:, m0[i]].sum()
-            frac[i] = peak / float(total)
+            frac[i] = peak / total
 
     if verbose:
         print("[triangle_match] {} stars failed the msig test".format(rej))
