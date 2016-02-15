@@ -195,8 +195,9 @@ class Observer(object):
                                    self.lat.degree)
         return Angle(alt, unit=u.deg), Angle(az, unit=u.deg)
 
-    def finding_chart(self, target, ds9, trange=[-6, 6] * u.hr, ticks=1 * u.hr,
-                      fov=1 * u.arcmin, frame=1, dss=True):
+    def finding_chart(self, target, ds9, trange=[-6, 6] * u.hr,
+                      ticks=1 * u.hr, fov=1 * u.arcmin,
+                      frame=1, dss=True):
         """Plot a DS9 finding chart for a moving target.
 
         Parameters
@@ -291,15 +292,19 @@ class Observer(object):
         from ..ephem import Earth
         return Earth.observe(target, self.date)
 
-    def plot_am(self, target, N=100, ax=None, **kwargs):
+    def plot_am(self, target, N=100, fine=False, ax=None, **kwargs):
         """Plot the airmass of this target, centered on the current date.
 
         Parameters
         ----------
         target : Target
           The target to observe.
-        N : int
+        N : int, optional
           Number of points to plot.
+        fine : bool, optional
+          Set to `True` to compute the RA, Dec of the target at each
+          point, otherwise compute at the start and end, then linearly
+          interpolate between them.
         ax : matplotlib.axes
           The axis to which to plot, or `None` for the current axis.
         **kwargs
@@ -325,12 +330,22 @@ class Observer(object):
 
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
-        for i in range(N):
-            ra, dec = self._radec(target, date + dt[i])
-            am[i] = core.airmass(ra.degree, dec.degree,
-                                 date + dt[i],
-                                 self.lon.degree, self.lat.degree,
-                                 self.tz)
+        if fine:
+            for i in range(N):
+                ra, dec = self._radec(target, date + dt[i])
+                am[i] = core.airmass(ra.degree, dec.degree,
+                                     date + dt[i],
+                                     self.lon.degree, self.lat.degree,
+                                     self.tz)
+        else:
+            ra0, dec0 = self._radec(target, date + dt[0])
+            ra1, dec1 = self._radec(target, date + dt[-1])
+            ra = np.interp(dt.value, (dt[0].value, dt[-1].value),
+                           (ra0.degree, ra1.degree))
+            dec = np.interp(dt.value, (dt[0].value, dt[-1].value),
+                            (dec0.degree, dec1.degree))
+            am = core.airmass(ra, dec, date + dt, self.lon.degree,
+                              self.lat.degree, self.tz)
 
         return ax.plot(dt.value, am, label=label, **kwargs)
 
