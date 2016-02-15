@@ -1,3 +1,31 @@
+3.0.0
+-----
+
+New features
+^^^^^^^^^^^^
+
+mskpy now requires Python 3.
+
+NAIF SPICE functionality is now provided by SpiceyPy (v0.6.2
+required).  pyspice has been dropped.
+
+- `ephem.SolarSysObject.lightcurve` now has configurable flux density
+  column headings.
+
+- `observing.Observer.rts` : added `limit` keyword for
+  rise/transit/set at a user requested airmass.
+
+- `instruments.IRAC.ccorrection` may now compute only a subset of the
+  4 IRAC bands.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `util.gaussfit` can pass keywords to `leastsq`.
+
+- `ephem.kernel_path` file name resolution is on demand.
+
+
 2.3.2
 -----
 
