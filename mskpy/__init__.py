@@ -14,7 +14,7 @@ mskpy --- MSK's personal library for astronomy and stuff.
    comet       - Defines a comet for observing, flux estimates.
    config      - mskpy configuration parameters.
    ephem       - Solar System object ephemerides (requires SpiceyPy).
-   graphics    - Helper functions for making plots.
+   graphics    - Helper functions for making plots (requires matplotlib).
    image       - Image generators, analysis, and processing.
    instruments - Cameras, spectrometers, etc. for astronomy.
    modeling    - For fitting models to data.
