@@ -61,7 +61,7 @@ if _spiceypy:
 try:
     import matplotlib
     _matplotlib = True
-except (ImportError, RuntimeError):
+except ImportError:
     _matplotlib = False
     raise UserWarning("MSKPY: matplotlib not available.  Graphics module will not be loaded.")
 
