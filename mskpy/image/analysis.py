@@ -230,13 +230,20 @@ def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
 
     """
 
-    squeeze = kwargs.pop('squeeze', True)
+    from ..util import between
 
-    x, y = coords.to_pixel(wcs)
+    squeeze = kwargs.pop('squeeze', True)
+    shape = np.array(im).shape
+
+    # When SIP is included in WCS, coords.to_pixel can fail when the
+    # coordinate is outside the image.  Use a two-pass system to
+    # prevent crashing.
+    x, y = coords.to_pixel(wcs, mode='wcs')
+    i = between(y, [0, shape[0] + 1]) * between(x, [0, shape[1] + 1])
+    x[i], y[i] = coords[i].to_pixel(wcs, mode='all')
     yx = np.c_[y, x]
 
     n = np.zeros((len(yx), np.size(rap)))
-    shape = np.array(im).shape
     if len(shape) == 3:
         shape = shape[1:]
         f = np.zeros((shape[0], ) + n.shape)
