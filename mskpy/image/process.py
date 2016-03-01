@@ -8,6 +8,7 @@ image.process --- Process (astronomical) images.
    :toctree: generated/
 
    align_by_centroid
+   align_by_offset
    align_by_wcs
    columnpull
    combine
@@ -25,6 +26,7 @@ from . import core, analysis
 
 __all__ = [
     'align_by_centroid',
+    'align_by_offset',
     'align_by_wcs',
     'columnpull',
     'combine',
@@ -59,7 +61,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
     stack : ndarray
       The aligned images.
     dyx : ndarray
-      The offsets.
+      The offsets.  Suitable for input into `align_by_offset`.
 
     """
 
@@ -71,7 +73,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
         cfunc = gcentroid
 
     if isinstance(data[0], str):
-        im = fits.getdata(files[0])
+        im = fits.getdata(data[0])
         stack = np.zeros((len(data), ) + im.shape)
         stack[0] = im
         del im
@@ -98,6 +100,52 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
 
     return stack, dyx
 
+def align_by_offset(data, dyx, **kwargs):
+    """Align a set of images by a given list of offsets.
+
+    Parameters
+    ----------
+    data : list or array
+      The list of FITS files, or stack of images to align.  If the
+      first element is a string, then a file list is assumed.
+    dyx : array
+      The offsets.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+
+    if isinstance(data[0], str):
+        im = fits.getdata(data[0])
+        stack = np.zeros((len(data), ) + im.shape)
+        stack[0] = im
+        del im
+        for i in range(1, len(data)):
+            stack[i] = fits.getdata(data[i])
+    else:
+        stack = data.copy()
+
+    for i in range(1, len(stack)):
+        stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
+        if int(dyx[i, 0]) < 0:
+            stack[i, :, int(dyx[i, 0]):] = np.nan
+        elif int(dyx[i, 0]) > 0:
+            stack[i, :, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) < 0:
+            stack[i, int(dyx[i, 1]):] = np.nan
+        elif int(dyx[i, 1]) > 0:
+            stack[i, :int(dyx[i, 1])] = np.nan
+
+    return stack
+
 def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
                  **kwargs):
     """Align a set of images using their world coordinate systems.
@@ -120,7 +168,7 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
     stack : ndarray
       The aligned images.
     dyx : ndarray
-      The offsets.
+      The offsets.  Suitable for input into `align_by_offset`.
 
     """
 
