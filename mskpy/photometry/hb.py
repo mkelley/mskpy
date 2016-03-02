@@ -8,6 +8,7 @@ hb --- Hale-Bopp filter set photometric calibration
 
    cal_oh
    continuum_color
+   convert_color
    ext_aerosol_bc
    ext_aerosol_oh
    ext_total_oh
@@ -29,6 +30,7 @@ from .core import *
 __all__ = [
     'cal_oh',
     'continuum_color',
+    'convert_color',
     'ext_aerosol_bc',
     'ext_aerosol_oh',
     'ext_total_oh',
@@ -211,7 +213,7 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
 def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     """Comet continuum color.
 
-    The color in percent per 0.1 um = 10**(-0.4 * Rm)
+    The color in percent per 0.1 um = 10**(0.4 * Rm + 1)
 
     Parameters
     ----------
@@ -272,6 +274,39 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
     return Rm, Rm_unc
 
+def convert_color(Rm, Rm_unc, from_filters, to_filters):
+    """Convert color from one HB filter set to another, assuming constant slope.
+
+    The color in percent per 0.1 um = 10**(0.4 * Rm + 1)
+
+    Parameters
+    ----------
+    Rm, Rm_unc : Quantity
+      The color in mangitudes per 0.1 um, and uncertainty.
+    from_filters : list of strings
+      The names of the filters for which `Rm` is specified.
+    to_filters : list of strings
+      The names of the new filters.
+
+    Returns
+    -------
+    Rm2, Rm2_unc : Quantity
+      The computed color and uncertainty.
+
+    """
+
+    mw12 = np.mean([cw[f].value for f in from_filters])
+    w34 = [cw[f].value for f in to_filters]
+    mw34 = np.mean(w34)
+
+    assert w34[0] < w34[1], "Filters must be listed in order of wavelength."
+    
+    S12 = 10**(0.4 * Rm.value + 1)
+    f3 = 1 + S12 * (w34[0] - mw12) / 10
+    f4 = 1 + S12 * (w34[1] - mw12) / 10
+    S34 = (f4 - f3) / np.mean((f3, f4)) / np.ptp(w34) * 10.0
+    return 2.5 * np.log10(1 + S34 / 100), Rm_unc * S34 / S12
+    
 def ext_aerosol_bc(E_bc, h):
 
     """Aerosol extinction for BC filter.
@@ -461,6 +496,8 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
     """Extrapolate BC continuum to another filter.
 
     Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
+
+    Needs work.
 
     Parameters
     ----------
