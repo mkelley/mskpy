@@ -89,14 +89,16 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
         y, x = cfunc(stack[i], yx, **ckwargs)
         dyx[i] = y0 - y, x0 - x
         stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
-        if int(dyx[i, 0]) < 0:
-            stack[i, :, int(dyx[i, 0]):] = np.nan
-        elif int(dyx[i, 0]) > 0:
-            stack[i, :, :int(dyx[i, 0])] = np.nan
-        if int(dyx[i, 1]) < 0:
-            stack[i, int(dyx[i, 1]):] = np.nan
-        elif int(dyx[i, 1]) > 0:
-            stack[i, :int(dyx[i, 1])] = np.nan
+        if int(dyx[i, 0]) != 0:
+            if int(dyx[i, 0]) < 0:
+                stack[i, int(dyx[i, 0]):] = np.nan
+            else:
+                stack[i, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) != 0:
+            if int(dyx[i, 1]) < 0:
+                stack[i, :, int(dyx[i, 1]):] = np.nan
+            else:
+                stack[i, :, :int(dyx[i, 1])] = np.nan
 
     return stack, dyx
 
@@ -135,14 +137,16 @@ def align_by_offset(data, dyx, **kwargs):
 
     for i in range(1, len(stack)):
         stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
-        if int(dyx[i, 0]) < 0:
-            stack[i, :, int(dyx[i, 0]):] = np.nan
-        elif int(dyx[i, 0]) > 0:
-            stack[i, :, :int(dyx[i, 0])] = np.nan
-        if int(dyx[i, 1]) < 0:
-            stack[i, int(dyx[i, 1]):] = np.nan
-        elif int(dyx[i, 1]) > 0:
-            stack[i, :int(dyx[i, 1])] = np.nan
+        if int(dyx[i, 0]) != 0:
+            if int(dyx[i, 0]) < 0:
+                stack[i, int(dyx[i, 0]):] = np.nan
+            else:
+                stack[i, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) != 0:
+            if int(dyx[i, 1]) < 0:
+                stack[i, :, int(dyx[i, 1]):] = np.nan
+            else:
+                stack[i, :, :int(dyx[i, 1])] = np.nan
 
     return stack
 
@@ -206,14 +210,14 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
         stack[i] = core.imshift(im, dyx[i], **kwargs)
         if int(dyx[i, 0]) != 0:
             if int(dyx[i, 0]) < 0:
-                stack[i, :, int(dyx[i, 0]):] = np.nan
+                stack[i, int(dyx[i, 0]):] = np.nan
             else:
-                stack[i, :, :int(dyx[i, 0])] = np.nan
+                stack[i, :int(dyx[i, 0])] = np.nan
         if int(dyx[i, 1]) != 0:
             if int(dyx[i, 1]) < 0:
-                stack[i, int(dyx[i, 1]):] = np.nan
+                stack[i, :, int(dyx[i, 1]):] = np.nan
             else:
-                stack[i, :int(dyx[i, 1])] = np.nan
+                stack[i, :, :int(dyx[i, 1])] = np.nan
 
     return stack, dyx
 
