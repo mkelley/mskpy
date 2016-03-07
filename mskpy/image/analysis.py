@@ -54,6 +54,9 @@ __all__ = [
 class UnableToCenter(Exception):
     pass
 
+class NoSourcesFound(Exception):
+    pass
+
 def anphot(im, yx, rap, subsample=4, squeeze=True):
     """Simple annular aperture photometry.
 
@@ -240,6 +243,9 @@ def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
     # prevent crashing.
     x, y = coords.to_pixel(wcs, mode='wcs')
     i = between(y, [0, shape[0] + 1]) * between(x, [0, shape[1] + 1])
+    if not np.any(i):
+        raise NoSourcesFound
+
     x[i], y[i] = coords[i].to_pixel(wcs, mode='all')
     yx = np.c_[y, x]
 
