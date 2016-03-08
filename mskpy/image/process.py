@@ -187,7 +187,7 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
 
     dyx = np.zeros((len(files), 2))
     for i in range(1, len(files)):
-        im, h = fits.getdata(files[i], header=True)
+        stack[i], h = fits.getdata(files[i], header=True)
         wcs = WCS(h)
         if target is not None:
             g = observer.observe(target, h[time_key])
