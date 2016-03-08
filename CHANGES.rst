@@ -1,3 +1,28 @@
+3.0.1
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `image.process.align_by_offset` to align images when the offset is
+  already known.
+
+- `photometry.hb.Rm2S` to convert continuum color in magnitudes to
+  spectral slope.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `image.analysis.apphot_by_wcs` better handles SIP when requested
+  coordinates are off the image.
+
+- `image.analysis.align_by_wcs` raises `NoSourcesFound` when no
+  sources are in the image.
+
+- `image.analysis.align_by_wcs` and `align_by_centroid` use
+  `align_by_offset` which fixes a rollover masking bug.
+
+
 3.0.0
 -----
 
