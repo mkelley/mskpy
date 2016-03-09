@@ -13,6 +13,7 @@ graphics --- Helper functions for making plots.
    niceplot
    noborder
    remaxes
+   rem_interior_ticklabels
    tplot
    tplot_setup
 
@@ -29,6 +30,7 @@ __all__ = [
    'niceplot',
    'noborder',
    'remaxes',
+   'rem_interior_ticklabels',
    'tplot',
    'tplot_setup'
 ]
@@ -349,6 +351,25 @@ def remaxes(ax=None):
     if ax is None:
         ax = plt.gca()
     plt.setp(ax, frame_on=False, xticks=[], yticks=[])
+
+def rem_interior_ticklabels(fig=None):
+    """Remove interior ticklabels from a multiaxis plot.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure, optional
+
+    """
+
+    import matplotlib.pyplot as plt
+
+    if fig is None:
+        fig = plt.gcf()
+    for ax in fig.axes:
+        if not ax.is_last_row():
+            ax.set_xticklabels([])
+        if not ax.is_first_col():
+            ax.set_yticklabels([])
 
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
