@@ -124,7 +124,7 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
 
     return good.mean(1)
 
-def project_catalog(cat, wcs=None):
+def project_catalog(cat, wcs=None, mode='all'):
     """Project a catalog onto the image plane.
 
     The default is the tangent image plane, but any WCS transformation
@@ -139,6 +139,9 @@ def project_catalog(cat, wcs=None):
       The world coordinate system object for transformation.  The
       default assumes the tangent plane centered on the latitude
       and longitude of the catalog.
+    mode : string, optional
+      The projection mode for `SkyCoord` objects: 'wcs' or 'all'.  See
+      `SkyCoord.to_pixel`.
 
     Returns
     -------
@@ -163,7 +166,7 @@ def project_catalog(cat, wcs=None):
         wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         wcs.wcs.cdelt = np.array([-1, 1]) / 3600.0
 
-    x, y = cat.to_pixel(wcs)
+    x, y = cat.to_pixel(wcs, mode=mode)
     return np.vstack((y, x))
 
 def nearest_match(cat0, cat1, tol=1.0, **kwargs):
