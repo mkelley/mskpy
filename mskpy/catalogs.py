@@ -100,7 +100,12 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
 
     Returns
     -------
-    dy, dx : float
+    dxy : ndarray
+      The mean offset.
+    median : ndarray
+      The median offset.
+    stdev : ndarray
+      The standard deviation of the offsets.
 
     """
 
@@ -122,7 +127,7 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
         k = meanclip(d[1, i], full_output=True)[2]
         good = good[:, list(set(np.r_[j, k]))]
 
-    return good.mean(1)
+    return good.mean(1), np.median(good, 1), good.std(1)
 
 def project_catalog(cat, wcs=None, mode='all'):
     """Project a catalog onto the image plane.
