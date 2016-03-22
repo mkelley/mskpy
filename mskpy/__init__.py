@@ -13,13 +13,14 @@ mskpy --- MSK's personal library for astronomy and stuff.
    calib       - Photometric calibration.
    comet       - Defines a comet for observing, flux estimates.
    config      - mskpy configuration parameters.
-   ephem       - Solar System object ephemerides (requires PySPICE).
-   graphics    - Helper functions for making plots.
+   ephem       - Solar System object ephemerides (requires SpiceyPy).
+   graphics    - Helper functions for making plots (requires matplotlib).
    image       - Image generators, analysis, and processing.
    instruments - Cameras, spectrometers, etc. for astronomy.
    modeling    - For fitting models to data.
    models      - Surface and dust models.
    observing   - Tools for observing preparations.
+   photometry  - Tools for photometry.
    polarimetry - Classes and functions for polarimetry.
    util        - Grab bag of utility functions.
 
@@ -39,13 +40,15 @@ from . import models
 from . import modeling
 from . import observing
 
-# the following block depends on PySPICE
+# depends on SpiceyPy
 try:
-    import spice
+    import spiceypy.wrapper as spice
+    _spiceypy = True
 except ImportError:
-    spice = None
+    _spiceypy = False
+    raise UserWarning("MSKPY: spiceypy not available.  ephem, asteroid, and comet modules will not be loaded.")
 
-if spice is not None:
+if _spiceypy:
     from . import ephem
     from . import asteroid
     from . import comet
@@ -53,12 +56,17 @@ if spice is not None:
     from .ephem import *
     from .comet import *
     from .asteroid import *
-# end dependency on PySPICE
 
 # depends on matplotlib
 try:
+    import matplotlib
+    _matplotlib = True
+except ImportError:
+    _matplotlib = False
+    raise UserWarning("MSKPY: matplotlib not available.  Graphics module will not be loaded.")
+
+if _matplotlib:
     from . import graphics
     from .graphics import *
-except (ImportError, RuntimeError):
-    pass
-# end matplotlib
+
+del _spiceypy, _matplotlib

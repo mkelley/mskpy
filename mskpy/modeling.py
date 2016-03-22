@@ -12,7 +12,6 @@ Module under development and waiting for final Astropy modeling API.
 
 """
 
-from __future__ import print_function
 import numpy as np
 import astropy.units as u
 #from astropy.modeling import Parameter, ParametricModel
@@ -55,7 +54,7 @@ __all__ = [
 #    >>> coma = ComaSED(geom, rap, 1000 * u.cm)
 #    >>> fit = fitting.NonLinearLSQFitter(coma)
 #    >>> fit(wave, flux)
-#    >>> print (fit.model(wave) - flux) / flux
+#    >>> print(fit.model(wave) - flux) / flux
 #    [ 0.04580127 -0.06261374  0.00882257 -0.00058844]
 #
 #    """

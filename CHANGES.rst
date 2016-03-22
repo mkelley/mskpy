@@ -1,3 +1,216 @@
+3.0.1
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `image.process.align_by_offset` to align images when the offset is
+  already known.
+
+- `photometry.hb.Rm2S` to convert continuum color in magnitudes to
+  spectral slope.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `image.analysis.apphot_by_wcs` better handles SIP when requested
+  coordinates are off the image.
+
+- `image.analysis.align_by_wcs` raises `NoSourcesFound` when no
+  sources are in the image.
+
+- `image.analysis.align_by_wcs` and `align_by_centroid` use
+  `align_by_offset` which fixes a rollover masking bug.
+
+
+3.0.0
+-----
+
+New features
+^^^^^^^^^^^^
+
+mskpy now requires Python 3.
+
+NAIF SPICE functionality is now provided by SpiceyPy (v0.6.2
+required).  pyspice has been dropped.
+
+- `ephem.SolarSysObject.lightcurve` now has configurable flux density
+  column headings.
+
+- `observing.Observer.rts` : added `limit` keyword for
+  rise/transit/set at a user requested airmass.
+
+- `instruments.IRAC.ccorrection` may now compute only a subset of the
+  4 IRAC bands.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `util.gaussfit` can pass keywords to `leastsq`.
+
+- `ephem.kernel_path` file name resolution is on demand.
+
+
+2.3.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `ephem`
+  - `Geom` objects have been made more dictionary-like (i.e.,
+    Mappable).
+  - `SpiceState` exposes some more SPICE functionality through
+    `r()`, `v()`, and `rv()`: now aberration corrections, observer,
+    and frame can be set.
+
+2.3.1
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `image.analysis.apphot` single aperture photometry using multiple
+  images was returning nonsense.  Fixed.
+
+- `catalogs.find_offset` fixed to use the correct data points when
+  computing the final offset.
+
+New features
+^^^^^^^^^^^^
+
+- `calib`
+  - `dw_atran` to use the Diane Wooden method to compute the
+    transmission of the atmosphere through a filter.
+
+- `catalogs.find_offset` may skip meanclip step when there are not
+  enough sources based on a user defined threshold.
+
+- `ephem`
+  - A `Kepler` object is created when the Kepler Telescope's ephemeris
+    kernel is available as kepler.bsp.
+
+- `image`
+  - New `process.subim` function to return image cutouts given a
+    center position and box size.
+  - `analysis.fwhm` can now independently fit x and y directions.
+
+- `instruments.irtf.MIRSI`
+  - New `standard_fluxd` for standard star flux densities
+    in MIRSI filters.
+  - New `filter_atran` for atmospheric transmission.
+  - New `fluxd` to observe a spectrum through MIRSI filters.
+
+- `models`
+  - `DApColor` for asteroids with linear reflectance slopes.
+  - `neatm` convenience function for quick NEATM calls.
+
+- `observing`
+  - `am_plot` now returns a table of target rise, transit, and set
+    times, and geometric quantities (e.g., rh, delta, phase, ra, dec).
+
+- `photometry.hb` add r' filter.
+
+- `util`
+  - `gaussfit` may now consider a linear term.
+  - `clusters` to define array slices based on a test array.
+
+- Scripts
+  - `ephemeris`
+    - Will now translate numbers into asteroid designations (e.g., 24
+      becomes 2000024).
+    - Allows diameter, IR beaming parameter, and albedo as inputs for
+      quick NEATM brightness estimates.
+  - `horizons2dct-tcs` and `lmi-dither` new scripts for DCT observing.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `asteroid.Asteroid` fixed diameter and albedo initialization of
+  `reflected` when the user provides their own model.
+
+- `ephemeris`
+  - Will provide the command-line options in the output.
+
+- `util.spearman` fixed due to new output from `scipy`.
+
+
+2.3.0
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `graphics.arrows` actually works now (again?).
+
+- `image.analysis.azavg` bug fix for raps parameter as an integer.
+
+New features
+^^^^^^^^^^^^
+
+- `catalogs`
+  - `brightest` to sort out bright sources from a catalog.
+  - `faintest` to sort out faint sources from a catalog.
+  - `find_offset` to determine the offset between two catalogs.
+  - `nearest_match` to find neighbors in two lists.
+  - `project_catalog` to project RA, Dec onto image plane.
+
+- `image`
+  - `analysis.anphot`, `apphot`, `bgphot` allow multiple sources.
+  - `analysis.apphot_by_wcs` for aperture photometry by coordinates.
+  - `analysis.find` for rudimentary source finding.
+  - `core.imshift` allow whole pixel shifts.
+  - `core.rebin` handles scale factor 1 by special case.
+  - `process.align_by_centroid` and `align_by_wcs` for image
+    alignment.
+
+- `observing`
+  - `Observer.finding_chart` for creating a finding chart with DS9.
+  - `plot_transit_time` for doing just that.
+
+- `NEATM.fit` for least-squares fitting of a spectrum.
+
+- New `photometry` module, with lots of Hale Bopp filter support in
+  `hb` submodule.
+
+- `scripts/`
+  - `ephemeris` may now output coma flux estimates, and accepts kernel
+    file names from the command line.
+  - New `transit` script for generating plots of transit times.
+
+- `util` functions
+  - `gaussfit` for Gaussian fitting.
+  - `glfit` for Gaussian + linear function fitting.
+  - `stat_avg` for array binning, considering measurement
+    uncertainties.
+  - `write_table` for quick writing of an astropy table with a simple
+    header.
+  - `xyz2lb` to convert Cartesian coordinates to angles.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `calib.filter_trans` modified to use np.loadtxt.
+
+- `catalogs.spatial_match` and `triangles` overhauls.
+
+- `comet.m2afrho` updated, but still experimental.
+
+- `graphics.niceplot` keyword arguments to prevent changes to line
+    widths, marker sizes, and marker edge widths.
+
+- `image`
+  - `analysis.gcentroid` uses float when passed a float.
+  - `process.fixpix` behind the scenes improvements and limit fixing
+  by area.
+  - `analysis.azavg` bug fix for raps parameter as an integer.
+
+- `observing.Observer` includes date in string representation.
+
+- `util`
+  - `getrot` fix for current astropy.io.fits behavior.
+  - `planckfit` fix for when leastsq refuses to fit the data.
+
 2.2.4
 -----
 

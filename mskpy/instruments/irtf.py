@@ -59,6 +59,11 @@ class MIRSI(Instrument):
     sp20r100 : `LongSlitSpectrometer` for 20-micron spectroscopy.
     mode : The current MIRSI mode (see examples).
 
+    Methods
+    -------
+    standard_fluxd : Flux density of a standard star in a MIRSI filter.
+    fluxd : Flux density of a spectrum through a MIRSI filter.
+
     Examples
     --------
 
@@ -68,9 +73,18 @@ class MIRSI(Instrument):
     ps = 0.265 * u.arcsec
     location = Earth
 
+    # Central wavelengths
+    filters = np.r_[4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.3,
+                    18.4, 20.6, 24.4] * u.um
+    # Width of the filters (in percent)
+    width_per = np.r_[21.0, 9.0, 8.9, 9.4, 46.0, 9.9, 9.6,
+                      8.0, 37.4, 7.9]
+    # Half width of the filters
+    hwidth = (filters * width_per * 0.01) / 2.
+
     def __init__(self):
-        w = [4.9, 7.7, 8.7, 9.8, 10.6, 11.6, 12.7, 20.6, 24.4] * u.um
-        self.imager = Camera(w, self.shape, self.ps, location=self.location)
+        self.imager = Camera(self.filters, self.shape, self.ps,
+                             location=self.location)
 
         self.sp10r200 = LongSlitSpectrometer(10.5 * u.um, self.shape, self.ps,
                                              2.25, 0.022 * u.um, R=200,
@@ -120,6 +134,112 @@ class MIRSI(Instrument):
 
         """
         return self.mode.lightcurve(*args, **kwargs)
+
+    def filter_atran(self, wave, airmass, pw='2.5'):
+        """Atmospheric transmission through a filter.
+
+        Diane Wooden method.
+
+        Parameters
+        ----------
+        wave : float or array
+          Filter central wavelengths (see `self.filters`).
+        airmass : float
+          Airmass to compute.
+        pw : string, optional
+          Precipitable water vapor.  Must match a saved file.
+
+        Returns
+        -------
+        tr : float or array
+          The filter transmissions.
+
+        """
+
+        from .. import util
+        from ..calib import dw_atran
+
+        _w = np.r_[wave]
+        tr = np.zeros_like(_w)
+
+        for i in range(len(_w)):
+            j = self.filters.value == _w[i]
+            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
+                       self.filters.value[j] + self.hwidth.value[j]]
+
+            fw = np.linspace(bp[0] - 1, bp[1] + 1, 10000)
+            ft = fw * 0.0
+            ft[util.between(fw, bp)] = 1.0
+
+            tr[i] = dw_atran(airmass, fw, ft, pw=pw)
+
+        return tr
+
+    def fluxd(self, sw, sf, wave):
+        """Flux density of a spectrum through a filter.
+
+        Parameters
+        ----------
+        sw : Quantity
+          The wavelenths of the spectrum.
+        sf : Quantity
+          The spectrum (flux per unit wavelength).
+        wave : float or array
+          The central wavelength of the filters for which the flux should
+          be computed.
+
+        Returns
+        -------
+        flux : Quantity
+          The computed flux density of the spectrum through each filter.
+
+        """
+        from .. import calib
+        from .. import util
+
+        _w = np.r_[wave]
+        flux = u.Quantity(np.zeros_like(_w), sf.unit)
+
+        for i in range(len(_w)):
+            j = self.filters.value == _w[i]
+            bp = np.r_[self.filters.value[j] - self.hwidth.value[j],
+                       self.filters.value[j] + self.hwidth.value[j]]
+
+            fw = np.linspace(bp[0] - 1, bp[1] + 1, 1000)
+            ft = fw * 0.0
+            ft[util.between(fw, bp)] = 1.0
+
+            result = util.bandpass(sw.to(u.um).value,
+                                   sf.value,
+                                   fw=fw, ft=ft, s=0)
+            flux[i] = result[1] * sf.unit
+
+        return flux
+
+    def standard_fluxd(self, star, wave, unit=u.Unit('W/(m2 um)')):
+        """Flux density of a standard star in a MIRSI filter.
+
+        Parameters
+        ----------
+        star : str
+          The name of a star, passed on to `calib.cohenstandard()`.
+        wave : float or array
+          The central wavelength of the filters for which the flux should
+          be computed.
+        units : str, optional
+          The units of the output.  See `cohenstandard()`.
+
+        Returns
+        -------
+        flux : Quantity
+          The computed flux density of the star in each filter.
+
+        """
+        from .. import calib
+        from .. import util
+
+        sw,  sf = calib.cohen_standard(star, unit=unit)
+        return self.fluxd(sw, sf, wave)
 
 class SpeX(LongSlitSpectrometer):
     """SpeX.

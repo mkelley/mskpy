@@ -510,7 +510,7 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
             rho = (u.Quantity(rap, u.arcsec) * 725e3 * u.m / u.arcsec / u.au
                    * delta)
         except u.UnitsError:
-            print 'rap must have units of length or angluar size.'
+            print('rap must have units of length or angluar size.')
             raise
 
     v1 = u.Quantity(v1, u.m / u.s)
@@ -631,23 +631,23 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     I = flux / Om  # W/m2/um/sr
     return I * _rho / B
 
-def m2afrho(m, geom):
+def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
     """Convert JPL/HORIZONS apparent magnitude, m, to Afrho.
 
     *** EXPERIMENTAL ***
 
-    Based on Comet C/2007 N3 (Lulin) in I-band:
-
-      3200 cm = 8.49 mag at rh=1.49 AU, Delta=0.49 AU.
-      -2.5 log10(3200 / c) = 8.49 + 5 * log10(1.49 * 0.49)
-      c = 4.0e6 cm
+    Based on a few comets.  See MSK's notes.
 
     Parameters
     ----------
     m : float
       Comet's apparent magnitude from JPL.
-    geom : dict of Quantity, or ephem.Geom
+    g : dict of Quantity, or ephem.Geom
       The observing circumstances (rh and delta).
+    C : float
+      Conversion constant. [cm]
+    m_sun : float
+      Apparent magnitude of the Sun.
 
     Returns
     -------
@@ -655,9 +655,13 @@ def m2afrho(m, geom):
       Afrho.  [cm]
 
     """
-    print "    *** EXPERIMENTAL ***   "
-    M = m - 5 * np.log10(geom['rh'] * geom['delta'])
-    return 4.0e6 * 10**(M / -2.5)
+    print("    *** EXPERIMENTAL ***   ")
+    #M = m - 5 * np.log10(geom['rh'].to(u.au).value
+    #                     * geom['delta'].to(u.au).value)
+    #return 4.0e6 * 10**(M / -2.5)
+    afrho = (C * g['delta'].to(u.au)**2 * g['rh'].to(u.au)**2 / u.au**4
+             * 10**(-0.4 * (m - m_sun))) * u.cm
+    return afrho
 
 def M2afrho1(M1):
     """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.
@@ -679,8 +683,8 @@ def M2afrho1(M1):
     """
     return 10**(-0.208 * M1 + 4.687)
 
-def m2qh2o(M1):
-    """Convert absolute magnitude, M1, to Q(H2O) at 1 AU.
+def m2qh2o(m_H):
+    """Convert helocentric magnitude, m_H, to Q(H2O).
 
     Based on an empirical correlation between heliocentric magnitude
     and Q(H2O) by Jorda et al. (2008, ACM, 8046).  Scatter about the
@@ -688,8 +692,8 @@ def m2qh2o(M1):
 
     Parameters
     ----------
-    M1 : float
-      Comet's absolute magnitude from JPL.
+    m_H : float
+      Comet's heliocentric magnitude = m_V - 5 * log10(Delta).
 
     Returns
     -------
@@ -697,7 +701,7 @@ def m2qh2o(M1):
       Q(H2O) at 1 AU.  [molecules/s]
 
     """
-    return 10**(30.675 - 0.2453 * M1)
+    return 10**(30.675 - 0.2453 * m_H)
 
 def Q2flux(Q, wave, geom, g, rap, v):
     """Convert Q to line emission.

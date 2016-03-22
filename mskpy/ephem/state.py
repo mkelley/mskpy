@@ -29,7 +29,8 @@ from datetime import datetime
 
 import numpy as np
 from astropy.time import Time
-import spice
+import spiceypy.wrapper as spice
+from spiceypy.support_types import SpiceyError
 
 from . import core
 
@@ -259,11 +260,14 @@ class SpiceState(State):
     v : Velocity vector.
     rv : Both vectors.
 
+    Attributes
+    ----------
+    obj, kernel : from Parameters
+    naifid : the NAIF ID of the object
+
     """
 
     def __init__(self, obj, kernel=None):
-        import spice
-
         if not core._spice_setup:
             core._setup_spice()
 
@@ -274,20 +278,69 @@ class SpiceState(State):
 
         if isinstance(obj, int):
             obj = str(obj)
+
         naifid = spice.bods2c(obj)
-        if naifid is None:
-            raise ObjectError(("NAIF ID of {} cannot be found"
-                               " in kernel {}.").format(obj, kernel))
+
         self.obj = obj
         self.naifid = naifid
 
-    def rv(self, date):
+    def r(self, date, **kwargs):
+        """Position vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Processed via `util.date2time`.
+        kwargs :
+          Keyword arguments passed to `SpiceState.rv`.
+
+        Returns
+        -------
+        r : ndarray
+          Position vector (3-element or Nx3 element array). [km]
+       
+        """
+        from .. import util
+        N = util.date_len(date)
+        if N > 0:
+            return np.array([self.rv(d)[0] for d in date])
+        return self.rv(date, **kwargs)[0]
+
+    def v(self, date, **kwargs):
+        """Velocity vector.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Processed via `util.date2time`.
+        kwargs :
+          Keyword arguments passed to `SpiceState.rv`.
+
+        Returns
+        -------
+        v : ndarray
+          Velocity vector (3-element or Nx3 element array). [km/s]
+       
+        """
+        from .. import util
+        N = util.date_len(date)
+        if N > 0:
+            return np.array([self.rv(d)[1] for d in date])
+        return self.rv(date, **kwargs)[1]
+
+    def rv(self, date, frame="ECLIPJ2000", corr="NONE", observer=10):
         """Position and velocity vectors.
 
         Parameters
         ----------
         date : string, float, astropy Time, datetime
           Processed via `util.date2time`.
+        frame : string
+          The name of a SPICE reference frame.
+        corr : string
+          The SPICE abberation correction.
+        observer : integer
+          The NAIF ID of the observer when computing vectors.
 
         Returns
         -------
@@ -301,5 +354,5 @@ class SpiceState(State):
         from .. import util
         et = core.date2et(date)
         # no light corrections, sun = 10
-        state, lt = spice.spkez(self.naifid, et, "ECLIPJ2000", "NONE", 10)
+        state, lt = spice.spkez(self.naifid, et, frame, corr, observer)
         return np.array(state[:3]), np.array(state[3:])

@@ -13,6 +13,7 @@ graphics --- Helper functions for making plots.
    niceplot
    noborder
    remaxes
+   rem_interior_ticklabels
    tplot
    tplot_setup
 
@@ -29,12 +30,12 @@ __all__ = [
    'niceplot',
    'noborder',
    'remaxes',
+   'rem_interior_ticklabels',
    'tplot',
    'tplot_setup'
 ]
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
            offset=1.3, inset=0, fontsize='medium', arrowprops=dict(),
@@ -48,9 +49,10 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
     length : float
       Length of the arrows in data units.
     rot : float, optional
-      The image orientation (position angle of north).
+      The image orientation (position angle of north) in units of degrees.
     angles : array, floats, optional
-      The position angles at which to place arrows, measured E of N.
+      The position angles at which to place arrows, measured E of N,
+      in units of degrees.
     labels : array, strings, optional
       Labels for each arrow, or None for no labels.
     offset : float, optional
@@ -72,6 +74,7 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
       List of items returned from `annotate`.
 
     """
+    import matplotlib.pyplot as plt
 
     ax = kwargs.pop('axes', plt.gca())
 
@@ -81,12 +84,9 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
 
     alist = []
     for i in range(len(angles)):
-        ixy = length * inset * np.array(
-            -np.sin(rot + np.radians(angles[i])),
-             np.cos(rot + np.radians(angles[i])))
-        dxy = length * offset * np.array(
-            -np.sin(rot + np.radians(angles[i])),
-             np.cos(rot + np.radians(angles[i])))
+        a = np.radians(rot + angles[i])
+        ixy = length * inset * np.array([-np.sin(a), np.cos(a)])
+        dxy = length * offset * np.array([-np.sin(a), np.cos(a)])
         alist += [ax.annotate(labels[i], xy + ixy, xy + dxy,
                               ha='center', va='center',
                               fontsize=fontsize, arrowprops=arrowprops,
@@ -102,6 +102,7 @@ def axcolor(color):
       Any acceptable matplotlib color.
 
     """
+    import matplotlib.pyplot as plt
     plt.rc('xtick', color=color)
     plt.rc('ytick', color=color)
     plt.rc('axes', edgecolor=color)
@@ -122,18 +123,19 @@ def circle(x, y, r, ax=None, segments=100, **kwargs):
       `matplotlib.plot` keywords.
 
     """
+    import matplotlib.pyplot as plt
 
     if ax is None:
         ax = plt.gca()
 
     if np.iterable(x) and np.iterable(y) and np.iterable(r):
-        for i in xrange(len(x)):
+        for i in range(len(x)):
             circle(x[i], y[i], r[i], ax=ax, **kwargs)
     elif np.iterable(x) and np.iterable(y):
-        for i in xrange(len(x)):
+        for i in range(len(x)):
             circle(x[i], y[i], r, ax=ax, **kwargs)
     elif np.iterable(r):
-        for i in xrange(len(r)):
+        for i in range(len(r)):
             circle(x, y, r[i], ax=ax, **kwargs)
     else:
         th = np.linspace(0, 2 * np.pi, segments)
@@ -183,7 +185,7 @@ def jdaxis2date(axis, fmt):
     labels : matplotlib tick labels
 
     """
-    from util import jd2time
+    from .util import jd2time
     jd = axis.get_ticklocs()
     return axis.set_ticklabels(
         [jd2time(t).datetime.strftime(fmt) for t in jd])
@@ -208,8 +210,10 @@ def ksplot(x, ax=None, **kwargs):
 
     """
 
+    import matplotlib.pyplot as plt
+
     xx = np.sort(x)
-    yy = np.ones(x.size).cumsum() / float(x.size)
+    yy = np.ones(x.size).cumsum() / x.size
     ls = keywords.pop('ls', keywords.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()
@@ -237,6 +241,8 @@ def nicelegend(*args, **kwargs):
 
     """
 
+    import matplotlib.pyplot as plt
+
     axis = kwargs.pop('axis', None)
 
     kwargs['numpoints'] = kwargs.pop('numpoints', 1)
@@ -252,7 +258,7 @@ def nicelegend(*args, **kwargs):
 
 
 def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
-             **kwargs):
+             mew=1.25, lw=2.0, ms=7.0, **kwargs):
     """Pretty up a plot for publication.
 
     Parameters
@@ -270,6 +276,8 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
 
     """
 
+    import matplotlib.pyplot as plt
+    
     if ax is None:
         for ax in plt.gcf().get_axes():
             niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs, **kwargs)
@@ -283,11 +291,21 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
     plt.setp(labels, fontsize=lfs)
 
     # for plot markers, ticks
-    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', 1.25))
-    ms = kwargs.pop('markersize', kwargs.pop('ms', 7.0))
-    lw = kwargs.pop('linewidth', kwargs.pop('lw', 2.0))
+    lines = ax.get_lines()
+    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+    if mew is not None:
+        plt.setp(lines, mew=mew)
 
-    plt.setp(ax.get_lines(), mew=mew, ms=ms, lw=lw, **kwargs)
+    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+    if ms is not None:
+        plt.setp(lines, ms=ms)
+
+    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+    if lw is not None:
+        plt.setp(lines, lw=lw)
+
+    if len(kwargs) > 0:
+        plt.setp(lines, **kwargs)
 
     lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
         ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
@@ -311,6 +329,9 @@ def noborder(fig=None):
       Use this figure.
 
     """
+
+    import matplotlib.pyplot as plt
+
     if fig is None:
         fig = plt.gcf()
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
@@ -324,9 +345,50 @@ def remaxes(ax=None):
       Use this axis.
 
     """
+
+    import matplotlib.pyplot as plt
+
     if ax is None:
         ax = plt.gca()
     plt.setp(ax, frame_on=False, xticks=[], yticks=[])
+
+def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
+    """Remove interior ticklabels from a multiaxis plot.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure, optional
+      Inspect this figure for axes, otherwise use the current figure.
+    axes : matplotlib axis, optional
+      Only consider these axes, otherwise consider all axes in `fig`.
+    top : bool, optional
+      Set to `True` if the axes have ticks along the top.
+    right : bool, optional
+      Set to `True` if the axes have ticks along the right.
+
+    """
+
+    import matplotlib.pyplot as plt
+
+    if fig is None:
+        fig = plt.gcf()
+
+    if axes is None:
+        axes = fig.axes
+        
+    for ax in axes:
+        if top:
+            if not ax.is_first_row():
+                ax.set_xticklabels([])
+        else:
+            if not ax.is_last_row():
+                ax.set_xticklabels([])
+        if right:
+            if not ax.is_last_col():
+                ax.set_yticklabels([])
+        else:
+            if not ax.is_first_col():
+                ax.set_yticklabels([])
 
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
@@ -366,6 +428,9 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     show()
 
     """
+
+    import matplotlib.pyplot as plt
+        
     if setup:
         tplot_setup()
     linestyle = plotkws.pop('linestyle', plotkws.pop('ls', 'none'))
@@ -429,6 +494,8 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
       Plot keywords for the grid lines, or None for no grid lines.
 
     """
+
+    import matplotlib.pyplot as plt
 
     x = lambda b, c: np.array(b) + np.array(c) / 2.0
     y = lambda c: np.array(c) * 0.86603

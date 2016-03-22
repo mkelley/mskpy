@@ -155,9 +155,9 @@ class LinPol(object):
         """Rotate the polarization vector.
 
         The vector is rotated by the given angle, e.g.::
-          >>> print pol.theta
+          >>> print(pol.theta)
           0.0
-          >>> print pol.rotate(90 * u.deg).theta
+          >>> print(pol.rotate(90 * u.deg).theta)
           90.0
 
         Parameters

@@ -7,6 +7,7 @@ calib --- Tools for photometric and spectroscopic calibrations
    :toctree: generated/
 
    cohen_standard
+   dw_atran
    e490
    filter_trans
    solar_flux
@@ -16,6 +17,7 @@ calib --- Tools for photometric and spectroscopic calibrations
 
 __all__ = [
     'cohen_standard',
+    'dw_atran',
     'e490',
     'filter_trans',
     'solar_flux',
@@ -254,10 +256,15 @@ def filter_trans(name):
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    table = ascii.read(_filterdir + '/' + fil[0])
+    #table = ascii.read(_filterdir + '/' + fil[0], format='fixed_width_no_header')
+    #cols = fil[1]
+    #w = table.columns[cols[0]].data * u.um
+    #tr = table.columns[cols[1]].data
+
+    table = np.loadtxt(_filterdir + '/' + fil[0]).T
     cols = fil[1]
-    w = table.columns[cols[0]].data * u.um
-    tr = table.columns[cols[1]].data
+    w = table[cols[0]] * u.um
+    tr = table[cols[1]]
 
     return w, tr
 
@@ -323,3 +330,51 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
         fl = fl.to(unit, equivalencies=equiv)
 
     return wave, fl
+
+def dw_atran(airmass, fw, ft, pw='2.5'):
+    """Use the Diane Wooden method to compute the transmission of the
+    atmosphere in a filter.
+
+    Parameters
+    ----------
+    am : float
+      The airmass at which to compute the transmission.
+    fw : array
+      Filter wavelengths.
+    ft : array
+      Filter transmission.
+    pw : str, optional
+      The precipitable water in mm (either 2.5 or 3.3).
+
+    Returns
+    -------
+    tr : float or ndarray
+      The computed transmission of the sky.
+
+    """
+
+    from glob import glob
+    from .util import bandpass
+
+    f = glob('{0}/atmosphere/tr_1??00ft_{1}mm_7*.txt'.format(
+        _midirdir, pw))[0]
+    tw10, tb10, tc10 = np.loadtxt(f).T
+    if pw == '3.3':
+        f = glob('{0}/atmosphere/tr_1??00ft_3.4mm_15*.txt'.format(
+            _midirdir))[0]
+
+    else:
+        f = glob('{0}/atmosphere/tr_1??00ft_{1}mm_15*.txt'.format(
+            _midirdir, pw))[0]
+    tw20, tb20, tc20 = np.loadtxt(f, usecols=(0, 2, 3)).T
+
+    tw = np.r_[tw10, tw20]
+    tt = np.r_[np.exp(-tb10 * np.sqrt(airmass) - tc10 * airmass),
+               np.exp(-tb20 * np.sqrt(airmass) - tc20 * airmass)]
+
+    return bandpass(tw, tt, fw=fw, ft=ft)[1]
+
+# update module docstring
+from .util import autodoc
+autodoc(globals())
+del autodoc

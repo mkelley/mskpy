@@ -1,12 +1,12 @@
-=====
-mskpy
-=====
+============
+mskpy v3.0.2-dev
+============
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: numpy, scipy, astropy v0.3.
+Requires: python3 (3.4+ recommended), numpy, scipy, astropy v1.0.
 
-Recommended: pyspice, matplotlib.
+Recommended: spiceypy (v0.6.2), matplotlib.
 
 Optional: pyds9.
 
@@ -14,7 +14,8 @@ Optional: pyds9.
 Caution
 =======
 
-I hope you find mskpy useful, but use at your own risk.
+I hope you find mskpy useful, but use at your own risk.  When you
+encounter errors, feedback would be appreciated.
 
 
 Configuration
@@ -26,6 +27,20 @@ This file currently contains paths to your SPICE kernels, Cohen
 mid-IR standards, and IRTF spextool data files. (none are required to
 run mskpy).
 
+SPICE Kernels
+-------------
+
+To use the `ephem` and `observing` modules, `spiceypy` is required.
+At a minimum, three kernels are needed to be present in your kernel
+directory (as set by the module configuration):
+- naif.tls : a leap seconds kernel,
+- pck.tpc : a planetary constants kernel,
+- planets.bsp : a planetary ephemeris kernel, e.g., DE430.
+These kernels are available from the NAIF group at JPL:
+
+  http://naif.jpl.nasa.gov/pub/naif/generic_kernels/
+
+See the `ephem` module documentation for more details.
 
 Known Issues
 ============
@@ -193,3 +208,11 @@ Aperture polarimetry from a half-wave plate polarimeter::
 Polarimetry classes can also take arrays for the wave plate positions,
 including images.  There are keywords that allow for instrumental
 corrections to Q/I, U/I and total polarization.
+
+
+Contributions
+=============
+
+Some code for migration to Python 3 provided by Miguel de Val-Borro.
+
+

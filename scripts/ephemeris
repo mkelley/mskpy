@@ -1,11 +1,10 @@
-#!/usr/bin/python
-from __future__ import print_function
+#!/usr/bin/python3
 import sys
 import argparse
 import datetime
 import astropy.units as u
 import mskpy
-from mskpy import ephem, util, between, Coma
+from mskpy import ephem, util, between, Coma, Asteroid
 
 today = datetime.date.today()
 
@@ -31,6 +30,9 @@ parser.add_argument('--observer', type=str, action='store', default='Earth',
 parser.add_argument('--selong', type=str, action=ListAction, default=[0, 180],
                     help='The allowed solar elongation limits.')
 
+parser.add_argument('--kernel', type=str, action='append', default=[],
+                    help='Load this kernel.')
+
 parser.add_argument('--afrho', type=float, action='store', default=None,
                     help='Afrho parameter at phase angle = 0 [cm].')
 parser.add_argument('-k', type=float, action='store', default=-2.0,
@@ -43,6 +45,14 @@ parser.add_argument('--tscale', type=float, action='store', default=1.1,
                     help='Effective temperature scale factor.')
 parser.add_argument('--phasef', type=str, action='store', default='phaseHM',
                     help='Phase function: phaseK, phaseH, phaseHM.')
+
+parser.add_argument('-D', type=float, action='store', default=None,
+                    help='Asteroid diameter [km].')
+parser.add_argument('--eta', type=float, action='store', default=1.0,
+                    help='IR-beaming parameter.')
+parser.add_argument('--Ap', type=float, action='store', default=0.04,
+                    help='Asteroid/nucleus geometric albedo.')
+
 parser.add_argument('--wave', type=str, action=ListAction,
                     default=[0.6, 2.2, 10, 20],
                     help='Wavelengths for estimate flux densities.')
@@ -55,7 +65,7 @@ args = parser.parse_args()
 if args.target == []:
     parser.print_help()
     print()
-    exit()
+    sys.exit()
 
 if args.end is None:
     ymd = [int(x) for x in args.start.split('-')]
@@ -66,33 +76,57 @@ else:
     end = args.end
     n = int(util.cal2time(end).jd - util.cal2time(args.start).jd + 1)
 
-target = ephem.getspiceobj(' '.join(args.target))
+if len(args.kernel) > 0:
+    for k in args.kernel:
+        ephem.core.load_kernel(k)
+
+if (len(args.target) == 1
+    and args.target[0].isdigit()
+    and len(args.target[0]) < 6):
+    # asteroid designation
+    target = ephem.getspiceobj(int(args.target[0]) + 2000000)
+else:
+    target = ephem.getspiceobj(' '.join(args.target))
+
 try:
     observer = eval('ephem.' + args.observer.capitalize())
 except AttributeError:
     observer = ephem.getspiceobj(' '.join(args.observer))
 
-ephemeris_only = True if args.afrho is None else False
-
+ephemeris_only = False
+if args.afrho is None and args.D is None:
+    ephemeris_only = True
+else:
+    if ((args.afrho is not None) and (args.D is not None)):
+        raise AssertionError("D (asteroid) and afrho (coma) cannot be"
+                             " simulatenously requested.")
+    
 arg_list = ['start', 'end', 'n', 'observer', 'selong']
 if ephemeris_only:
     t = target.ephemeris(observer, [args.start, end], num=n)
 else:
-    arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef', 'wave',
-                     'rap', 'unit'])
-    afrho1 = args.afrho / args.rh**args.k * u.cm
-    coma = Coma(target.state, afrho1, k=args.k,
-                ef2af=args.ef2af, Tscale=args.tscale,
-                phasef=getattr(mskpy.models, args.phasef))
-    t = coma.lightcurve(observer, [args.start, end], args.wave * u.um, num=n,
-                        rap=args.rap * u.arcsec, unit=u.Unit(args.unit),
-                        verbose=False)
+    if args.afrho is not None:
+        arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
+                         'wave', 'rap', 'unit'])
+        afrho1 = args.afrho / args.rh**args.k * u.cm
+        coma = Coma(target.state, afrho1, k=args.k,
+                    ef2af=args.ef2af, Tscale=args.tscale,
+                    phasef=getattr(mskpy.models, args.phasef))
+        t = coma.lightcurve(observer, [args.start, end], args.wave * u.um,
+                            num=n, rap=args.rap * u.arcsec,
+                            unit=u.Unit(args.unit), verbose=False)
+    elif args.D is not None: 
+        arg_list.extend(['D', 'Ap', 'eta', 'wave', 'unit'])
+        asteroid = Asteroid(target.state, args.D * u.km, args.Ap, eta=args.eta)
+        t = asteroid.lightcurve(observer, [args.start, end], args.wave * u.um,
+                                num=n, unit=u.Unit(args.unit), verbose=False)
 
 t = t[between(t['selong'], args.selong)]
 
-print("""# ephemeris
+print("""# ephemeris {}
+#
 # target = {}
-#""".format(' '.join(args.target)))
+#""".format(' '.join(sys.argv[1:]), ' '.join(args.target)))
 for k in arg_list:
     if k[0] == '_':
         continue

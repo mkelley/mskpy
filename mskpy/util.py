@@ -25,16 +25,20 @@ util --- Short and sweet functions, generic algorithms
 
    Optimizations
    -------------
+   gaussfit
+   glfit
    linefit
    planckfit
 
    Searching, sorting
    ------------------
    between
+   clusters
    groupby
    leading_num_key
    nearest
    takefrom
+   stat_avg
    whist
 
    Spherical/Celestial/vectorial geometry
@@ -99,7 +103,10 @@ util --- Short and sweet functions, generic algorithms
 
 """
 
+from functools import singledispatch
+import datetime
 import numpy as np
+import astropy.time
 
 __all__ = [
     'archav',
@@ -115,13 +122,17 @@ __all__ = [
     'fitslog',
     'getrot',
 
+    'gaussfit',
+    'glfit',
     'linefit',
     'planckfit',
 
     'between',
+    'clusters',
     'groupby',
     'leading_num_key',
     'nearest',
+    'stat_avg',
     'takefrom',
     'whist',
 
@@ -270,7 +281,7 @@ def davint(x, y, x0, x1, axis=0):
       The result.
 
     """
-    from lib import davint as _davint
+    from .lib import davint as _davint
 
     y = np.array(y)
     if y.ndim == 1:
@@ -445,9 +456,9 @@ def rotmat(th):
     --------
     import numpy as np
     from mskpy import rotmat
-    print np.array([1, 0]) * rotmat(np.radians(90.0))
+    print(np.array([1, 0]) * rotmat(np.radians(90.0)))
     --> matrix([[  6.12323400e-17,   1.00000000e+00]])
-    print ap.array([0, 1]) * rotmat(np.pi)
+    print(np.array([0, 1]) * rotmat(np.pi))
     --> matrix([[ -1.00000000e+00,   6.12323400e-17]])
 
     """
@@ -545,7 +556,7 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
                       '{5:>6}', '{6:>20}', '{7:>20}', '{8:>20}',
                       '{9}']
         else:
-            print "{0} not a recognized template".format(keywords)
+            print("{0} not a recognized template".format(keywords))
             return None
 
         if csv:
@@ -667,6 +678,132 @@ def getrot(h):
 
     return cdelt * 3600.0, np.degrees(rot1)
 
+def gaussfit(x, y, err, guess, covar=False, **kwargs):
+    """A quick Gaussian fitting function, optionally including a line.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess.  The length of the guess determines the fitting
+      function:
+        `(amplitude, mu, sigma)` - pure Gaussian
+        `(amplitude, mu, sigma, b)` - Gaussian + constant offset `b`
+        `(amplitude, mu, sigma, m, b)` - Gaussian + linear term `m x + b`
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+    **kwargs
+      Keyword arguments to pass to `scipy.optimize.leastsq`.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def gauss_chi(p, x, y, err):
+        A, mu, sigma = p
+        model = A * gaussian(x, mu, sigma)
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    def gauss_offset_chi(p, x, y, err):
+        A, mu, sigma, b = p
+        model = A * gaussian(x, mu, sigma) + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    def gauss_line_chi(p, x, y, err):
+        A, mu, sigma, m, b = p
+        model = A * gaussian(x, mu, sigma) + m * x + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    assert len(guess) in (3, 4, 5), "guess must have length of 3, 4, or 5."
+
+    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4,
+                xtol=1e-4, ftol=1e-4)
+    opts.update(**kwargs)
+    if len(guess) == 3:
+        output = leastsq(gauss_chi, guess, **opts)
+    elif len(guess) == 4:
+        output = leastsq(gauss_offset_chi, guess, **opts)
+    elif len(guess) == 5:
+        output = leastsq(gauss_line_chi, guess, **opts)
+
+    fit = output[0]
+    cov = output[1]
+    if cov is None:
+        print(output[3])
+        err = None
+    else:
+        err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
+def glfit(x, y, err, guess, covar=False):
+    """A quick Gaussian + line fitting function.
+
+    Parameters
+    ----------
+    x, y : array
+      The independent and dependent variables.
+    err : array
+      `y` errors, set to `None` for unweighted fitting.
+    guess : tuple
+      Initial guess: `(amplitude, mu, sigma, m, b)`.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix rather than the
+      error.
+
+    Returns
+    -------
+    fit : tuple
+      Best-fit parameters.
+    err or cov : tuple or ndarray
+      Errors on the fit or the covariance matrix of the fit (see
+      `covar` keyword).
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(p, x, y, err):
+        A, mu, sigma, m, b = p
+        model = A * gaussian(x, mu, sigma) + m * x + b
+        chi = (np.array(y) - model) / np.array(err)
+        return chi
+
+    if err is None:
+        err = np.ones(len(y))
+
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
+                     epsfcn=1e-4)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
 def linefit(x, y, err, guess, covar=False):
     """A quick line fitting function.
 
@@ -756,7 +893,7 @@ def planckfit(wave, fluxd, err, guess, covar=False):
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
                      epsfcn=1e-3)
-    print output[-2]
+    print(output[-2])
     fit = output[0]
     cov = output[1]
 
@@ -800,12 +937,35 @@ def between(a, limits, closed=True):
             i = (a > lim[0]) * (a < lim[1])
     else:
         i = np.zeros(b.shape)
-        for j in xrange(lim.shape[0]):
+        for j in range(lim.shape[0]):
             i += between(a, lim[j,:])
 
     return i.astype(bool)
 
+def clusters(test):
+    """Define array slices based on a test value.
+
+    Parameters
+    ----------
+    test : array
+      The test result.
+
+    Returns
+    -------
+    objects : tuple of slices
+      An array of slices that return each cluster of `True` values in
+      `test`.
+
+    """
+
+    import scipy.ndimage as nd
+
+    labels, n = nd.label(test)
+    print("{} clusters found".format(n))
+    return nd.find_objects(labels)
+
 def groupby(key, *lists):
+
     """Sort elements of `lists` by `unique(key)`.
 
     Note: this is not the same as `itertools.groupby`.
@@ -830,7 +990,7 @@ def groupby(key, *lists):
     >>> import numpy as np
     >>> from mskpy.util import groupby
     >>> keys = (np.random.rand(26) * 3).astype(int)
-    >>> print keys
+    >>> print(keys)
     [1 2 2 0 1 1 1 1 1 1 2 1 2 1 0 0 0 1 2 2]
     >>> lists = (list('abcdefghijklmnopqrstuvwxyz'), range(26))
     >>> groupby(keys, *lists)
@@ -900,6 +1060,52 @@ def nearest(array, v):
     """
     return np.abs(np.array(array) - v).argmin()
 
+def stat_avg(x, y, u, N):
+    """Bin an array, weighted by measurement errors.
+
+    Parameters
+    ----------
+    x : array
+      The independent variable.
+    y : array
+      The parameter to average.
+    u : array
+      The uncertainties on y. weights for each `y`.
+    N : int
+      The number of points to bin.  The right-most bin may contain
+      fewer than `N` points.
+
+    Returns
+    -------
+    bx, by, bu : ndarray
+      The binned data.  The `x` data is straight averaged (unweighted).
+    n : ndarray
+      The number of points in each bin.
+
+    """
+
+    nbins = x.size // N
+    remainder = x.size % nbins
+    shape = (nbins, N)
+
+    w = (1.0 / np.array(u)**2)
+    _w = w[:-remainder].reshape(shape)
+    _x = np.array(x)[:-remainder].reshape(shape)
+    _y = np.array(y)[:-remainder].reshape(shape)
+
+    _x = _x.mean(1)
+    _y = (_y * _w).sum(1) / _w.sum(1)
+    _u = np.sqrt(1.0 / _w.sum(1))
+
+    n = np.ones(len(_x)) * N
+    if remainder > 0:
+        _x = np.r_[_x, np.mean(x[-remainder:])]
+        _y = np.r_[_y, (np.array(y[-remainder:]) / w[-remainder:]).sum()]
+        _u = np.r_[_u, np.sqrt(1.0 / w[-remainder:].sum())]
+        n = np.r_[n, remainder]
+
+    return _x, _y, _u, n
+
 def takefrom(arrays, indices):
     """Return elements from each array at the given indices.
 
@@ -957,7 +1163,7 @@ def whist(x, y, w, errors=True, **keywords):
 
     """
 
-    if keywords.has_key('weights'):
+    if 'weights' in keywords:
         raise RuntimeError('weights not allowed in keywords')
 
     _x = np.array(x)
@@ -971,7 +1177,7 @@ def whist(x, y, w, errors=True, **keywords):
     n = n.astype(float)
 
     num = np.histogram(x, weights=_y * _w, **keywords)[0]
-    den = np.histogram(x, weights=_w, **keywords)[0].astype(float)
+    den = np.histogram(x, weights=_w, **keywords)[0]
     m = num / den
 
     if errors:
@@ -1342,16 +1548,16 @@ def kuiper(x, y):
 
     """
 
-    data1, data2 = map(np.asarray, (x, y))
+    data1, data2 = list(map(np.asarray, (x, y)))
     n1 = data1.shape[0]
     n2 = data2.shape[0]
     data1 = np.sort(data1)
     data2 = np.sort(data2)
     data_all = np.sort(np.concatenate([data1, data2]))
-    cdf1 = np.searchsorted(data1, data_all, side='right') / float(n1)
-    cdf2 = np.searchsorted(data2, data_all, side='right') / float(n2)
+    cdf1 = np.searchsorted(data1, data_all, side='right') / n1
+    cdf2 = np.searchsorted(data2, data_all, side='right') / n2
     V = np.ptp(cdf1 - cdf2)
-    Ne = n1 * n2 / float(n1 + n2)
+    Ne = n1 * n2 / (n1 + n2)
     return V, kuiperprob(V, Ne)
 
 def kuiperprob(V, Ne):
@@ -1465,7 +1671,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
             ys = np.zeros(x2.shape[0])
             yind = ()
             yiter = np.zeros(x2.shape[0])
-            for i in xrange(x2.shape[0]):
+            for i in range(x2.shape[0]):
                 mc = meanclip(x2[i], axis=None, lsig=lsig, hsig=hsig,
                               maxiter=maxiter, minfrac=minfrac,
                               full_output=True)
@@ -1506,7 +1712,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
         sig = y.std(dtype=dtype)
 
         keep = (y > (medval - lsig * sig)) * (y < (medval + hsig * sig))
-        cutfrac = float(abs(good.size - keep.sum())) / good.size
+        cutfrac = abs(good.size - keep.sum()) / good.size
 
         if keep.sum() > 0:
             good = good[keep]
@@ -1687,9 +1893,9 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
 
         # find the corrections for ties
         ties = stats.mstats.count_tied_groups(x)
-        sx = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sx = sum((k**3 - k) * v for k, v in ties.items())
         ties = stats.mstats.count_tied_groups(y)
-        sy = sum((k**3 - k) * v for k, v in ties.iteritems())
+        sy = sum((k**3 - k) * v for k, v in ties.items())
 
         D = sum((rankx - ranky)**2)
         meanD = (N**3 - N) / 6.0 - (sx + sy) / 12.0
@@ -1701,7 +1907,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
 
     rp = stats.mstats.spearmanr(x, y, use_ties=True)
     r = rp[0]
-    p = rp[1].data[()]
+    p = rp[1]
     Z = spearmanZ(x, y)
 
     if nmc is not None:
@@ -1711,7 +1917,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
             yerr = np.zeros(y.shape)
 
         mcZ = np.zeros(nmc)
-        for i in xrange(nmc):
+        for i in range(nmc):
             dx = np.random.randn(N) * xerr
             dy = np.random.rand(N) * yerr
             mcZ[i] = spearmanZ(x + dx, y + dy)
@@ -2051,7 +2257,7 @@ def _redden(wave, S, wave0=0.55):
     >>> from mskpy.util import redden
     >>> wave = np.array([0.4, 0.45, 0.5, 0.55, 0.65, 1.55])
     >>> S = 12. * 0.01 / 0.1  # 12% / (0.1 um)
-    >>> print redden(wave, S)
+    >>> print(redden(wave, S))
     [ 0.83527021  0.88692044  0.94176453  1.          1.12749685  3.32011692]
 
     """
@@ -2071,7 +2277,7 @@ def _redden(wave, S, wave0=0.55):
                      kind='linear')
 
     spec = np.zeros_like(wave)
-    for i in xrange(len(wave)):
+    for i in range(len(wave)):
         # integrate S*dwave from wave0 to wave[i]
         intS = quad(slope, wave0, wave[i], epsabs=1e-3, epsrel=1e-3)[0]
         spec[i] = np.exp(intS)
@@ -2132,10 +2338,8 @@ def savitzky_golay(x, kernel=11, order=4):
     if kernel < order + 2:
         raise ValueError("kernel is to small for the polynomals\nshould be > order + 2")
 
-    # a second order polynomal has 3 coefficients
-    order_range = range(order + 1)
     half_window = (kernel - 1) // 2
-    b = np.mat([[k**i for i in order_range]
+    b = np.mat([[k**i for i in range(order + 1)]
                 for k in range(-half_window, half_window+1)])
 
     # since we don't want the derivative, else choose [1] or [2], respectively
@@ -2144,8 +2348,7 @@ def savitzky_golay(x, kernel=11, order=4):
     half_window = (window_size - 1) // 2
 
     # precompute the offset values for better performance
-    offsets = range(-half_window, half_window + 1)
-    offset_data = zip(offsets, m)
+    offsets = zip(range(-half_window, half_window + 1), m)
 
     # temporary data, extended with a mirror image to the left and right
     # left extension: f(x0-x) = f(x0)-(f(x)-f(x0)) = 2f(x0)-f(x)
@@ -2162,7 +2365,7 @@ def savitzky_golay(x, kernel=11, order=4):
     smooth_data = list()
     for i in range(half_window, len(data) - half_window):
         value = 0.0
-        for offset, weight in offset_data:
+        for offset, weight in offsets:
             value += weight * data[i + offset]
         smooth_data.append(value)
 
@@ -2210,8 +2413,6 @@ def cal2iso(cal):
 
     """
 
-    from datetime import datetime, timedelta
-
     if isinstance(cal, (list, tuple, np.ndarray)):
         return [cal2iso(x) for x in cal]
 
@@ -2241,8 +2442,9 @@ def cal2iso(cal):
         d = d[:1] + [1.0] + d[2:]
     if d[2] == 0.0:
         d = d[:2] + [1.0] + d[3:]
-    dt = timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
-    d = datetime(int(d[0]), int(d[1]), 1) + dt
+    dt = datetime.timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4],
+                            seconds=d[5])
+    d = datetime.datetime(int(d[0]), int(d[1]), 1) + dt
     return d.isoformat()
 
 def cal2time(cal, scale='utc'):
@@ -2296,6 +2498,7 @@ def date_len(date):
     else:
         return len(date)
 
+@singledispatch
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
 
@@ -2311,27 +2514,36 @@ def date2time(date, scale='utc'):
     date : astropy Time
 
     """
-    from datetime import datetime
-    from astropy.time import Time
-
-    if date is None:
-        date = Time(datetime.utcnow(), scale=scale, format='datetime')
-    elif isinstance(date, Time):
-        pass
-    elif isinstance(date, float):
-        date = jd2time(date, scale=scale)
-    elif isinstance(date, str):
-        date = cal2time(date, scale=scale)
-    elif isinstance(date, datetime):
-        date = Time(date, scale=scale)
-    elif isinstance(date, (list, tuple, np.ndarray)):
-        date = [date2time(d, scale=scale) for d in date]
-        date = Time(date)
-    else:
+    if (date is not None):
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return date
+    return astropy.time.Time(datetime.datetime.utcnow(), scale=scale,
+                             format='datetime')
 
-def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
+@date2time.register(astropy.time.Time)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(int)
+@date2time.register(float)
+def _(date, scale='utc'):
+    return jd2time(date, scale=scale)
+
+@date2time.register(str)
+def _(date, scale='utc'):
+    return cal2time(date, scale=scale)
+
+@date2time.register(datetime.datetime)
+def _(date, scale='utc'):
+    return astropy.time.Time(date, scale=scale)
+
+@date2time.register(list)
+@date2time.register(tuple)
+@date2time.register(np.ndarray)
+def _(date, scale='utc'):
+    date = [date2time(d, scale=scale) for d in date]
+    return astropy.time.Time(date)
+
+def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
 
     Will work for degrees, too.
@@ -2352,18 +2564,14 @@ def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     dh = abs(dh)
     hh = int(dh)
     mm = int((dh - hh) * 60.0)
-    ss = int(((dh - hh) * 60.0 - mm) * 60.0)
-    ms = int(round((((dh - hh) * 60.0 - mm) * 60.0 - ss) * 1000.0))
-    if ms >= 1000:
-        ms -= 1000
-        ss += 1
+    ss = ((dh - hh) * 60.0 - mm) * 60.0
     if ss >= 60:
         ss -= 60
         mm += 1
     if mm >= 60:
         mm -= 60
         hh += 1
-    return format.format(sign * hh, mm, ss, ms)
+    return format.format(sign * hh, mm, ss)
 
 def doy2md(doy, year):
     """Day of year in MM-DD format.
@@ -2637,7 +2845,7 @@ def autodoc(glbs, width=15, truncate=True):
         return
 
     newdoc = ""
-    for i in xrange(len(docstring)):
+    for i in range(len(docstring)):
         s = docstring[i]
         x = s.strip()
         if x in glbs:

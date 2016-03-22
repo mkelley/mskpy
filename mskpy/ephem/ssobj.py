@@ -190,7 +190,7 @@ class SolarSysObject(object):
             else:
                 step = (dates[-1] - dates[0]) / float(num - 1)
                 time = []
-                for i in xrange(num):
+                for i in range(num):
                     time += [dates[0] + step * i]
         else:
             time = dates
@@ -269,7 +269,8 @@ class SolarSysObject(object):
         """
         raise NotImplemented('This class has not implemented fluxd.')
 
-    def lightcurve(self, observer, dates, wave, verbose=True, **kwargs):
+    def lightcurve(self, observer, dates, wave, wformat='f{:.1f}',
+                   verbose=True, **kwargs):
         """An ephemeris table with fluxes.
 
         Parameters
@@ -281,6 +282,9 @@ class SolarSysObject(object):
           `SolarSysObservable.ephemeris`.
         wave : Quantity
           The wavelengths at which to compute `fluxd`.
+        wformat : string, optional
+          The flux density columns will are labed with their
+          wavelengths using this format string.
         verbose : bool, optional
           If `True`, give some visual feedback.
         **kwargs
@@ -293,9 +297,6 @@ class SolarSysObject(object):
         Notes
         -----
         `date` must be in the table returned by `ephemeris`.
-
-        The flux density columns will be labeled with their
-        wavelengths using a precision of 1, e.g., 'f3.6'.
 
         The `cformat` keyword `fluxd` will be used to format all flux
         density columns.
@@ -332,7 +333,7 @@ class SolarSysObject(object):
         unit = str(unit)
         for i in range(fluxd.shape[1]):
             lc.add_column(Column(data=fluxd[:, i],
-                                 name="f{:.1f}".format(wave.value[i]),
+                                 name=wformat.format(wave.value[i]),
                                  format=cf, unit=unit))
         return lc
 

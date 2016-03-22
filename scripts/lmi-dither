@@ -1,0 +1,122 @@
+#!/usr/bin/python3
+"""Generate a DCT/LMI dither macro.
+
+2015-10-24: Initial version. Requires Python 2.6 or later.
+
+2015-01-12: Requires Python 2.7 or later.
+
+- Michael S. P. Kelley, UMD
+
+"""
+
+import sys
+import argparse
+
+
+patterns = {
+    'hex': [(0, -1), (-0.866, 0.5), (0.866, 0.5),
+            (-0.866, -0.5), (0, 1), (0.866, -0.5)],
+    'cross': [(-1, 0), (1, 0), (0, -1), (0, 1)]
+}
+
+sets = {
+    'OH': [('RC', 50), ('OH', 200), ('BC', 50)],
+    'OH-long': [('RC', 100), ('OH', 400), ('BC', 100)],
+    'OH-CN': [('RC', 50), ('OH', 200), ('CN', 100), ('BC', 50)],
+    'RC-BC': [('RC', 180), ('BC', 180)]
+}
+
+def to_list(_type=str):
+    if _type == str:
+        return lambda s: [x.strip() for x in s.split(',')]
+    else:
+        return lambda s: [_type(x) for x in s.split(',')]
+
+def dither(n, scale, pattern, filters, itimes, no_context):
+    from itertools import cycle
+    line = '{0:4d}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
+    _pattern = cycle(pattern)
+    _filters = cycle(filters + filters[::-1])
+    _itimes = cycle(itimes + itimes[::-1])
+    for i in range(n):
+        x, y = next(_pattern)
+        x *= scale
+        y *= scale
+        for j in range(len(filters)):
+            yield line.format(next(_itimes), next(_filters), x, y,
+                              "Position {0}".format(i))
+
+    if no_context is False:
+        yield line.format(30, 'SL-r', 0, 0, "Context")
+
+    return
+
+parser = argparse.ArgumentParser(description='Generate a DCT/LMI dither macro.')
+
+parser.add_argument('-n', type=int, default=0,
+                    help='Number of dithers; even is best for airmass matching')
+
+parser.add_argument('--scale', type=int, default=60,
+                    help='Scale factor for offsets.  [arcsec]')
+
+parser.add_argument('--pattern', choices=sorted(patterns.keys()),
+                    default='hex',
+                    help='Dither pattern.')
+
+parser.add_argument('--filters', type=to_list(),
+                    default=['SL-r'],
+                    help='Comma-separated list of filter names')
+
+parser.add_argument('--itimes', type=to_list(int),
+                    default=[60],
+                    help='Comma-separated list of filter integration times, or one time for all filters.  [s]')
+
+parser.add_argument('--set', choices=sorted(sets.keys()),
+                    help='Use a predefined filter/itime sequence.')
+
+parser.add_argument('--no-context', action='store_true',
+                    default=False,
+                    help='Do not end with an r-band context image.')
+
+args = parser.parse_args()
+
+filters = []
+itimes = []
+if args.set is not None:
+    for f, t in sets[args.set]:
+        filters.append(f)
+        itimes.append(t)
+else:
+    filters = args.filters
+    itimes = args.itimes
+
+assert len(filters) > 0, "No filters given."
+assert len(itimes) > 0, "No itimes given."
+
+if len(filters) > len(itimes):
+    assert len(itimes) == 1, "Either 1 or {0} itimes expected, but found {1}.".format(len(filters), len(itimes))
+    itimes = [itimes[0]] * len(filters)
+
+assert len(itimes) == len(filters), "{0} itimes expected, but found {1}.".format(len(filters), len(itimes))
+
+pattern = patterns[args.pattern]
+
+n = args.n if args.n > 0 else len(pattern)
+
+print("""#title=false ra=false dec=false exposureTime=true numExposures=false filter=true muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
+#""")
+it = 0
+wt = 0
+nf = 0
+for line in dither(n, args.scale, pattern, filters, itimes,
+                   args.no_context):
+    print(line)
+    nf += 1
+    it += int(line.split()[0])
+    wt += int(line.split()[0]) + 24
+
+print("""#
+# {0} frames
+# {1} s = {2:.0f} min integration time
+# {3} s = {4:.0f} min wall time (typical)""".format(
+        nf, it, it / 60., wt, wt / 60.))

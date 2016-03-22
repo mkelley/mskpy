@@ -7,6 +7,9 @@ image.process --- Process (astronomical) images.
 .. autosummary::
    :toctree: generated/
 
+   align_by_centroid
+   align_by_offset
+   align_by_wcs
    columnpull
    combine
    crclean
@@ -14,22 +17,187 @@ image.process --- Process (astronomical) images.
    mkflat
    psfmatch
    stripes
+   subim
 
 """
 
-from __future__ import print_function
 import numpy as np
 from . import core, analysis
 
 __all__ = [
+    'align_by_centroid',
+    'align_by_offset',
+    'align_by_wcs',
     'columnpull',
     'combine',
     'crclean',
     'fixpix',
     'mkflat',
     'psfmatch',
-    'stripes'
+    'stripes',
+    'subim',
 ]
+
+def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
+                      **kwargs):
+    """Align a set of images by centroid of a single source.
+
+    Parameters
+    ----------
+    data : list or array
+      The list of FITS files, or stack of images to align.  If the
+      first element is a string, then a file list is assumed.
+    yx : array
+      The approximate (y, x) coordinate of the source.
+    cfunc : function, optional
+      The centroiding function or `None` to use `gcentroid`.
+    ckwargs : dict
+      Keyword arguments for `cfunc`.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+    dyx : ndarray
+      The offsets.  Suitable for input into `align_by_offset`.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+    from .analysis import gcentroid
+
+    if cfunc is None:
+        cfunc = gcentroid
+
+    if isinstance(data[0], str):
+        im = fits.getdata(data[0])
+        stack = np.zeros((len(data), ) + im.shape)
+        stack[0] = im
+        del im
+        for i in range(1, len(data)):
+            stack[i] = fits.getdata(data[i])
+    else:
+        stack = data.copy()
+
+    y0, x0 = cfunc(stack[0], yx, **ckwargs)
+
+    dyx = np.zeros((len(stack), 2))
+    for i in range(1, len(stack)):
+        y, x = cfunc(stack[i], yx, **ckwargs)
+        dyx[i] = y0 - y, x0 - x
+
+    return align_by_offset(stack, dyx, **kwargs), dyx
+
+def align_by_offset(data, dyx, **kwargs):
+    """Align a set of images by a given list of offsets.
+
+    Parameters
+    ----------
+    data : list or array
+      The list of FITS files, or stack of images to align.  If the
+      first element is a string, then a file list is assumed.
+    dyx : array
+      The offsets.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+
+    if isinstance(data[0], str):
+        im = fits.getdata(data[0])
+        stack = np.zeros((len(data), ) + im.shape)
+        stack[0] = im
+        del im
+        for i in range(1, len(data)):
+            stack[i] = fits.getdata(data[i])
+    else:
+        stack = data.copy()
+
+    for i in range(len(stack)):
+        stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
+        if int(dyx[i, 0]) != 0:
+            if int(dyx[i, 0]) < 0:
+                stack[i, int(dyx[i, 0]):] = np.nan
+            else:
+                stack[i, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) != 0:
+            if int(dyx[i, 1]) < 0:
+                stack[i, :, int(dyx[i, 1]):] = np.nan
+            else:
+                stack[i, :, :int(dyx[i, 1])] = np.nan
+
+    return stack
+
+def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
+                 **kwargs):
+    """Align a set of images using their world coordinate systems.
+
+    Parameters
+    ----------
+    files : list
+      The list of FITS files to align.
+    target : SolarSysObject
+      Align in the reference frame of this object.
+    observer : SolarSysObject
+      Observe `target` with this observer.
+    time_key : string
+      The header keyword for the observation time.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+    dyx : ndarray
+      The offsets.  Suitable for input into `align_by_offset`.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+    from astropy.wcs import WCS
+    from astropy.coordinates import Angle
+
+    im, h0 = fits.getdata(files[0], header=True)
+    wcs0 = WCS(h0)
+    stack = np.zeros((len(files), ) + im.shape)
+    stack[0] = im
+
+    y0, x0 = np.array(im.shape) / 2.0
+    if target is not None:
+        assert observer is not None, "observer required"
+        g0 = observer.observe(target, h0[time_key])
+        xt, yt = wcs0.wcs_world2pix(np.c_[g0.ra, g0.dec], 0)[0]
+
+    ra0, dec0 = Angle(wcs0.wcs_pix2world(np.c_[x0, y0], 0)[0] * u.deg)
+    dra = 0 * u.deg
+    ddec = 0 * u.deg
+
+    dyx = np.zeros((len(files), 2))
+    for i in range(1, len(files)):
+        stack[i], h = fits.getdata(files[i], header=True)
+        wcs = WCS(h)
+        if target is not None:
+            g = observer.observe(target, h[time_key])
+            dra = g.ra - g0.ra
+            ddec = g.dec - g0.dec
+
+        x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
+        dyx[i] = y0 - y, x0 - x
+
+    return align_by_offset(stack, dyx, **kwargs), dyx
 
 def columnpull(column, index, bg, stdev):
     """Define a column pull detector artifact.
@@ -192,10 +360,10 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
 
     return clean
 
-def fixpix(im, mask):
+def fixpix(im, mask, max_area=10):
     """Replace masked values replaced with a linear interpolation.
 
-    Probably only good for isolated badpixels.
+    Probably only good for isolated bad pixels.
 
     Parameters
     ----------
@@ -203,6 +371,8 @@ def fixpix(im, mask):
       The image.
     mask : array
       `True` where `im` contains bad pixels.
+    max_area : int
+      Only fix areas smaller or equal to this value.
 
     Returns
     -------
@@ -211,7 +381,7 @@ def fixpix(im, mask):
     """
 
     from scipy.interpolate import interp2d
-    from scipy.ndimage import binary_dilation, label
+    from scipy.ndimage import binary_dilation, label, find_objects
 
     # create domains around masked pixels
     dilated = binary_dilation(mask)
@@ -219,20 +389,15 @@ def fixpix(im, mask):
 
     # loop through each domain, replace bad pixels with the average
     # from nearest neigboors
-    x = core.xarray(im.shape)
-    y = core.yarray(im.shape)
     cleaned = im.copy()
-    for d in (np.arange(n) + 1):
-        i = (domains == d)  # find the current domain
-
-        # extract the sub-image
-        x0, x1 = x[i].min(), x[i].max() + 1
-        y0, y1 = y[i].min(), y[i].max() + 1
-        subim = im[y0:y1, x0:x1]
-        submask = mask[y0:y1, x0:x1]
-        subgood = (submask == False)
-
-        cleaned[i * mask] = subim[subgood].mean()
+    for i in find_objects(domains):
+        submask = mask[i]
+        if submask.sum() > max_area:
+            continue
+        subim = im[i].copy()
+        subgood = (submask == False) * dilated[i]
+        subim[submask] = subim[subgood].mean()
+        cleaned[i] = subim
 
     return cleaned
 
@@ -377,8 +542,37 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     
     return s
 
+def subim(im, yx, half_box):
+    """Extract a sub-image.
+
+    If any part of the sub-image is beyond the image edge, it will be
+    truncated.
+
+    Parameters
+    ----------
+    im : array
+      The full image.
+    yx : array
+      The center of the sub-image.  Floating point values will be
+      rounded.
+    half_box : int
+      The desired half-length of a side of the sub-image.  The image
+      shape will be `half_box * 2 + 1` for each dimension, unless
+      truncated by an image edge.
+
+    Returns
+    -------
+    subim : ndarray
+
+    """
+
+    y0 = int(np.around(yx[0]))
+    x0 = int(np.around(yx[0]))
+    s = np.s_[max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
+              max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1])]
+    return im[s]
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
 del autodoc
-

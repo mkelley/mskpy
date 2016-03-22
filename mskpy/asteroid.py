@@ -12,14 +12,10 @@ asteroid --- Asteroids!
    -------
    Asteroid
 
-   Functions
-   ---------
-   neatm
-
 """
 
 __all__ = [
-    'Asteroid'
+    'Asteroid',
 ]
 
 import numpy as np
@@ -71,6 +67,8 @@ class Asteroid(SolarSysObject):
             self.reflected = DAp(D, Ap, **kwargs)
         else:
             self.reflected = reflected
+            self.reflected.D = self.D
+            self.reflected.Ap = self.Ap
         assert isinstance(self.reflected, SurfaceRadiation)
 
         if thermal is None:
@@ -89,8 +87,10 @@ class Asteroid(SolarSysObject):
     @Ap.setter
     def Ap(self, p):
         self._Ap = p
-        self.reflected.Ap = p
-        self.thermal.Ap = p
+        if self._Ap < 0:
+            self._Ap = 0
+        self.reflected.Ap = self._Ap
+        self.thermal.Ap = self._Ap
 
     @property
     def D(self):
@@ -144,8 +144,6 @@ class Asteroid(SolarSysObject):
             fluxd += self.thermal.fluxd(g, wave, unit=unit)
 
         return fluxd
-
-
 
 # update module docstring
 from .util import autodoc

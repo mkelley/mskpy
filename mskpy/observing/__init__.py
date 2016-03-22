@@ -12,9 +12,10 @@ observing --- Observing stuff
    ---------
    am_plot
    file2targets
+   plot_transit_time
 
 """
-from __future__ import print_function
+
 import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
@@ -27,7 +28,8 @@ __all__ = core.__all__ + [
     'Target',
 
     'am_plot',
-    'file2targets'
+    'file2targets',
+    'plot_transit_time'
     ]
 
 class Target(object):
@@ -78,8 +80,10 @@ class Observer(object):
     -------
     airmass
     altaz
+    finding_chart
     lst
     lst0
+    observe
     plot_am
     rts
 
@@ -125,12 +129,11 @@ class Observer(object):
 
     def __repr__(self):
         if self.name is not None:
-            return '<Observer ({}): {}, {}>'.format(
-                self.name, self.lon.degree, self.lat.degree)
+            return '<Observer ({}): {}, {}, {}>'.format(
+                self.name, self.lon.degree, self.lat.degree, self.date.iso[:10])
         else:
-            return '<Observer: {}, {}>'.format(
-                self.lon.degree, self.lat.degree)
-
+            return '<Observer: {}, {}, {}>'.format(
+                self.lon.degree, self.lat.degree, self.date.iso[:10])
 
     def _radec(self, target, date):
         from ..ephem import Earth, SolarSysObject
@@ -160,6 +163,12 @@ class Observer(object):
 
         """
 
+        if isinstance(target, (list, tuple)):
+            am = []
+            for t in target:
+                am.append(self.airmass(t))
+            return am
+
         ra, dec = self._radec(target, self.date)
         return core.airmass(ra.degree, dec.degree,
                             self.date, self.lon.degree, self.lat.degree,
@@ -186,15 +195,116 @@ class Observer(object):
                                    self.lat.degree)
         return Angle(alt, unit=u.deg), Angle(az, unit=u.deg)
 
-    def plot_am(self, target, N=100, ax=None, **kwargs):
+    def finding_chart(self, target, ds9, trange=[-6, 6] * u.hr,
+                      ticks=1 * u.hr, fov=1 * u.arcmin,
+                      frame=1, dss=True):
+        """Plot a DS9 finding chart for a moving target.
+
+        Parameters
+        ----------
+        target : SolarSysObject
+          The target to observe.
+        ds9 : pysao.ds9
+          Plot to this DS9 instance.
+        trange : Quantity, optional
+          Plot the target's path over this time span, centered on the
+          observer's date (`self.date`).
+        ticks : Quantity, optional
+          Plot tick marks using this interval.  The first tick is a circle.
+        fov : Quantity, optional
+          Angular size of a box or rectangle to draw, indicating your
+          instrument's FOV, or `None`.
+        frame : int, optional
+          DS9 frame number to display image.
+        dss : bool, optional
+          Set to `True` to retrieve a DSS image.
+
+        """
+
+        import matplotlib.pyplot as plt
+        import pysao
+        from ..ephem import Earth, SolarSysObject
+
+        assert isinstance(target, SolarSysObject), "target must be a SolarSysObject"
+        trange = u.Quantity(trange, u.hr)
+        ticks = u.Quantity(ticks, u.hr)
+        ds9 = ds9 if ds9 is not None else pysao.ds9()
+
+        # DSS
+        g = Earth.observe(target, self.date, ltt=True)
+        ds9.set('frame {}'.format(frame))
+        ds9.set('dsssao frame current')
+        ds9.set('dsssao size 60 60')
+        ds9.set('dsssao coord {} {}'.format(
+            g['ra'].to_string(u.hr, sep=':'),
+            g['dec'].to_string(u.deg, sep=':')))
+        ds9.set('dsssao close')
+        ds9.set('cmap b')
+        ds9.set('align')
+        
+        # FOV
+        if fov is not None:
+            if fov.size == 1:
+                fov = [fov, fov]
+            fov_deg = u.Quantity(fov, u.deg).value
+            reg = 'fk5; box {} {} {} {} 0'.format(
+                g['ra'].to_string(u.hr, sep=':'),
+                g['dec'].to_string(u.deg, sep=':'),
+                fov_deg[0], fov_deg[1])
+            ds9.set('regions', reg)
+
+        # path
+        dt = np.linspace(trange[0], trange[1], 31)
+        g = Earth.observe(target, self.date + dt, ltt=True)
+        for i in range(len(g) - 1):
+            ds9.set('regions', 'fk5; line {} {} {} {}'.format(
+                g[i]['ra'].to_string(u.hr, sep=':'),
+                g[i]['dec'].to_string(u.deg, sep=':'),
+                g[i+1]['ra'].to_string(u.hr, sep=':'),
+                g[i+1]['dec'].to_string(u.deg, sep=':')))
+
+        # ticks
+        dt1 = np.arange(0, trange[0].value, -ticks.value)
+        if dt1[-1] != trange[0].value:
+            dt1 = np.concatenate((dt1, [trange[0].value]))
+        dt2 = np.arange(ticks.value, trange[1].value, ticks.value)
+        if dt2[-1] != trange[0].value:
+            dt2 = np.concatenate((dt2, [trange[1].value]))
+        dt = np.concatenate((dt1[::-1], dt2)) * u.hr
+        del dt1, dt2
+        g = Earth.observe(target, self.date + dt, ltt=True)
+        for i in range(len(g)):
+            s = 'fk5; point({},{}) # point=cross'.format(
+                g[i]['ra'].to_string(u.hr, sep=':'),
+                g[i]['dec'].to_string(u.deg, sep=':'))
+            if i == 0:
+                s = s.replace('cross', 'circle')
+            ds9.set('regions', s)
+
+        g = Earth.observe(target, self.date, ltt=True)
+        ds9.set('regions', 'fk5; point({},{}) # point=x'.format(
+            g['ra'].to_string(u.hr, sep=':'),
+            g['dec'].to_string(u.deg, sep=':')))
+
+        return ds9
+
+    def observe(self, target):
+        from ..ephem import Earth
+        return Earth.observe(target, self.date)
+
+    def plot_am(self, target, N=100, fine=False, ax=None, **kwargs):
         """Plot the airmass of this target, centered on the current date.
 
         Parameters
         ----------
         target : Target
           The target to observe.
-        N : int
+        N : int, optional
           Number of points to plot.
+        fine : bool, optional
+          Set to `True` to compute the RA, Dec of the target at each
+          point, otherwise compute at the start and end, then linearly
+          interpolate between them.
         ax : matplotlib.axes
           The axis to which to plot, or `None` for the current axis.
         **kwargs
@@ -220,12 +330,22 @@ class Observer(object):
 
         am = np.zeros(N)
         dt = np.linspace(-12, 12, N) * u.hr
-        for i in range(N):
-            ra, dec = self._radec(target, date + dt[i])
-            am[i] = core.airmass(ra.degree, dec.degree,
-                                 date + dt[i],
-                                 self.lon.degree, self.lat.degree,
-                                 self.tz)
+        if fine:
+            for i in range(N):
+                ra, dec = self._radec(target, date + dt[i])
+                am[i] = core.airmass(ra.degree, dec.degree,
+                                     date + dt[i],
+                                     self.lon.degree, self.lat.degree,
+                                     self.tz)
+        else:
+            ra0, dec0 = self._radec(target, date + dt[0])
+            ra1, dec1 = self._radec(target, date + dt[-1])
+            ra = np.interp(dt.value, (dt[0].value, dt[-1].value),
+                           (ra0.degree, ra1.degree))
+            dec = np.interp(dt.value, (dt[0].value, dt[-1].value),
+                            (dec0.degree, dec1.degree))
+            am = core.airmass(ra, dec, date + dt, self.lon.degree,
+                              self.lat.degree, self.tz)
 
         return ax.plot(dt.value, am, label=label, **kwargs)
 
@@ -277,7 +397,9 @@ class Observer(object):
 
         return r, t, s
 
-def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
+def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
+            table_columns=['rh', 'delta', 'phase', 'ra', 'dec'],
+            **kwargs):
     """Generate a letter-sized, pretty airmass plot for a night.
 
     Parameters
@@ -286,17 +408,23 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
       A list of targets to plot.
     observer : Observer
       The observer.
-    fig : matplotlib Figure or None
+    fig : matplotlib Figure or None, optional
       Figure: The matplotlib figure (number) to use.
       None: Use current figure.
-    ylim : array
+    ylim : array, optional
       Y-axis limits (airmass).
+    limit : float, optional
+      Consider an object "risen" at this elevation. [deg]
+    table_columns : list of strings, optional
+      List of additional table columns to pull from the target's
+      observing geometry (see `Geom`).
     **kwargs
       Keyword arguments for `Observer.plot_am`.
 
     Returns
     -------
-    None
+    rts : Table
+      A table of rise, transit, and set times.
 
     Notes
     -----
@@ -308,6 +436,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     import itertools
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FuncFormatter
+    from astropy.table import Table
     from .. import graphics
     from ..util import dh2hms
     from .. import ephem
@@ -328,10 +457,22 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     civil_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
                                        name='Civil twilight')
 
+    table_columns = [] if table_columns is None else table_columns
+    tab = Table(names=['target'] + table_columns + ['rise', 'transit', 'set'],
+                dtype=['S255'] + [float] * (len(table_columns) + 3))
     for target in targets:
-        ls, color = linestyles.next()
+        row = [target.name]
+        g = observer.observe(target)
+        for c in table_columns:
+            row.append(g[c].value)
+
+        ls, color = next(linestyles)
         observer.plot_am(target, color=color, ls=ls, **kwargs)
-        observer.rts(target, limit=25)
+        rts = observer.rts(target, limit=limit)
+        row.append(rts[0].value if rts[0] is not None else -1)
+        row.append(rts[1].value if rts[1] is not None else -1)
+        row.append(rts[2].value if rts[2] is not None else -1)
+        tab.add_row(row)
 
     print()
     for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
@@ -374,6 +515,8 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], **kwargs):
     graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
 
     plt.draw()
+
+    return tab
 
 def file2targets(filename):
     """Create a list of targets from a file.
@@ -441,6 +584,60 @@ def file2targets(filename):
     if skipped > 0:
         print("Skipped {} possible targets".format(skipped))
     return targets
+
+def plot_transit_time(target, g_sun, observer=None, ax=None, **kwargs):
+    """Plot the transit time of a target.
+
+    Parameters
+    ----------
+    target : SolarSysObject
+    g_sun : Geom
+      The Sun's observing geometry for the dates of interest.
+    observer : SolarSysObject
+      The observer, or `None` for Earth.
+    ax : matplotlib axis, optional
+      The axis to which to plot, or `None` for current.
+    **kwargs
+      Any plot keyword.
+
+    """
+
+    import matplotlib.pyplot as plt
+    from ..ephem import Earth
+
+    if observer is None:
+        observer = Earth
+
+    if ax is None:
+        ax = plt.gca()
+    
+    g = observer.observe(target, g_sun.date)
+    tt = (g.ra - g_sun.ra - 12 * u.hourangle).wrap_at(180 * u.deg).hourangle
+
+    cut = np.concatenate((np.abs(np.diff(tt)) > 12, [True]))
+    i = 0
+    name = target.name
+    for j in np.flatnonzero(cut):
+        line = ax.plot(tt[i:j], g.date[i:j].datetime, label=name,
+                       **kwargs)[0]
+        name = None
+        i = j + 1
+
+    # mark perihelion
+    i = g.rh.argmin()
+    if (i > 0) and (i < (len(g) - 1)):
+        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
+        ax.annotate(' q={:.1f}'.format(g.rh[i].value),
+                    [tt[i], g.date[i].datetime], color=line.get_color(),
+                    fontsize=8)
+
+    # pick 12 points and plot rh
+    x = np.random.randint(0, len(g) / 10)
+    for i in np.linspace(0 + x, len(g) - x - 1, 12).astype(int):
+        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
+        ax.annotate(' {:.1f}'.format(g.rh[i].value),
+                    [tt[i], g.date[i].datetime], color=line.get_color(),
+                    fontsize=8)
 
 #class MovingObserver(Observer):
 #    def __init__(self, obj):

@@ -32,7 +32,7 @@ __all__ = [
 import numpy as np
 
 def imshift(im, yx, subsample=4):
-    """Shift an image, allowing for sub-pixel offsets (drizzle method).
+    """Shift an image, allowing for sub-pixel offsets.
 
     Parameters
     ----------
@@ -42,7 +42,8 @@ def imshift(im, yx, subsample=4):
       `y, x` offsets.  Positive values move pixels to the
       up/right. [unsampled pixels]
     subsample : int, optional
-      The sub-sampling factor.
+      The sub-sampling factor.  If <=1, then the image is only shifted
+      whole pixels.
 
     Returns
     -------
@@ -52,7 +53,7 @@ def imshift(im, yx, subsample=4):
     """
 
     if subsample <= 1:
-        raise ValueError("sample must be > 1.")
+        subsample = 1
 
     sy = int(round(yx[0] * subsample)) # whole sampled pixels
     sx = int(round(yx[1] * subsample))
@@ -146,6 +147,10 @@ def rebin(a, factor, flux=False, trim=False):
         if flux:
             b /= float(factor)
         return b
+
+    if factor == 1:
+        # done!
+        return a
 
     _a = a.copy()
     if factor < 0:
@@ -289,7 +294,7 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     refined_c *= subsample**scale
 
     # The region to be refined: xi, yi
-    yi, xi = np.indices((N, N)) - N / 2
+    yi, xi = np.indices((N, N)) - N // 2
     yi += int(round(yx[0]))
     xi += int(round(yx[1]))
 
@@ -342,7 +347,7 @@ def yx2rt(im, yx, dtdr=0, scale=None, bins=100, range=None,
     if scale is not None:
         image = rebin(im, scale)
         if scale < 0:
-            scale = 1.0 / float(scale)
+            scale = 1.0 / scale
         yx = np.array(yx, float) * scale + (scale - 1) / 2.0
     else:
         image = im
