@@ -19,9 +19,10 @@ def _find_config():
 
 _defaults = (
     # (section, parameter, value)
-    ('ephem.core', 'kernel_path', os.path.sep.join([home, 'data', 'kernels'])),
-    ('calib', 'cohen_path', os.path.sep.join([home, 'data', 'mid-ir'])),
-    ('spex', 'spextool_path', os.path.sep.join([home, 'local', 'idl', 'irtf', 'Spextool'])),
+    ('ephem.core', 'kernel_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'kernels'])),
+    ('calib', 'cohen_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'mid-ir'])),
+    ('spex', 'spextool_path', os.path.sep.join([os.path.expanduser("~"), 'local', 'idl', 'irtf', 'Spextool'])),
+    ('irs', 'rogue_masks_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'spitzer', 'irs', 'calibration', 'rogue-masks'])),
 )
 
 def _create_config(fn):
@@ -60,10 +61,13 @@ def _verify_config(c):
     return c, updated
 
 config_file = _find_config()
+if not os.path.exists(config_file):
+    _create_config(config_file)
+
 config = configparser.RawConfigParser()
 config.read(config_file)
 c, updated = _verify_config(config)
 if updated:
     config = c
-    with open(fn, 'w') as outf:
-        config.write(config_file)
+    with open(config_file, 'w') as outf:
+        config.write(outf)
