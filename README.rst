@@ -1,12 +1,12 @@
-=====
-mskpy
-=====
+============
+mskpy v3.0.2-dev
+============
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: python3, numpy, scipy, astropy v1.0.
+Requires: python3 (3.4+ recommended), numpy, scipy, astropy v1.0.
 
-Recommended: spiceypy, matplotlib.
+Recommended: spiceypy (v0.6.2), matplotlib.
 
 Optional: pyds9.
 
@@ -14,7 +14,8 @@ Optional: pyds9.
 Caution
 =======
 
-I hope you find mskpy useful, but use at your own risk.
+I hope you find mskpy useful, but use at your own risk.  When you
+encounter errors, feedback would be appreciated.
 
 
 Configuration
@@ -207,3 +208,11 @@ Aperture polarimetry from a half-wave plate polarimeter::
 Polarimetry classes can also take arrays for the wave plate positions,
 including images.  There are keywords that allow for instrumental
 corrections to Q/I, U/I and total polarization.
+
+
+Contributions
+=============
+
+Some code for migration to Python 3 provided by Miguel de Val-Borro.
+
+

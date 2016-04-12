@@ -8,6 +8,7 @@ hb --- Hale-Bopp filter set photometric calibration
 
    cal_oh
    continuum_color
+   convert_color
    ext_aerosol_bc
    ext_aerosol_oh
    ext_total_oh
@@ -16,6 +17,7 @@ hb --- Hale-Bopp filter set photometric calibration
    flux_gas
    flux_oh
    fluxd_continuum
+   Rm2S
 
    todo: Need more uncertainty propagations.
 
@@ -29,6 +31,7 @@ from .core import *
 __all__ = [
     'cal_oh',
     'continuum_color',
+#    'convert_color',
     'ext_aerosol_bc',
     'ext_aerosol_oh',
     'ext_total_oh',
@@ -37,6 +40,7 @@ __all__ = [
     'flux_gas',
     'flux_oh',
     'fluxd_continuum',
+    'Rm2S'
 ]
 
 # Table I of Farnham et al. 2000
@@ -72,7 +76,6 @@ cw_50 = {  # 50% power width
     'H2O+': u.Quantity(164, 'AA'),
       'RC': u.Quantity( 58, 'AA')
 }
-
 
 # Table VI of Farnham et al. 2000
 F_0 = {  # Zero magnitude flux density
@@ -208,10 +211,51 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
     else:
         return fit, err
 
+def Rm2S(w0, w1, Rm, Rm_unc=None):
+    """Convert continuum color, `Rm`, to spectral slope, `S`.
+
+    `Rm` defined by Farnham et al. 2000, `S` defined, e.g., by Jewitt
+    and Meech 1986.
+
+      S = (f2 - f1) * 2 / (f2 + f1) / Δλ
+
+    Parameters
+    ----------
+    w0, w1 : string or Quantity
+      The wavelengths used to determine `Rm`.
+    Rm : Quantity
+      The color in mangitudes per 0.1 um, and uncertainty.
+    Rm_unc : Quantity or float, optional
+      `Rm` uncertainty.
+
+    Returns
+    -------
+    S : Quantity
+      Spectral slope.
+    S_unc : Quantity, optional
+      Uncertainty on `S`.
+
+    """
+
+    assert Rm.decompose().unit == u.Unit("dex /m")
+
+    if isinstance(w0, str):
+        w0 = cw[w0.upper()]
+    if isinstance(w1, str):
+        w1 = cw[w1.upper()]
+
+    dw = (w1 - w0).to(0.1 * u.um)
+    r = 10**(0.4 * (Rm * dw).to(u.mag).value)
+    S = 2 * (r - 1) / (r + 1) / dw * 100 * u.percent
+
+    if Rm_unc is not None:
+        S_unc = S * Rm_unc / Rm
+        return S, S_unc
+
+    return S
+
 def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     """Comet continuum color.
-
-    The color in percent per 0.1 um = 10**(-0.4 * Rm)
 
     Parameters
     ----------
@@ -272,6 +316,37 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
     Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
     return Rm, Rm_unc
 
+#def convert_color(Rm, Rm_unc, from_filters, to_filters):
+#    """Convert color from one HB filter set to another, assuming constant slope.
+#
+#    Parameters
+#    ----------
+#    Rm, Rm_unc : Quantity
+#      The color in mangitudes per 0.1 um, and uncertainty.
+#    from_filters : list of strings
+#      The names of the filters for which `Rm` is specified.
+#    to_filters : list of strings
+#      The names of the new filters.
+#
+#    Returns
+#    -------
+#    Rm2, Rm2_unc : Quantity
+#      The computed color and uncertainty.
+#
+#    """
+#
+#    mw12 = np.mean([cw[f].value for f in from_filters])
+#    w34 = [cw[f].value for f in to_filters]
+#    mw34 = np.mean(w34)
+#
+#    assert w34[0] < w34[1], "Filters must be listed in order of wavelength."
+#    
+#    S12 = 10**(0.4 * Rm.value + 1)
+#    f3 = 1 + S12 * (w34[0] - mw12) / 10
+#    f4 = 1 + S12 * (w34[1] - mw12) / 10
+#    S34 = (f4 - f3) / np.mean((f3, f4)) / np.ptp(w34) * 10.0
+#    return 2.5 * np.log10(1 + S34 / 100), Rm_unc * S34 / S12
+    
 def ext_aerosol_bc(E_bc, h):
 
     """Aerosol extinction for BC filter.
@@ -461,6 +536,8 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
     """Extrapolate BC continuum to another filter.
 
     Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
+
+    Needs work.
 
     Parameters
     ----------

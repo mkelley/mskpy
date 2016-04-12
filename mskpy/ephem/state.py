@@ -30,6 +30,7 @@ from datetime import datetime
 import numpy as np
 from astropy.time import Time
 import spiceypy.wrapper as spice
+from spiceypy.support_types import SpiceyError
 
 from . import core
 
@@ -277,11 +278,8 @@ class SpiceState(State):
 
         if isinstance(obj, int):
             obj = str(obj)
-        naifid, success = spice.bods2c(obj)
-        if not success:
-            s = ("NAIF ID of {} cannot be found in kernel {}"
-                 " or kernel pool.").format(obj, kernel)
-            raise ObjectError(s)
+
+        naifid = spice.bods2c(obj)
 
         self.obj = obj
         self.naifid = naifid

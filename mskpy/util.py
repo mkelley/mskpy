@@ -1084,7 +1084,7 @@ def stat_avg(x, y, u, N):
 
     """
 
-    nbins = x.size / N
+    nbins = x.size // N
     remainder = x.size % nbins
     shape = (nbins, N)
 
@@ -1177,7 +1177,7 @@ def whist(x, y, w, errors=True, **keywords):
     n = n.astype(float)
 
     num = np.histogram(x, weights=_y * _w, **keywords)[0]
-    den = np.histogram(x, weights=_w, **keywords)[0].astype(float)
+    den = np.histogram(x, weights=_w, **keywords)[0]
     m = num / den
 
     if errors:
@@ -1554,10 +1554,10 @@ def kuiper(x, y):
     data1 = np.sort(data1)
     data2 = np.sort(data2)
     data_all = np.sort(np.concatenate([data1, data2]))
-    cdf1 = np.searchsorted(data1, data_all, side='right') / float(n1)
-    cdf2 = np.searchsorted(data2, data_all, side='right') / float(n2)
+    cdf1 = np.searchsorted(data1, data_all, side='right') / n1
+    cdf2 = np.searchsorted(data2, data_all, side='right') / n2
     V = np.ptp(cdf1 - cdf2)
-    Ne = n1 * n2 / float(n1 + n2)
+    Ne = n1 * n2 / (n1 + n2)
     return V, kuiperprob(V, Ne)
 
 def kuiperprob(V, Ne):
@@ -1712,7 +1712,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
         sig = y.std(dtype=dtype)
 
         keep = (y > (medval - lsig * sig)) * (y < (medval + hsig * sig))
-        cutfrac = float(abs(good.size - keep.sum())) / good.size
+        cutfrac = abs(good.size - keep.sum()) / good.size
 
         if keep.sum() > 0:
             good = good[keep]
@@ -2543,7 +2543,7 @@ def _(date, scale='utc'):
     date = [date2time(d, scale=scale) for d in date]
     return astropy.time.Time(date)
 
-def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
+def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
 
     Will work for degrees, too.
@@ -2564,18 +2564,14 @@ def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     dh = abs(dh)
     hh = int(dh)
     mm = int((dh - hh) * 60.0)
-    ss = int(((dh - hh) * 60.0 - mm) * 60.0)
-    ms = int(round((((dh - hh) * 60.0 - mm) * 60.0 - ss) * 1000.0))
-    if ms >= 1000:
-        ms -= 1000
-        ss += 1
+    ss = ((dh - hh) * 60.0 - mm) * 60.0
     if ss >= 60:
         ss -= 60
         mm += 1
     if mm >= 60:
         mm -= 60
         hh += 1
-    return format.format(sign * hh, mm, ss, ms)
+    return format.format(sign * hh, mm, ss)
 
 def doy2md(doy, year):
     """Day of year in MM-DD format.

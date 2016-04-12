@@ -100,7 +100,12 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
 
     Returns
     -------
-    dy, dx : float
+    dxy : ndarray
+      The mean offset.
+    median : ndarray
+      The median offset.
+    stdev : ndarray
+      The standard deviation of the offsets.
 
     """
 
@@ -122,9 +127,9 @@ def find_offset(cat0, cat1, matches, tol=3.0, mc_thresh=15):
         k = meanclip(d[1, i], full_output=True)[2]
         good = good[:, list(set(np.r_[j, k]))]
 
-    return good.mean(1)
+    return good.mean(1), np.median(good, 1), good.std(1)
 
-def project_catalog(cat, wcs=None):
+def project_catalog(cat, wcs=None, mode='all'):
     """Project a catalog onto the image plane.
 
     The default is the tangent image plane, but any WCS transformation
@@ -139,6 +144,9 @@ def project_catalog(cat, wcs=None):
       The world coordinate system object for transformation.  The
       default assumes the tangent plane centered on the latitude
       and longitude of the catalog.
+    mode : string, optional
+      The projection mode for `SkyCoord` objects: 'wcs' or 'all'.  See
+      `SkyCoord.to_pixel`.
 
     Returns
     -------
@@ -163,7 +171,7 @@ def project_catalog(cat, wcs=None):
         wcs.wcs.ctype = ["RA---TAN", "DEC--TAN"]
         wcs.wcs.cdelt = np.array([-1, 1]) / 3600.0
 
-    x, y = cat.to_pixel(wcs)
+    x, y = cat.to_pixel(wcs, mode=mode)
     return np.vstack((y, x))
 
 def nearest_match(cat0, cat1, tol=1.0, **kwargs):
@@ -445,7 +453,7 @@ def triangle_match(cat0, cat1, tol=0.01, a2c_tol=1.0, cbet_tol=0.2,
             matches[i] = m0[i]
             peak = match_matrix[i, m0[i]] * 2
             total = match_matrix[i, :].sum() + match_matrix[:, m0[i]].sum()
-            frac[i] = peak / float(total)
+            frac[i] = peak / total
 
     if verbose:
         print("[triangle_match] {} stars failed the msig test".format(rej))

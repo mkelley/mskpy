@@ -13,6 +13,7 @@ graphics --- Helper functions for making plots.
    niceplot
    noborder
    remaxes
+   rem_interior_ticklabels
    tplot
    tplot_setup
 
@@ -29,12 +30,12 @@ __all__ = [
    'niceplot',
    'noborder',
    'remaxes',
+   'rem_interior_ticklabels',
    'tplot',
    'tplot_setup'
 ]
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
            offset=1.3, inset=0, fontsize='medium', arrowprops=dict(),
@@ -73,6 +74,7 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
       List of items returned from `annotate`.
 
     """
+    import matplotlib.pyplot as plt
 
     ax = kwargs.pop('axes', plt.gca())
 
@@ -100,6 +102,7 @@ def axcolor(color):
       Any acceptable matplotlib color.
 
     """
+    import matplotlib.pyplot as plt
     plt.rc('xtick', color=color)
     plt.rc('ytick', color=color)
     plt.rc('axes', edgecolor=color)
@@ -120,6 +123,7 @@ def circle(x, y, r, ax=None, segments=100, **kwargs):
       `matplotlib.plot` keywords.
 
     """
+    import matplotlib.pyplot as plt
 
     if ax is None:
         ax = plt.gca()
@@ -206,8 +210,10 @@ def ksplot(x, ax=None, **kwargs):
 
     """
 
+    import matplotlib.pyplot as plt
+
     xx = np.sort(x)
-    yy = np.ones(x.size).cumsum() / float(x.size)
+    yy = np.ones(x.size).cumsum() / x.size
     ls = keywords.pop('ls', keywords.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()
@@ -234,6 +240,8 @@ def nicelegend(*args, **kwargs):
     `prop` keyword.
 
     """
+
+    import matplotlib.pyplot as plt
 
     axis = kwargs.pop('axis', None)
 
@@ -268,6 +276,8 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
 
     """
 
+    import matplotlib.pyplot as plt
+    
     if ax is None:
         for ax in plt.gcf().get_axes():
             niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs, **kwargs)
@@ -319,6 +329,9 @@ def noborder(fig=None):
       Use this figure.
 
     """
+
+    import matplotlib.pyplot as plt
+
     if fig is None:
         fig = plt.gcf()
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
@@ -332,9 +345,50 @@ def remaxes(ax=None):
       Use this axis.
 
     """
+
+    import matplotlib.pyplot as plt
+
     if ax is None:
         ax = plt.gca()
     plt.setp(ax, frame_on=False, xticks=[], yticks=[])
+
+def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
+    """Remove interior ticklabels from a multiaxis plot.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure, optional
+      Inspect this figure for axes, otherwise use the current figure.
+    axes : matplotlib axis, optional
+      Only consider these axes, otherwise consider all axes in `fig`.
+    top : bool, optional
+      Set to `True` if the axes have ticks along the top.
+    right : bool, optional
+      Set to `True` if the axes have ticks along the right.
+
+    """
+
+    import matplotlib.pyplot as plt
+
+    if fig is None:
+        fig = plt.gcf()
+
+    if axes is None:
+        axes = fig.axes
+        
+    for ax in axes:
+        if top:
+            if not ax.is_first_row():
+                ax.set_xticklabels([])
+        else:
+            if not ax.is_last_row():
+                ax.set_xticklabels([])
+        if right:
+            if not ax.is_last_col():
+                ax.set_yticklabels([])
+        else:
+            if not ax.is_first_col():
+                ax.set_yticklabels([])
 
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
@@ -374,6 +428,9 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     show()
 
     """
+
+    import matplotlib.pyplot as plt
+        
     if setup:
         tplot_setup()
     linestyle = plotkws.pop('linestyle', plotkws.pop('ls', 'none'))
@@ -437,6 +494,8 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
       Plot keywords for the grid lines, or None for no grid lines.
 
     """
+
+    import matplotlib.pyplot as plt
 
     x = lambda b, c: np.array(b) + np.array(c) / 2.0
     y = lambda c: np.array(c) * 0.86603

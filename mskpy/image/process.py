@@ -8,6 +8,7 @@ image.process --- Process (astronomical) images.
    :toctree: generated/
 
    align_by_centroid
+   align_by_offset
    align_by_wcs
    columnpull
    combine
@@ -25,6 +26,7 @@ from . import core, analysis
 
 __all__ = [
     'align_by_centroid',
+    'align_by_offset',
     'align_by_wcs',
     'columnpull',
     'combine',
@@ -59,7 +61,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
     stack : ndarray
       The aligned images.
     dyx : ndarray
-      The offsets.
+      The offsets.  Suitable for input into `align_by_offset`.
 
     """
 
@@ -71,7 +73,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
         cfunc = gcentroid
 
     if isinstance(data[0], str):
-        im = fits.getdata(files[0])
+        im = fits.getdata(data[0])
         stack = np.zeros((len(data), ) + im.shape)
         stack[0] = im
         del im
@@ -86,17 +88,56 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
     for i in range(1, len(stack)):
         y, x = cfunc(stack[i], yx, **ckwargs)
         dyx[i] = y0 - y, x0 - x
-        stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
-        if int(dyx[i, 0]) < 0:
-            stack[i, :, int(dyx[i, 0]):] = np.nan
-        elif int(dyx[i, 0]) > 0:
-            stack[i, :, :int(dyx[i, 0])] = np.nan
-        if int(dyx[i, 1]) < 0:
-            stack[i, int(dyx[i, 1]):] = np.nan
-        elif int(dyx[i, 1]) > 0:
-            stack[i, :int(dyx[i, 1])] = np.nan
 
-    return stack, dyx
+    return align_by_offset(stack, dyx, **kwargs), dyx
+
+def align_by_offset(data, dyx, **kwargs):
+    """Align a set of images by a given list of offsets.
+
+    Parameters
+    ----------
+    data : list or array
+      The list of FITS files, or stack of images to align.  If the
+      first element is a string, then a file list is assumed.
+    dyx : array
+      The offsets.
+    **kwargs
+      Keyword arguments for `imshift`.
+
+    Results
+    -------
+    stack : ndarray
+      The aligned images.
+
+    """
+
+    import astropy.units as u
+    from astropy.io import fits
+
+    if isinstance(data[0], str):
+        im = fits.getdata(data[0])
+        stack = np.zeros((len(data), ) + im.shape)
+        stack[0] = im
+        del im
+        for i in range(1, len(data)):
+            stack[i] = fits.getdata(data[i])
+    else:
+        stack = data.copy()
+
+    for i in range(len(stack)):
+        stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
+        if int(dyx[i, 0]) != 0:
+            if int(dyx[i, 0]) < 0:
+                stack[i, int(dyx[i, 0]):] = np.nan
+            else:
+                stack[i, :int(dyx[i, 0])] = np.nan
+        if int(dyx[i, 1]) != 0:
+            if int(dyx[i, 1]) < 0:
+                stack[i, :, int(dyx[i, 1]):] = np.nan
+            else:
+                stack[i, :, :int(dyx[i, 1])] = np.nan
+
+    return stack
 
 def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
                  **kwargs):
@@ -120,7 +161,7 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
     stack : ndarray
       The aligned images.
     dyx : ndarray
-      The offsets.
+      The offsets.  Suitable for input into `align_by_offset`.
 
     """
 
@@ -146,7 +187,7 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
 
     dyx = np.zeros((len(files), 2))
     for i in range(1, len(files)):
-        im, h = fits.getdata(files[i], header=True)
+        stack[i], h = fits.getdata(files[i], header=True)
         wcs = WCS(h)
         if target is not None:
             g = observer.observe(target, h[time_key])
@@ -155,19 +196,8 @@ def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
 
         x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
         dyx[i] = y0 - y, x0 - x
-        stack[i] = core.imshift(im, dyx[i], **kwargs)
-        if int(dyx[i, 0]) != 0:
-            if int(dyx[i, 0]) < 0:
-                stack[i, :, int(dyx[i, 0]):] = np.nan
-            else:
-                stack[i, :, :int(dyx[i, 0])] = np.nan
-        if int(dyx[i, 1]) != 0:
-            if int(dyx[i, 1]) < 0:
-                stack[i, int(dyx[i, 1]):] = np.nan
-            else:
-                stack[i, :int(dyx[i, 1])] = np.nan
 
-    return stack, dyx
+    return align_by_offset(stack, dyx, **kwargs), dyx
 
 def columnpull(column, index, bg, stdev):
     """Define a column pull detector artifact.
@@ -471,7 +501,7 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
 
     return K / K.sum()
 
-def stripes(im, axis=0, stat=np.median, **keywords):
+def stripes(im, axis=0, stat=np.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
 
     Parameters
@@ -479,28 +509,32 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     im : array
       The image with stripe artifacts.  The image is first sigma
       clipped with `util.meanclip`.
-    axis : int
+    axis : int, optional
       The axis parallel to the stripes.
-    stat : function
+    stat : function, optional
       The statistic to derive the background stripes (usually
       `np.mean` or `np.median`).  The function must take the `axis`
       keyword, and must be able to handle a `MaskedArray`.
+    image : bool, optional
+      Set to `True` to return an image of stripes.  Otherwise, return
+      a 1D array.
     **keywords
       Any `util.meanclip` keyword except `full_output`.
 
     Returns
     -------
     s : ndarray
-      A 1D array of the stripes.
+      If `image` is `False` then `s` is 1D array of the stripes,
+      otherwise `s` is an image of the stripes with the same shape as
+      `im`.
 
     """
 
     from ..util import meanclip
 
-    m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
+    assert im.ndim == 2, "stripes is designed for 2D arrays"
 
-    #print("mean/sig/% masked = {0}/{1}/{2}".format(
-    #    m, sig, 1 - len(good) / np.prod(im.shape).astype(float)))
+    m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
 
     mask = np.ones_like(im).astype(bool)
     mask.ravel()[good] = False
@@ -509,6 +543,12 @@ def stripes(im, axis=0, stat=np.median, **keywords):
 
     _im = np.ma.MaskedArray(im, mask=mask)
     s = stat(_im, axis=axis)
+
+    if image:
+        if axis == 0:
+            s = np.outer(np.ones(im.shape[0]), s)
+        else:
+            s = np.outer(s, np.ones(im.shape[1]))
     
     return s
 
