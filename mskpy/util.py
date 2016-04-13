@@ -183,6 +183,7 @@ __all__ = [
     'asQuantity',
     'asValue',
     'autodoc',
+    'file2list',
     'spectral_density_sb',
     'timesten',
     'write_table'
@@ -2883,8 +2884,8 @@ def file2list(f, strip=True):
 
     lines = []
     with open(f, 'r') as inf:
-        line = inf.readline()
-        inf.append(line.strip() if strip else line)
+        for line in inf.readlines():
+            lines.append(line.strip() if strip else line)
     return lines
 
 def spectral_density_sb(s):
