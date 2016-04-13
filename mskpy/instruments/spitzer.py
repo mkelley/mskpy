@@ -491,6 +491,8 @@ def moving_wcs_fix(files, ref=None):
       initial position.  [units: degrees]
 
     """
+
+    from astropy.io import fits
     
     assert np.iterable(files), "files must be an array of file names"
 
