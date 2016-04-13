@@ -97,6 +97,7 @@ util --- Short and sweet functions, generic algorithms
    asQuantity
    asValue
    autodoc
+   file2list
    spectral_density_sb
    timesten
    write_table
@@ -2862,6 +2863,29 @@ def autodoc(glbs, width=15, truncate=True):
         newdoc += s + "\n"
 
     glbs['__doc__'] = newdoc
+
+def file2list(f, strip=True):
+    """A list from strings from a file.
+
+    Parameters
+    ----------
+    f : string
+      The name of the file to read.
+    strip : bool, optional
+      Set to `True` to strip whitespace from each line.
+
+    Returns
+    -------
+    lines : list
+      The contents of the file.
+
+    """
+
+    lines = []
+    with open(f, 'r') as inf:
+        line = inf.readline()
+        inf.append(line.strip() if strip else line)
+    return lines
 
 def spectral_density_sb(s):
     """Equivalence pairs for spectra density surface brightness.
