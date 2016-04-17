@@ -8,6 +8,8 @@
 2016-02-12: Added context r' at start, configurable context
             integration time, tweaked default itimes.
 
+2016-04-17: New --offset option.
+
 To do: create a --no-filter option.
 
 - Michael S. P. Kelley, UMD
@@ -37,7 +39,8 @@ def to_list(_type=str):
     else:
         return lambda s: [_type(x) for x in s.split(',')]
 
-def dither(n, scale, pattern, filters, itimes, context_itime, no_context):
+def dither(n, scale, offset, pattern, filters, itimes, context_itime,
+           no_context):
     from itertools import cycle
     line = '{0:6.1f}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
     _pattern = cycle(pattern)
@@ -48,9 +51,9 @@ def dither(n, scale, pattern, filters, itimes, context_itime, no_context):
         yield line.format(context_itime, 'SL-r', 0, 0, "Context")
 
     for i in range(n):
-        x, y = next(_pattern)
-        x *= scale
-        y *= scale
+        px, py = next(_pattern)
+        x = scale * px + offset[0]
+        y = scale * py + offset[1]
         for j in range(len(filters)):
             yield line.format(next(_itimes), next(_filters), x, y,
                               "Position {0}".format(i))
@@ -67,6 +70,10 @@ parser.add_argument('-n', type=int, default=0,
 
 parser.add_argument('--scale', type=int, default=60,
                     help='Scale factor for offsets.  [arcsec]')
+
+parser.add_argument('--offset', type=to_list(float),
+                    default=[0, 0],
+                    help='Absolute dither pattern offset (xi, eta).')
 
 parser.add_argument('--pattern', choices=sorted(patterns.keys()),
                     default='hex',
@@ -104,6 +111,7 @@ else:
 
 assert len(filters) > 0, "No filters given."
 assert len(itimes) > 0, "No itimes given."
+assert len(args.offset) == 2, "Offset must have length 2: xi, eta."
 
 if len(filters) > len(itimes):
     assert len(itimes) == 1, "Either 1 or {0} itimes expected, but found {1}.".format(len(filters), len(itimes))
@@ -120,7 +128,7 @@ print("""#title=false ra=false dec=false exposureTime=true numExposures=false fi
 it = 0
 wt = 0
 nf = 0
-for line in dither(n, args.scale, pattern, filters, itimes,
+for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
                    args.context_itime, args.no_context):
     print(line)
     nf += 1
