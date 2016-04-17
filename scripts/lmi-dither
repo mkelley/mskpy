@@ -5,6 +5,11 @@
 
 2015-01-12: Requires Python 2.7 or later.
 
+2016-02-12: Added context r' at start, configurable context
+            integration time, tweaked default itimes.
+
+To do: create a --no-filter option.
+
 - Michael S. P. Kelley, UMD
 
 """
@@ -20,10 +25,10 @@ patterns = {
 }
 
 sets = {
-    'OH': [('RC', 50), ('OH', 200), ('BC', 50)],
-    'OH-long': [('RC', 100), ('OH', 400), ('BC', 100)],
+    'OH': [('RC', 50), ('OH', 150), ('BC', 50)],
+    'OH-long': [('RC', 100), ('OH', 300), ('BC', 100)],
     'OH-CN': [('RC', 50), ('OH', 200), ('CN', 100), ('BC', 50)],
-    'RC-BC': [('RC', 180), ('BC', 180)]
+    'RC-BC': [('RC', 120), ('BC', 120)]
 }
 
 def to_list(_type=str):
@@ -32,12 +37,16 @@ def to_list(_type=str):
     else:
         return lambda s: [_type(x) for x in s.split(',')]
 
-def dither(n, scale, pattern, filters, itimes, no_context):
+def dither(n, scale, pattern, filters, itimes, context_itime, no_context):
     from itertools import cycle
-    line = '{0:4d}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
+    line = '{0:6.1f}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
     _pattern = cycle(pattern)
     _filters = cycle(filters + filters[::-1])
     _itimes = cycle(itimes + itimes[::-1])
+
+    if no_context is False:
+        yield line.format(context_itime, 'SL-r', 0, 0, "Context")
+
     for i in range(n):
         x, y = next(_pattern)
         x *= scale
@@ -47,7 +56,7 @@ def dither(n, scale, pattern, filters, itimes, no_context):
                               "Position {0}".format(i))
 
     if no_context is False:
-        yield line.format(30, 'SL-r', 0, 0, "Context")
+        yield line.format(context_itime, 'SL-r', 0, 0, "Context")
 
     return
 
@@ -67,7 +76,7 @@ parser.add_argument('--filters', type=to_list(),
                     default=['SL-r'],
                     help='Comma-separated list of filter names')
 
-parser.add_argument('--itimes', type=to_list(int),
+parser.add_argument('--itimes', type=to_list(float),
                     default=[60],
                     help='Comma-separated list of filter integration times, or one time for all filters.  [s]')
 
@@ -77,6 +86,9 @@ parser.add_argument('--set', choices=sorted(sets.keys()),
 parser.add_argument('--no-context', action='store_true',
                     default=False,
                     help='Do not end with an r-band context image.')
+
+parser.add_argument('--context-itime', type=float, default=30.0,
+                    help='Integration time to use for context images.  [s]')
 
 args = parser.parse_args()
 
@@ -109,11 +121,11 @@ it = 0
 wt = 0
 nf = 0
 for line in dither(n, args.scale, pattern, filters, itimes,
-                   args.no_context):
+                   args.context_itime, args.no_context):
     print(line)
     nf += 1
-    it += int(line.split()[0])
-    wt += int(line.split()[0]) + 24
+    it += float(line.split()[0])
+    wt += float(line.split()[0]) + 24
 
 print("""#
 # {0} frames
