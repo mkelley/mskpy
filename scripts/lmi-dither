@@ -10,7 +10,7 @@
 
 2016-04-17: New --offset option.
 
-To do: create a --no-filter option.
+2016-04-18: New --no-filter option.
 
 - Michael S. P. Kelley, UMD
 
@@ -42,7 +42,12 @@ def to_list(_type=str):
 def dither(n, scale, offset, pattern, filters, itimes, context_itime,
            no_context):
     from itertools import cycle
-    line = '{0:6.1f}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
+
+    if len(filters) == 0:
+        line = '{0:6.1f}  {1:4.0f}  {2:4.0f}  "{3}"'
+    else:
+        line = '{0:6.1f}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
+
     _pattern = cycle(pattern)
     _filters = cycle(filters + filters[::-1])
     _itimes = cycle(itimes + itimes[::-1])
@@ -54,9 +59,14 @@ def dither(n, scale, offset, pattern, filters, itimes, context_itime,
         px, py = next(_pattern)
         x = scale * px + offset[0]
         y = scale * py + offset[1]
-        for j in range(len(filters)):
-            yield line.format(next(_itimes), next(_filters), x, y,
+
+        if len(filters) == 0:
+            yield line.format(next(_itimes), x, y,
                               "Position {0}".format(i))
+        else:
+            for j in range(len(filters)):
+                yield line.format(next(_itimes), next(_filters), x, y,
+                                  "Position {0}".format(i))
 
     if no_context is False:
         yield line.format(context_itime, 'SL-r', 0, 0, "Context")
@@ -71,27 +81,25 @@ parser.add_argument('-n', type=int, default=0,
 parser.add_argument('--scale', type=int, default=60,
                     help='Scale factor for offsets.  [arcsec]')
 
-parser.add_argument('--offset', type=to_list(float),
-                    default=[0, 0],
+parser.add_argument('--offset', type=to_list(float), default=[0, 0],
                     help='Absolute dither pattern offset (xi, eta).')
 
-parser.add_argument('--pattern', choices=sorted(patterns.keys()),
-                    default='hex',
+parser.add_argument('--pattern', choices=sorted(patterns.keys()), default='hex',
                     help='Dither pattern.')
 
-parser.add_argument('--filters', type=to_list(),
-                    default=['SL-r'],
+parser.add_argument('--no-filter', action='store_true', default=False,
+                    help='Set to omit filter column.')
+
+parser.add_argument('--filters', type=to_list(), default=['SL-r'],
                     help='Comma-separated list of filter names')
 
-parser.add_argument('--itimes', type=to_list(float),
-                    default=[60],
+parser.add_argument('--itimes', type=to_list(float), default=[60],
                     help='Comma-separated list of filter integration times, or one time for all filters.  [s]')
 
 parser.add_argument('--set', choices=sorted(sets.keys()),
                     help='Use a predefined filter/itime sequence.')
 
-parser.add_argument('--no-context', action='store_true',
-                    default=False,
+parser.add_argument('--no-context', action='store_true', default=False,
                     help='Do not end with an r-band context image.')
 
 parser.add_argument('--context-itime', type=float, default=30.0,
@@ -99,6 +107,7 @@ parser.add_argument('--context-itime', type=float, default=30.0,
 
 args = parser.parse_args()
 
+# sort out filters and integration times
 filters = []
 itimes = []
 if args.set is not None:
@@ -109,9 +118,7 @@ else:
     filters = args.filters
     itimes = args.itimes
 
-assert len(filters) > 0, "No filters given."
 assert len(itimes) > 0, "No itimes given."
-assert len(args.offset) == 2, "Offset must have length 2: xi, eta."
 
 if len(filters) > len(itimes):
     assert len(itimes) == 1, "Either 1 or {0} itimes expected, but found {1}.".format(len(filters), len(itimes))
@@ -119,12 +126,25 @@ if len(filters) > len(itimes):
 
 assert len(itimes) == len(filters), "{0} itimes expected, but found {1}.".format(len(filters), len(itimes))
 
+# handle --no-filter
+if args.no_filter:
+    assert len(filters) <= 1, "Filter column disabled, but multiple filters were given."
+    filters = []
+    filter_col = 'false'
+    args.no_context = True
+else:
+    assert len(filters) > 0, "No filters given."
+    filter_col = 'true'
+
+# handle --offset
+assert len(args.offset) == 2, "Offset must have length 2: xi, eta."
+
 pattern = patterns[args.pattern]
 
 n = args.n if args.n > 0 else len(pattern)
 
-print("""#title=false ra=false dec=false exposureTime=true numExposures=false filter=true muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
-#""")
+print("""#title=false ra=false dec=false exposureTime=true numExposures=false filter={0:s} muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
+#""".format(filter_col))
 it = 0
 wt = 0
 nf = 0
@@ -138,5 +158,5 @@ for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
 print("""#
 # {0} frames
 # {1} s = {2:.0f} min integration time
-# {3} s = {4:.0f} min wall time (typical)""".format(
+# {3} s = {4:.0f} min estimated wall time""".format(
         nf, it, it / 60., wt, wt / 60.))
