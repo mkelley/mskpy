@@ -8,9 +8,7 @@
 2016-02-12: Added context r' at start, configurable context
             integration time, tweaked default itimes.
 
-2016-04-17: New --offset option.
-
-2016-04-18: New --no-filter option.
+2016-04-18: New --offset, --no-filter, and --no-alternate options.
 
 - Michael S. P. Kelley, UMD
 
@@ -39,69 +37,80 @@ def to_list(_type=str):
     else:
         return lambda s: [_type(x) for x in s.split(',')]
 
-def dither(n, scale, offset, pattern, filters, itimes, context_itime,
-           no_context):
+def positions(n, pattern, scale, offset):
     from itertools import cycle
 
-    if len(filters) == 0:
-        line = '{0:6.1f}  {1:4.0f}  {2:4.0f}  "{3}"'
-    else:
-        line = '{0:6.1f}  {1:6s}  {2:4.0f}  {3:4.0f}  "{4}"'
-
-    _pattern = cycle(pattern)
-    _filters = cycle(filters + filters[::-1])
-    _itimes = cycle(itimes + itimes[::-1])
-
-    if no_context is False:
-        yield line.format(context_itime, 'SL-r', 0, 0, "Context")
-
+    p = cycle(pattern)
     for i in range(n):
-        px, py = next(_pattern)
+        px, py = next(p)
         x = scale * px + offset[0]
         y = scale * py + offset[1]
+        yield i, x, y
 
-        if len(filters) == 0:
-            yield line.format(next(_itimes), x, y,
-                              "Position {0}".format(i))
-        else:
+def exposures(positions, filters, itimes, no_alternate):
+    from itertools import cycle
+
+    filter = cycle(filters + filters[::-1])
+    itime = cycle(itimes + itimes[::-1])
+
+    if no_alternate:
+        p = list(positions)
+        for j in range(len(filters)):
+            _filter = next(filter)
+            _itime = next(itime)
+            for i, x, y in p:
+                yield dict(filter=_filter, itime=_itime, x=x, y=y,
+                           comment='Position {}'.format(i))
+    else:
+        for i, x, y in positions:
             for j in range(len(filters)):
-                yield line.format(next(_itimes), next(_filters), x, y,
-                                  "Position {0}".format(i))
+                yield dict(filter=next(filter), itime=next(itime), x=x, y=y,
+                           comment='Position {}'.format(i))
+
+def dither(n, scale, offset, pattern, filters, itimes, no_alternate,
+           context_itime, no_context, no_filter):
+    from itertools import product
+
+    if no_filter:
+        line = '{itime:6.1f}  {x:4.0f}  {y:4.0f}  "{comment:4}"'
+    else:
+        line = '{itime:6.1f}  {filter:6s}  {x:4.0f}  {y:4.0f}  "{comment:4}"'
 
     if no_context is False:
-        yield line.format(context_itime, 'SL-r', 0, 0, "Context")
+        yield line.format(itime=context_itime, filter='SL-r',
+                          x=offset[0], y=offset[1], comment="Context")
 
-    return
+    for exposure in exposures(positions(n, pattern, scale, offset),
+                              filters, itimes, no_alternate):
+        yield line.format(**exposure)
+
+    if no_context is False:
+        yield line.format(itime=context_itime, filter='SL-r',
+                          x=offset[0], y=offset[1], comment="Context")
+
 
 parser = argparse.ArgumentParser(description='Generate a DCT/LMI dither macro.')
 
 parser.add_argument('-n', type=int, default=0,
                     help='Number of dithers; even is best for airmass matching')
-
 parser.add_argument('--scale', type=int, default=60,
                     help='Scale factor for offsets.  [arcsec]')
-
 parser.add_argument('--offset', type=to_list(float), default=[0, 0],
                     help='Absolute dither pattern offset (xi, eta).')
-
 parser.add_argument('--pattern', choices=sorted(patterns.keys()), default='hex',
                     help='Dither pattern.')
-
 parser.add_argument('--no-filter', action='store_true', default=False,
                     help='Set to omit filter column.')
-
 parser.add_argument('--filters', type=to_list(), default=['SL-r'],
                     help='Comma-separated list of filter names')
-
 parser.add_argument('--itimes', type=to_list(float), default=[60],
                     help='Comma-separated list of filter integration times, or one time for all filters.  [s]')
-
+parser.add_argument('--no-alternate', action='store_true', default=False,
+                    help='Cycle through each step before each filter.')
 parser.add_argument('--set', choices=sorted(sets.keys()),
                     help='Use a predefined filter/itime sequence.')
-
 parser.add_argument('--no-context', action='store_true', default=False,
                     help='Do not end with an r-band context image.')
-
 parser.add_argument('--context-itime', type=float, default=30.0,
                     help='Integration time to use for context images.  [s]')
 
@@ -118,6 +127,13 @@ else:
     filters = args.filters
     itimes = args.itimes
 
+if args.no_filter:
+    filter_col = 'false'
+    filters = ['']
+    args.no_context = True
+else:
+    filter_col = 'true'
+
 assert len(itimes) > 0, "No itimes given."
 
 if len(filters) > len(itimes):
@@ -125,16 +141,6 @@ if len(filters) > len(itimes):
     itimes = [itimes[0]] * len(filters)
 
 assert len(itimes) == len(filters), "{0} itimes expected, but found {1}.".format(len(filters), len(itimes))
-
-# handle --no-filter
-if args.no_filter:
-    assert len(filters) <= 1, "Filter column disabled, but multiple filters were given."
-    filters = []
-    filter_col = 'false'
-    args.no_context = True
-else:
-    assert len(filters) > 0, "No filters given."
-    filter_col = 'true'
 
 # handle --offset
 assert len(args.offset) == 2, "Offset must have length 2: xi, eta."
@@ -149,7 +155,8 @@ it = 0
 wt = 0
 nf = 0
 for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
-                   args.context_itime, args.no_context):
+                   args.no_alternate, args.context_itime, args.no_context,
+                   args.no_filter):
     print(line)
     nf += 1
     it += float(line.split()[0])
