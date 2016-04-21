@@ -823,6 +823,7 @@ class SpeXPrism60(SpeX):
         from numpy.ma import MaskedArray
         import scipy.ndimage as nd
         from scipy.interpolate import splrep, splev
+        from astropy.io import fits
 
         if isinstance(files, str):
             self.flat, self.flat_h = fits.getdata(files, header=True)
@@ -831,7 +832,7 @@ class SpeXPrism60(SpeX):
 
         stack, headers = self.read(files, flatcor=False)[::2]
         h = headers[0]
-        scale = np.array([np.median(im) for im in stack])
+        scale = np.array([np.ma.median(im) for im in stack])
         scale /= np.mean(scale)
         for i in range(len(stack)):
             stack[i] /= scale[i]
