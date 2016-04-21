@@ -314,8 +314,9 @@ class IRS(Instrument):
         """
         return self.mode.lightcurve(*args, **kwargs)
 
-def irsclean(im, h, bmask=None, maskval=16384,
-             rmask=None, func=None, nan=True, **fargs):
+def irsclean(im, h, bmask=None, maskval=28672,
+             rmask=None, func=None, nan=True, sigma=None, box=3,
+             **fargs):
     """Clean bad pixels from an IRS image.
 
     Parameters
@@ -328,7 +329,7 @@ def irsclean(im, h, bmask=None, maskval=16384,
       The SSC pipeline BMASK array.
     maskval : int, optional
       Bitmask value applied to BMASK array to generate a bad pixel
-      map.
+      map.  These values will be removed from `bmask` and returned.
     rmask : ndarray, optional
       The rogue mask array.
     func : function, optional
@@ -337,41 +338,57 @@ def irsclean(im, h, bmask=None, maskval=16384,
       pixel).  The default is `image.fixpix`.
     nan : bool, optional
       Set to `True` to also clean any pixels set to NaN.
+    sigma : float, optional
+      Set to sigma clip the image using a filter of width `box` and
+      clipping at `sigma`-sigma outliers.
+    box : int, optional
+      The size of the filter for sigma clipping.
     **fargs
       Additional keyword arguments are pass to `func`.
 
     Returns
     -------
     cleaned : ndarray
-      The cleaned array.
+      The cleaned data.
     h : dict-like
       The updated header.
+    new_mask : ndarray, optional
+      The cleaned mask.
 
     """
 
+    import scipy.ndimage as nd
     from ..image import fixpix
 
     cleaner = fixpix if func is None else func
 
-    mask = 0
+    mask = np.zeros_like(im, bool)
     if nan:
         mask += ~np.isfinite(im)
     if bmask is not None:
-        mask += np.bitwise_and(bmask, maskval)
+        mask += (bmask & maskval).astype(bool)
+        new_mask = bmask & (32767 | maskval)
     if rmask is not None:
-        mask += rmask
-    mask = mask.astype(bool)
+        mask += rmask.astype(bool)
+
+    if sigma is not None:
+        stdev = nd.generic_filter(im, np.std, size=box)
+        m = nd.median_filter(im, size=box)
+        mask += ((im - m) / stdev) > sigma
     
     h.add_history('Cleaned with mskpy.instruments.spitzer.irsclean.')
     h.add_history('irsclean: function={}, arguments={}'.format(
         str(cleaner), str(fargs)))
     
     cleaned = cleaner(im, mask, **fargs)
-    return cleaned, h
+    if bmask is None:
+        return cleaned, h
+    else:
+        return cleaned, h, new_mask
 
 def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                    maskval=16384, rmasks=True, func=None, nan=True,
-                   **fargs):
+                   sigma=None, box=3, **fargs):
     """Clean bad pixels from a list of IRS files.
 
     For automatic rogue mask file name gleaning, this function
@@ -380,9 +397,9 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
 
     Parameters
     ----------
-    files : array of strings or string
-      A list of image names to clean, or the filename of a list of files.
-    outfiles : array-like or filename
+    files : array of strings
+      A list of image names to clean.
+    outfiles : array-like
       Save cleaned images to these files.  Existing files will be
       overwritten.  Uncertainty file names will be based on `outfiles`.
     uncs : list or bool, optional
@@ -403,6 +420,11 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
       pixel).  The default is `image.fixpix`.
     nan : bool, optional
       Set to `True` to also clean any pixels set to NaN.
+    sigma : float, optional
+      Set to sigma clip the image using a filter of width `box` and
+      clipping at `sigma`-sigma outliers.
+    box : int, optional
+      The size of the filter for sigma clipping.
     **fargs
       Additional keyword arguments are pass to `func`.
 
@@ -448,7 +470,7 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                 yield f, fits.getdata(f)
 
     unc_files = file_generator(files, uncs, '_func')
-    bmask_files = file_generator(files, uncs, '_bmask')
+    bmask_files = file_generator(files, bmasks, '_bmask')
     rmask_files = rmask_file_generator(files, rmasks)
 
     for i in range(len(files)):
@@ -458,8 +480,16 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
 
         im, h = fits.getdata(files[i], header=True)
         cleaned = irsclean(im, h, bmask=bmask, maskval=maskval,
-                           rmask=rmask, func=func, **fargs)
+                           rmask=rmask, func=func, sigma=sigma,
+                           box=box, **fargs)
         fits.writeto(outfiles[i], cleaned[0], cleaned[1], clobber=True)
+
+        if len(cleaned) == 3:
+            # bmask was updated, save it
+            bmask = cleaned[2]  # update array for use with unc cleaning
+            h_bmask = fits.getheader(bmask_file)
+            h_bmask.add_history('Updated with mskpy.instruments.spitzer.irsclean')
+            fits.writeto(bmask_file, bmask, h_bmask, clobber=True)
         
         if unc is not None:
             if '_bcd' in outfiles[i]:
@@ -470,8 +500,11 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                 outf = outfiles[i] + '_func.fits'
 
             h = fits.getheader(unc_file)
+
+            # do not use sigma clipping with unc array!
             cleaned = irsclean(unc, h, bmask=bmask, maskval=maskval,
-                               rmask=rmask, func=func, **fargs)
+                               rmask=rmask, func=func, sigma=None, **fargs)
+            
             fits.writeto(outf, cleaned[0], cleaned[1], clobber=True)
 
 def moving_wcs_fix(files, ref=None):
@@ -491,6 +524,9 @@ def moving_wcs_fix(files, ref=None):
       initial position.  [units: degrees]
 
     """
+
+    from astropy.io import fits
+    from ..util import spherical_coord_rotate
     
     assert np.iterable(files), "files must be an array of file names"
 
@@ -505,7 +541,7 @@ def moving_wcs_fix(files, ref=None):
         if h.get("CRVAL1") is not None:
             crval1, crval2 = spherical_coord_rotate(
                 ra_ref1, dec_ref1, ra_ref0, dec_ref0,
-                h["CRVAL1"], h.get["CRVAL2"])
+                h["CRVAL1"], h["CRVAL2"])
         rarqst, decrqst = spherical_coord_rotate(
             ra_ref1, dec_ref1, ra_ref0, dec_ref0,
             h["RA_RQST"], h["DEC_RQST"])
@@ -514,16 +550,16 @@ def moving_wcs_fix(files, ref=None):
             ra_ref1, dec_ref1, ra_ref0, dec_ref0,
             h["RA_SLT"], h["DEC_SLT"])
 
-        print("{} moved {{:.3f} {:.3f}".format(f, (ra_ref1 - ra_ref0) * 3600.,
-                                               (dec_ref1 - dec_ref0) * 3600.))
+        print("{} moved {:.3f} {:.3f}".format(f, (ra_ref1 - ra_ref0) * 3600.,
+                                              (dec_ref1 - dec_ref0) * 3600.))
 
         if h.get("CRVAL1") is not None:
-            h.update("CRVAL1", crval1)
-            h.update("CRVAL2", crval2)
-        h.update("RA_RQST", rarqst)
-        h.update("RA_SLT", raslt)
-        h.update("DEC_RQST", decrqst)
-        h.update("DEC_SLT", decslt)
+            h["CRVAL1"] = crval1
+            h["CRVAL2"] = crval2
+        h["RA_RQST"] = rarqst
+        h["RA_SLT"] = raslt
+        h["DEC_RQST"] = decrqst
+        h["DEC_SLT"] = decslt
         h.add_history("WCS updated for moving target motion with mskpy.instrum3ents.spitzer.moving_wcs_fix")
         fits.update(f, im, h)
 
