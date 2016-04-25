@@ -16,6 +16,7 @@ comet --- Comets!
    ---------
    afrho2fluxd
    afrho2Q
+   efrho2fluxd
    flux2Q
    fluxd2afrho
    fluxd2efrho
@@ -31,6 +32,7 @@ __all__ = [
     'Comet',
     'afrho2fluxd',
     'afrho2Q',
+    'efrho2fluxd',
     'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
@@ -526,6 +528,55 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
 
     return Q
 
+def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
+    """Convert efrho (epsilon * f * rho) to flux density.
+
+    efrho as defined by Kelley et al. (2013, Icarus 225, 475-494).
+
+    Parameters
+    ----------
+    wave : Quantity
+      The wavelength of the flux density.
+    efrho : Quantity
+      The epsfrho parameter.
+    rap : Quantity
+      The aperture radius, angular or length units.
+    geom : dictionary of Quantities or ephem.Geom
+      The observing geometry via keywords `rh`, `delta`.
+    Tscale : float, optional
+      Use a continuum temperature of `Tscale * 278 / sqrt(rh)` K.
+      Kelley et al. (2013) suggest a default of 1.1.
+
+    Returns
+    -------
+    fluxd : float or array
+      The flux density of the comet.
+
+    """
+
+    from . import util
+    import astropy.constants as const
+
+    # parameter check
+    assert wave.unit.is_equivalent(u.um)
+    assert efrho.unit.is_equivalent(u.um)
+    assert geom['rh'].unit.is_equivalent(u.au)
+    assert geom['delta'].unit.is_equivalent(u.cm)
+    
+    if rap.unit.is_equivalent(u.cm):
+        rho = rap.to(efrho.unit)
+        th = rho / geom['delta'].to(efrho.unit) * u.rad
+    elif rap.unit.is_equivalent(u.arcsec):
+        rho = rap.to(u.rad).value * geom['delta'].to(efrho.unit)
+        th = rap.to(u.rad)
+    else:
+        raise ValueError("rap must have angular or length units.")
+
+    B = util.planck(wave, Tscale * 278. / np.sqrt(geom['rh'].to(u.au).value),
+                    unit=unit / u.sr)
+    Om = np.pi * th**2
+    return (efrho * B * Om / rho).to(unit)
+
 def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     """Convert flux density to A(th)frho.
 
@@ -590,7 +641,7 @@ def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
 def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     """Convert flux density to efrho (epsilon * f * rho).
 
-    efrho is defined by Kelley et al. (2013, Icarus 225, 475-494).
+    efrho as defined by Kelley et al. (2013, Icarus 225, 475-494).
 
     Parameters
     ----------
