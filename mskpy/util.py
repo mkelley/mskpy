@@ -2933,6 +2933,10 @@ def horizons_csv(table):
     for line in inf:
         if line.startswith('$$EOE'):
             break
+        elif len(line.strip()) == 0:
+            continue
+        elif 'Requested' in line:
+            continue
         data += line
 
     tab = ascii.read(data, names=colnames)
