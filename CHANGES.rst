@@ -1,3 +1,42 @@
+3.0.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `comet.efrho2fluxd` to convert epsilon-f-rho to flux density.
+
+- `scripts/lmi-dither` new options: --no-alternate, --no-filter, --offset, additional context image, configurable context itimes, updated default itimes.
+
+- `instruments.spitzer`
+  - `irsclean` and `irsclean_files` to clean IRS 2D spectra.
+  - `moving_wcs_fix` to correct WCS headers of moving target observations.
+
+- `util.file2list` read in a text file and return a list of lines without trailing new lines.
+
+- `image.process.stripes` can optionally return an image of the stripes.
+
+- `graphics.rem_interior_ticklabels` to remove interior tick labels from multi-axis plots.
+  
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- New config value "irs.spice_path" and defaults are saved when there are missing configuration values.
+
+- `image.analysis.align_by_wcs` raises `NoSourcesFound` when no
+  sources are in the image.
+
+- `image.analysis.align_by_wcs` and `align_by_centroid` use
+  `align_by_offset` which fixes a rollover masking bug.
+
+- `util.dh2hms` fixed handling of arbitrary precision of fractional seconds.
+
+- `catalogs`
+  - `find_offset` returns more stats.
+  - `project_catalog` can handle different projection modes for WCS to pix.
+  
+
+
 3.0.1
 -----
 

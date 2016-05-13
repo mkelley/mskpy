@@ -13,6 +13,7 @@ graphics --- Helper functions for making plots.
    niceplot
    noborder
    remaxes
+   rem_interior_ticklabels
    tplot
    tplot_setup
 
@@ -29,6 +30,7 @@ __all__ = [
    'niceplot',
    'noborder',
    'remaxes',
+   'rem_interior_ticklabels',
    'tplot',
    'tplot_setup'
 ]
@@ -349,6 +351,44 @@ def remaxes(ax=None):
     if ax is None:
         ax = plt.gca()
     plt.setp(ax, frame_on=False, xticks=[], yticks=[])
+
+def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
+    """Remove interior ticklabels from a multiaxis plot.
+
+    Parameters
+    ----------
+    fig : matplotlib Figure, optional
+      Inspect this figure for axes, otherwise use the current figure.
+    axes : matplotlib axis, optional
+      Only consider these axes, otherwise consider all axes in `fig`.
+    top : bool, optional
+      Set to `True` if the axes have ticks along the top.
+    right : bool, optional
+      Set to `True` if the axes have ticks along the right.
+
+    """
+
+    import matplotlib.pyplot as plt
+
+    if fig is None:
+        fig = plt.gcf()
+
+    if axes is None:
+        axes = fig.axes
+        
+    for ax in axes:
+        if top:
+            if not ax.is_first_row():
+                ax.set_xticklabels([])
+        else:
+            if not ax.is_last_row():
+                ax.set_xticklabels([])
+        if right:
+            if not ax.is_last_col():
+                ax.set_yticklabels([])
+        else:
+            if not ax.is_first_col():
+                ax.set_yticklabels([])
 
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.

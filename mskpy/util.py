@@ -97,6 +97,7 @@ util --- Short and sweet functions, generic algorithms
    asQuantity
    asValue
    autodoc
+   file2list
    spectral_density_sb
    timesten
    write_table
@@ -182,6 +183,7 @@ __all__ = [
     'asQuantity',
     'asValue',
     'autodoc',
+    'file2list',
     'spectral_density_sb',
     'timesten',
     'write_table'
@@ -2543,7 +2545,7 @@ def _(date, scale='utc'):
     date = [date2time(d, scale=scale) for d in date]
     return astropy.time.Time(date)
 
-def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
+def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
 
     Will work for degrees, too.
@@ -2564,18 +2566,14 @@ def dh2hms(dh, format="{:02d}:{:02d}:{:02d}.{:03d}"):
     dh = abs(dh)
     hh = int(dh)
     mm = int((dh - hh) * 60.0)
-    ss = int(((dh - hh) * 60.0 - mm) * 60.0)
-    ms = int(round((((dh - hh) * 60.0 - mm) * 60.0 - ss) * 1000.0))
-    if ms >= 1000:
-        ms -= 1000
-        ss += 1
+    ss = ((dh - hh) * 60.0 - mm) * 60.0
     if ss >= 60:
         ss -= 60
         mm += 1
     if mm >= 60:
         mm -= 60
         hh += 1
-    return format.format(sign * hh, mm, ss, ms)
+    return format.format(sign * hh, mm, ss)
 
 def doy2md(doy, year):
     """Day of year in MM-DD format.
@@ -2866,6 +2864,29 @@ def autodoc(glbs, width=15, truncate=True):
         newdoc += s + "\n"
 
     glbs['__doc__'] = newdoc
+
+def file2list(f, strip=True):
+    """A list from strings from a file.
+
+    Parameters
+    ----------
+    f : string
+      The name of the file to read.
+    strip : bool, optional
+      Set to `True` to strip whitespace from each line.
+
+    Returns
+    -------
+    lines : list
+      The contents of the file.
+
+    """
+
+    lines = []
+    with open(f, 'r') as inf:
+        for line in inf.readlines():
+            lines.append(line.strip() if strip else line)
+    return lines
 
 def spectral_density_sb(s):
     """Equivalence pairs for spectra density surface brightness.

@@ -501,7 +501,7 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
 
     return K / K.sum()
 
-def stripes(im, axis=0, stat=np.median, **keywords):
+def stripes(im, axis=0, stat=np.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
 
     Parameters
@@ -509,28 +509,32 @@ def stripes(im, axis=0, stat=np.median, **keywords):
     im : array
       The image with stripe artifacts.  The image is first sigma
       clipped with `util.meanclip`.
-    axis : int
+    axis : int, optional
       The axis parallel to the stripes.
-    stat : function
+    stat : function, optional
       The statistic to derive the background stripes (usually
       `np.mean` or `np.median`).  The function must take the `axis`
       keyword, and must be able to handle a `MaskedArray`.
+    image : bool, optional
+      Set to `True` to return an image of stripes.  Otherwise, return
+      a 1D array.
     **keywords
       Any `util.meanclip` keyword except `full_output`.
 
     Returns
     -------
     s : ndarray
-      A 1D array of the stripes.
+      If `image` is `False` then `s` is 1D array of the stripes,
+      otherwise `s` is an image of the stripes with the same shape as
+      `im`.
 
     """
 
     from ..util import meanclip
 
-    m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
+    assert im.ndim == 2, "stripes is designed for 2D arrays"
 
-    #print("mean/sig/% masked = {0}/{1}/{2}".format(
-    #    m, sig, 1 - len(good) / np.prod(im.shape).astype(float)))
+    m, sig, good = meanclip(im, full_output=True, **keywords)[:3]
 
     mask = np.ones_like(im).astype(bool)
     mask.ravel()[good] = False
@@ -539,6 +543,12 @@ def stripes(im, axis=0, stat=np.median, **keywords):
 
     _im = np.ma.MaskedArray(im, mask=mask)
     s = stat(_im, axis=axis)
+
+    if image:
+        if axis == 0:
+            s = np.outer(np.ones(im.shape[0]), s)
+        else:
+            s = np.outer(s, np.ones(im.shape[1]))
     
     return s
 
