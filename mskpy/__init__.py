@@ -69,4 +69,9 @@ if _matplotlib:
     from . import graphics
     from .graphics import *
 
+from astropy.io import registry
+from astropy.table import Table
+registry.register_reader('horizons.csv', Table, util.horizons_csv)
+del registry, Table
+    
 del _spiceypy, _matplotlib

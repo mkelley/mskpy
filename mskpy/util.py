@@ -98,6 +98,7 @@ util --- Short and sweet functions, generic algorithms
    asValue
    autodoc
    file2list
+   horizons_csv
    spectral_density_sb
    timesten
    write_table
@@ -2888,7 +2889,65 @@ def file2list(f, strip=True):
             lines.append(line.strip() if strip else line)
     return lines
 
+def horizons_csv(table):
+    """Read a JPL/HORIZONS CSV file into a Table.
+
+    May not be feature complete: need to test all input sources.
+
+    Parameters
+    ----------
+    table : str, file-like, list
+      Input table as a file name, file-like object, list of strings,
+      or single newline-separated string.
+
+    Returns
+    -------
+    astropy.table.Table
+
+    """
+
+    from astropy.extern import six
+    from astropy.io import ascii
+
+    def split(line):
+        import re
+        return re.split('\s*,\s*', line.strip())
+
+    if isinstance(table, six.string_types):
+        inf = open(table, 'r')
+    else:
+        inf = table
+
+    header = []
+    for line in inf:
+        if line.startswith('$$SOE'):
+            break
+        header.append(line)
+
+    colnames = split(header[-2].strip())
+    for i in range(len(colnames)):
+        if colnames[i] == '':
+            colnames[i] = 'col{}'.format(i)
+        
+    data = ''
+    for line in inf:
+        if line.startswith('$$EOE'):
+            break
+        data += line
+
+    tab = ascii.read(data, names=colnames)
+
+    footer = ''
+    for line in inf:
+        footer += line
+
+    tab.meta['header'] = ''.join(header)
+    tab.meta['footer'] = footer
+    
+    return tab
+
 def spectral_density_sb(s):
+
     """Equivalence pairs for spectra density surface brightness.
 
     For use with `astropy.units`.
