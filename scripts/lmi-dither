@@ -91,6 +91,8 @@ def dither(n, scale, offset, pattern, filters, itimes, no_alternate,
 
 parser = argparse.ArgumentParser(description='Generate a DCT/LMI dither macro.')
 
+parser.add_argument('title', type=str, default=None, nargs='*',
+                    help='Image title.')
 parser.add_argument('-n', type=int, default=0,
                     help='Number of dithers; even is best for airmass matching')
 parser.add_argument('--scale', type=int, default=60,
@@ -149,15 +151,22 @@ pattern = patterns[args.pattern]
 
 n = args.n if args.n > 0 else len(pattern)
 
-print("""#title=false ra=false dec=false exposureTime=true numExposures=false filter={0:s} muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
-#""".format(filter_col))
+if args.title == []:
+    title_col = 'false'
+    title = ''
+else:
+    title_col = 'true'
+    title = '"{0:s}" '.format(' '.join(args.title))
+
+print("""#title={0:s} ra=false dec=false exposureTime=true numExposures=false filter={1:s} muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
+#""".format(title_col, filter_col))
 it = 0
 wt = 0
 nf = 0
 for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
                    args.no_alternate, args.context_itime, args.no_context,
                    args.no_filter):
-    print(line)
+    print(title + line)
     nf += 1
     it += float(line.split()[0])
     wt += float(line.split()[0]) + 24
