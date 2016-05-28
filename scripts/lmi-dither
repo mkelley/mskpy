@@ -94,7 +94,7 @@ parser.add_argument('title', type=str, default=None, nargs='*',
 parser.add_argument('-n', type=int, default=0,
                     help='Number of dithers; even is best for airmass matching')
 parser.add_argument('-g', type=int, default=0,
-                    help='Number of dithers to group before changing filters.')
+                    help='Number of dithers to group before changing filters.  Set to 1 to disable.')
 parser.add_argument('--scale', type=int, default=60,
                     help='Scale factor for offsets.  [arcsec]')
 parser.add_argument('--offset', type=to_list(float), default=[0, 0],
@@ -157,10 +157,13 @@ if args.no_alternate:
     group = n
 elif args.g > 0:
     group = args.g
-elif args.pattern == 'hex':
-    group = 3
 else:
-    group = 2
+    if n % 3 == 0 and n != 3:
+        group = 3
+    elif n % 2 == 0 and n != 2:
+        group = 2
+    else:
+        group = 1
 
 # set the title column
 if args.title == []:
