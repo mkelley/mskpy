@@ -24,6 +24,7 @@ comet --- Comets!
    M2afrho1
    m2qh2o
    Q2flux
+   silicate_feature
 
 """
 
@@ -39,7 +40,8 @@ __all__ = [
     'm2afrho',
     'M2afrho1',
     'm2qh2o',
-    'Q2flux'
+    'Q2flux',
+    'silicate_feature'
 ]
 
 import numpy as np
@@ -808,6 +810,58 @@ def Q2flux(Q, wave, geom, g, rap, v):
          / geom['rh'].to(u.au).value**2)
 
     return F.to('W/m2')
+
+def silicate_feature(wave, fluxd, unc,
+                     continuum=([7.5, 8.3], [12.5, 13.0]),
+                     band_center=[10.2, 10.8], T_guess=250.,
+                     stretch=True):
+    """Examine a 10-um silicate feature.
+
+    The "continuum" is fit with a Planck function and the spectrum
+    normalized.  If `stretch` is `True`, then also offset to 0.0, and
+    stretch so the `band_center` is 1.0.
+
+    Parameters
+    ----------
+    wave : Quantity
+      The wavelengths.
+    fluxd, unc : Quantity
+      The flux density and uncertainty.
+    continuum : tuple of array
+      A tuple of wavelength ranges to use for defining the continuum. [um]
+    band_center : array
+      The start and stop wavelengths of the band center. [um]
+    T_guess : float
+      The initial temperature guess for the Planck fit.
+    stretch : bool
+      Set to `True` to offset and stretch from 0 to 1.
+
+    Returns
+    -------
+    stretched, sunc : array
+      The resulting spectrum and uncertainties.
+
+    """
+
+    from . import util
+
+    assert isinstance(wave, u.Quantity)
+    assert isinstance(fluxd, u.Quantity)
+    assert isinstance(unc, u.Quantity)
+
+    i = util.between(wave.to(u.um).value, continuum)
+    fit, err = util.planckfit(wave[i], fluxd[i], unc[i], guess=(1e-12, T_guess))
+    bb = fit[0] * util.planck(wave, fit[1], unit=fluxd.unit / u.sr) * u.sr
+    r = (fluxd / bb).value
+    re = (unc / bb).value
+
+    if stretch:
+        i = util.between(wave.to(u.um).value, band_center)
+        scale = np.average(r[i], weights=1 / unc[i]**2) - 1
+        return (r - 1) / scale, re / scale
+    else:
+        return r, re
+
 
 # update module docstring
 from .util import autodoc
