@@ -2068,7 +2068,6 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     flux = davint(_w, _sf * weights, *wrange) / davint(_w, weights, *wrange)
     err = davint(_w, weights, *wrange) / davint(_w, 1.0 / _se2, *wrange)
     err = np.sqrt(err) * errscale
-
     if se is None:
         return wave, flux
     else:
@@ -2227,7 +2226,7 @@ def planck(wave, T, unit=None, deriv=None):
     np.seterr(**oldseterr)
 
     if unit is not None:
-        B *= Bunit
+        B = B * Bunit
         if unit != Bunit:
             B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
