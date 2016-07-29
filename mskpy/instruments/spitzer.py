@@ -165,8 +165,60 @@ class IRAC(Camera):
 
         return K
 
+def warm_aperture_correction(rap, bgan):
+    """Compute an aperture correction for IRAC Warm Mission data.
+
+    Parameters
+    ----------
+    rap : float
+      The radius of the photometric aperture.
+    bgan : 2-element array-like
+      The inner and outer radii of the background annulus, or `None`
+      if there is no background annulus.
+    
+    Result
+    ------
+    c : float
+      The aperture correction as a multiplicative factor: `F_true =
+      F_measured * c`.
+
+    Notes
+    -----
+    Requires I1_hdr_warm_psf.fits and I2_hdr_warm_psf.fits from July 2013:
+    http://irsa.ipac.caltech.edu/data/SPITZER/docs/irac/calibrationfiles/psfprf/
+
+    The default aperture flux was measured via:
+
+    psf = (fits.getdata('I1_hdr_warm_psf.fits'), fits.getdata('I2_hdr_warm_psf.fits'))
+    n, f = apphot(psf, (640., 640.), 10 / 0.24, subsample=1)
+    bg = bgphot(psf, (640., 640.), r_[12, 20] / 0.24, ufunc=np.mean)[1]
+    f -= n * bg
+    Out[42]: array([  2.02430430e+08,   1.29336376e+08])
+
+    """
+
+    import os.path
+    from ..config import config
+    from astropy.io import fits
+    from ..image import apphot, bgphot
+
+    f0 = np.array([  2.02430430e+08,   1.29336376e+08])
+
+    path = config.get('irac', 'psf_path')
+    psf = (fits.getdata(os.path.join(path, 'I1_hdr_warm_psf.fits')),
+           fits.getdata(os.path.join(path, 'I2_hdr_warm_psf.fits')))
+
+    n, f = apphot(psf, (640., 640.), rap / 0.24, subsample=1)
+    if bgan is None:
+        bg = 0
+    else:
+        bg = bgphot(psf, (640., 640.), np.array(bgan) / 0.24, ufunc=np.mean)[1]
+    f -= n * bg
+
+    return f0 / f
+
 #    def ccorrection_tab(self, sw, sf):
-#        """IRAC color correction of a tabulated spectrum.
+#    """IRAC color correction of a tabulated spectrum.
 #
 #        Parameters
 #        ----------

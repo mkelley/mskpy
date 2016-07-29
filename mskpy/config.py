@@ -24,6 +24,7 @@ _defaults = (
     ('spex', 'spextool_path', os.path.sep.join([os.path.expanduser("~"), 'local', 'idl', 'irtf', 'Spextool'])),
     ('irs', 'rogue_masks_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'spitzer', 'irs', 'calibration', 'rogue-masks'])),
     ('irs', 'spice_path', os.path.sep.join([os.path.expanduser("~"), 'local', 'spitzer', 'spice'])),
+    ('irac', 'psf_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'spitzer', 'calibration', 'irac'])),
 )
 
 def _create_config(fn):
