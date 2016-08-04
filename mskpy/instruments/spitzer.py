@@ -28,7 +28,7 @@ except ImportError:
 
 from .instrument import Instrument, Camera, LongSlitSpectrometer
 
-__all__ = ['irsclean', 'irsclean_files', 'IRAC', 'IRS']
+__all__ = ['irsclean', 'irsclean_files', 'IRAC', 'IRS', 'IRSCombine']
 
 campaign2rogue = {
     'IRSX002500': 'IRS1',
@@ -383,7 +383,7 @@ class IRSCombine(object):
     ----------
     aploss_corrected : dict
       The so-called aperture-loss corrected spectra for each module.
-    coadd_spec : dict
+    coadded : dict
       The combined spectra for each module.
     coma : dict
       The nucleus subtracted spectra for each module.
@@ -416,22 +416,22 @@ class IRSCombine(object):
     combine.scale_spectra()
     combine.coadd()
     combine.trim()
-    combine.nucleus('schwassmann-wachmann 1', 30.2 * u.km, 0.04,
-                    eta=0.99, epsilon=0.95)
+    combine.subtract_nucleus('schwassmann-wachmann 1', 30.2 * u.km, 0.04,
+                             eta=0.99, epsilon=0.95)
     combine.aploss_correct()
-    combine.scale_modules('ll2')
+    combine.scale_orders('ll2')
     combine.write('comet-irs.txt')
 
     fig = plt.figure(1)
     plt.clf()
-    combine.plot_raw()
+    combine.plot('raw')
     plt.setp(plt.gca(), ylim=(0, 0.8))
     plt.draw()
     
     fig = plt.figure(2)
     plt.clf()
-    combine.plot_spectra('coadded')
-    combine.plot_nucleus(ls='--', label='nucleus')
+    combine.plot('coadded')
+    combine.plot('nucleus', ls='--', label='nucleus')
     mskpy.nicelegend(loc='lower right')
     plt.draw()
     
@@ -444,9 +444,10 @@ class IRSCombine(object):
 
     def __init__(self, files=[]):
         from collections import OrderedDict
-        
+
+        self.raw = None
         self.trimmed = None
-        self.coadd_spec = None
+        self.coadded = None
         self.nucleus = None
         self.coma = None
         self.aploss_corrected = None
@@ -459,30 +460,24 @@ class IRSCombine(object):
         self.comments['trim'] = []
         self.comments['nucleus'] = []
         self.comments['aploss_correct'] = []
-        self.comments['scale_modules'] = []
+        self.comments['scale_orders'] = []
         self.comments['scale_spectra'] = []
 
         self.read_all(files)
 
     @property
     def spectra(self):
-        if self.order_scaled is not None:
-            return self.order_scaled
-        if self.aploss_corrected is not None:
-            return self.aploss_corrected
-        elif self.coma is not None:
-            return self.coma
-        elif self.coadd_spec is not None:
-            return self.coadd_spec
-        elif self.trimmed is not None:
-            return self.trimmed
-        else:
-            return self.raw
+        for k in ['order_scaled', 'aploss_corrected', 'coma', 'trimmed',
+                  'coadded', 'trimmed']:
+            if getattr(self, k) is not None:
+                return getattr(self, k)
+
+        return self.raw
 
     def aploss_correct(self):
         import os.path
         from astropy.io import ascii
-        from mskpy.config import config
+        from ..config import config
 
         path = config.get('irs', 'spice_path')
         h = list(self.headers.values())[0]
@@ -502,17 +497,17 @@ class IRSCombine(object):
             b = tuple(fluxcon[coeffs][i])
             wa = aploss[i]['key_wavelength']
             wb = aploss[i]['key_wavelength']
-            polya = np.polyval(a, wa - coma[k]['wave'])
-            polyb = np.polyval(b, wb - coma[k]['wave'])
+            polya = np.polyval(a, wa - self.coma[k]['wave'])
+            polyb = np.polyval(b, wb - self.coma[k]['wave'])
             alcf = aploss[i]['fluxcon'] * polya / (fluxcon[i]['fluxcon'] * polyb)
 
             self.aploss_corrected[k] = dict()
-            for kk, vv in coma[k].items():
+            for kk, vv in self.coma[k].items():
                 self.aploss_corrected[k][kk] = vv
             self.aploss_corrected[k]['fluxd'] *= alcf
             self.aploss_corrected[k]['err'] *= alcf
 
-        comments['aploss_correct'] = ["Extended source calibrated."]
+        self.comments['aploss_correct'] = ['Extended source calibrated.']
 
     def coadd(self, scales=dict(), sig=2.5):
         """Combine by module.
@@ -537,7 +532,7 @@ class IRSCombine(object):
           are averaged.
 
         """
-        from mskpy import deriv, meanclip
+        from ..util import deriv, meanclip
 
         assert isinstance(scales, dict)
         if scales is None:
@@ -546,7 +541,8 @@ class IRSCombine(object):
             _scales = dict(**self.scales)
             _scales.update(scales)
         
-        self.coadd_spec = dict()
+        self.coadded = dict()
+        self.comments['coadd'] = []
         for module, files in self.modules.items():
             for order in np.unique(self.raw[files[0]]['order']):
                 k = self.raw[files[0]]['order'] == order
@@ -558,8 +554,8 @@ class IRSCombine(object):
                 bins[-1] = w[-1] + dw[-1] / 2.0
                 wave, fluxd, err2 = np.zeros((3, len(files), len(bins) - 1))
                 for i, f in enumerate(files):
-                    spec = spectra[f]
-                    n = np.histogram(spec['wavelength'][k], bins)[0].astype(float)
+                    spec = self.raw[f]
+                    n = np.histogram(spec['wavelength'][k], bins)[0]
                     wave[i] = np.histogram(spec['wavelength'][k], bins,
                                            weights=spec['wavelength'][k])[0]
                     fluxd[i] = np.histogram(spec['wavelength'][k], bins,
@@ -581,7 +577,7 @@ class IRSCombine(object):
 
                 w = wave[0]
                 f, e = np.zeros((2, len(w)))
-                for i in range(len(wave[0])):
+                for i in range(len(w)):
                     if fluxd.shape[1] > 2:
                         mc = meanclip(fluxd[:, i], lsig=sig, hsig=sig,
                                       full_output=True)
@@ -591,16 +587,16 @@ class IRSCombine(object):
                         f[i] = np.mean(fluxd[:, i])
                         e = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
 
-                self.coadd_spec[module[:2] + str(order)] = dict(
-                    wave=w, fluxd=f, err=e)
+                i = np.isfinite(w * f * e)  # clean nans
+                self.coadded[module[:2] + str(order)] = dict(
+                    wave=w[i], fluxd=f[i], err=e[i])
 
-                self.comments['coadd'] = []
-                if fluxd.shape[1] > 2:
-                    self.comments['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(fluxd.shape[1], module, order, sig))
-                if fluxd.shape[1] == 2:
-                    self.comments['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[1], module, order))
+                if fluxd.shape[0] > 2:
+                    self.comments['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(fluxd.shape[0], module[:-1], order, sig))
+                elif fluxd.shape[0] == 2:
+                    self.comments['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[0], module[:-1], order))
                 else:
-                    self.comments['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[1], module, order))
+                    self.comments['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
 
     def module_lists(self):
         """Find all module-order combinations."""
@@ -620,18 +616,18 @@ class IRSCombine(object):
             else:
                 raise UserWarning('Only 1st and 2nd orders are presently supported.')
 
-            if k not in modules:
+            if k not in self.modules:
                 self.modules[k] = []
             self.modules[k].append(f)
 
-        m = np.unique(self.modules.values())
+        m = self.modules.keys()
         print('IRSCombine found {} supported IRS modules: {}.'.format(
             len(m), ' '.join(m)))
 
-    def nucleus(self, target, R, Ap, **kwargs):
+    def subtract_nucleus(self, target, R, Ap, **kwargs):
         """Generate a model NEATM to subtract from the spectrum.
 
-        Delete this model with `self.remove_nucleus`.
+        Delete this model with `self.delete_nucleus`.
 
         Parameters
         ----------
@@ -646,41 +642,134 @@ class IRSCombine(object):
 
         """
 
+        from scipy.interpolate import splev, splrep
         from astropy.table import Table
-        from mskpy.models import NEATM
-        from mskpy import Spitzer, getgeom
+        from ..models import NEATM
+        from ..ephem import Spitzer, getgeom
 
         if self.nucleus is not None:
-            self._remove_nucleus()
+            self.delete_nucleus()
 
         model = NEATM(R * 2, Ap, **kwargs)
-        date = list(headers.values())[0]['DATE_OBS'].strip("'")
+        date = list(self.headers.values())[0]['DATE_OBS'].strip("'")
         g = getgeom(target, Spitzer, date)
         wave = np.logspace(np.log10(5), np.log10(40), 100) * u.um
         fluxd = model.fluxd(g, wave, unit=u.Jy)
 
-        self.nucleus = Table(dict(wave=wave, fluxd=fluxd))
+        self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
         self.nucleus.meta['R'] = R
         self.nucleus.meta['Ap'] = Ap
         for k, v in kwargs.items():
             self.nucleus.meta[k] = v
 
-        self.comments['nucleus'] = ["Model nucleus: R={}, Ap={}, {}".format(
-            R, Ap, str(kwargs))]
-
-        self._subtract_nucleus()
-
-    def _subtract_nucleus(self):
-        from scipy.interpolate import splev, splrep
+        self.comments['subtract_nucleus'] = [
+            "Model nucleus: R={}, Ap={}, {}".format(R, Ap, str(kwargs))
+        ]
 
         model = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
         self.coma = dict()
-        for k, v in spec.items():
+        for k, v in self.coadded.items():
             self.coma[k] = {}
-            for kk, vv in spec[k].items():
+            for kk, vv in self.coadded[k].items():
                 self.coma[k][kk] = vv.copy()
             f = splev(self.coma[k]['wave'], model)
             self.coma[k]['fluxd'] -= f
+
+        print('IRSCombine generated and subtracted a model nucleus.')
+
+    def plot(self, name='spectra', ax=None, errorbar=True,
+             label=str.upper, **kwargs):
+        """Plot spectra.
+
+        The plot is not cleared, and the x and y labels are changed.
+
+        Parameters
+        ----------
+        name : string
+          The name of the spectra to plot.  The names correspond to
+          the `IRSCombine` spectra attributes, e.g., 'trimmed',
+          'coadded', 'coma'.  Default is the spectrum with the
+          highest processing level ('spectra').  If `name` is 'raw' or
+          'nucleus' then the appropriate methods are called (see
+          `plot_raw`, `plot_nucleus`).
+        ax : matplotlib Axes, optional
+          Plot to this axis.
+        label : function or string, optional
+          A label generator.  Accepts a single paramter, the order
+          being plotted.
+        **kwargs
+          Additional keyword arguments are passed to `matplotlib`'s
+          `errorbar`.
+
+        Returns
+        -------
+        lines : list
+          A list of all lines added to the plot.
+
+        """
+
+        import matplotlib.pyplot as plt
+
+        if name == 'raw':
+            return self.plot_raw(ax=ax, label=label, **kwargs)
+        
+        if ax is None:
+            ax = plt.gca()
+
+        lines = []
+        spectra = getattr(self, name, None)
+        assert spectra is not None, '{} does not exist.'.format(name)
+        for k, spec in spectra.items():
+            if errorbar:
+                line = ax.errorbar(spec['wave'], spec['fluxd'], spec['err'],
+                                   label=label(k), **kwargs)[0]
+            else:
+                line = ax.plot(spec['wave'], spec['fluxd'], label=label(k),
+                               **kwargs)
+            lines.append(line)
+        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
+
+        return lines
+
+    def plot_order_scaling(self, ax=None, **kwargs):
+        """Diagnostic plot for order scaling.
+
+        Parameters
+        ----------
+        ax : matplotlib Axes
+          Plot to this axis.
+        **kwargs
+          Additional keyword arguments are passed to `matplotlib`'s
+          `errorbar`.
+
+        """
+
+        import matplotlib.pyplot as plt
+        from ..util import minmax
+
+        assert self.order_scales is not None, "scale_orders must first be run."
+
+        if ax is None:
+            ax = plt.gca()
+
+        for k in ['aploss_corrected', 'coma', 'coadded']:
+            if getattr(self, k) is not None:
+                lines = self.plot(k)
+                break
+        else:
+            raise RuntimeError('scale_orders has been run, but the prior processing steps are missing.')
+
+        orders = list(self._scale_order_lines.keys())
+        for (k1, k2) in zip(orders[:-1], orders[1:]):
+            wm = self._scale_order_wave[k1]
+            ax.axvline(wm, ls=':', color='k')
+
+            for k, edge in zip((k1, k2), ['long', 'short']):
+                mm = minmax(self.spectra[k]['wave'])
+                w = np.linspace(mm[0] - 3, mm[1] + 3)
+                m, b = self._scale_order_lines[k][edge]
+                ax.plot(w, w * m + b, ls='-', color='k', alpha=0.5)
+                ax.scatter(wm, wm * m + b, color='k', marker='o')
 
     def plot_nucleus(self, ax=None, **kwargs):
         """Plot the nucleus spectrum.
@@ -708,7 +797,7 @@ class IRSCombine(object):
             ax = plt.gca()
         
         line = ax.plot(self.nucleus['wave'], self.nucleus['fluxd'], **kwargs)
-        plt.setp(ax, xlabel='Wavelength (μm)', ylabel='r$F_\nu$ (Jy)')
+        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
 
         return line
 
@@ -732,7 +821,7 @@ class IRSCombine(object):
         Returns
         -------
         lines : list
-          A list of all lines and errorbars added to the plot.
+          A list of all lines added to the plot.
 
         """
 
@@ -743,67 +832,19 @@ class IRSCombine(object):
         
         lines = []
         for f, spec in self.raw.items():
-            lines.extend(
-                ax.errorbar(spec['wavelength'], spec['flux_density'],
-                            spec['error'], label=label(f), **kwargs)
-            )
+            line = ax.errorbar(spec['wavelength'], spec['flux_density'],
+                               spec['error'], label=label(f), **kwargs)[0]
+            lines.append(line)
         plt.setp(ax, xlabel='Wavelength (μm)', ylabel='DN')
 
         return lines
 
-    def plot_spectra(self, name=None, ax=None, errorbar=True,
-                     label=str.upper, **kwargs):
-        """Plot all raw spectra.
-
-        The plot is not cleared, and the x and y labels are changed.
-
-        Parameters
-        ----------
-        name : string
-          The name of the spectra to plot.  The names correspond to
-          the `IRSCombine` spectra attributes, e.g., 'trimmed',
-          'coadd_spec', 'coma'.  Default is the spectrum with the
-          highest processing level ('spectra').
-        ax : matplotlib Axes
-          Plot to this axis.
-        label : function or string
-          A label generator.  Accepts a single paramter, the order
-          being plotted.
-        **kwargs
-          Additional keyword arguments are passed to `matplotlib`'s
-          `errorbar`.
-
-        Returns
-        -------
-        lines : list
-          A list of all lines and errorbars added to the plot.
-
-        """
-
-        import matplotlib.pyplot as plt
-
-        if ax is None:
-            ax = plt.gca()
-        
-        lines = []
-        spectra = getattr(self, name, self.spectra)
-        for k, spec in spectra.items():
-            if errorbar:
-                line = ax.errorbar(spec['wavelength'], spec['flux_density'],
-                                   spec['error'], label=label(k), **kwargs)
-            else:
-                line = ax.plot(spec['wavelength'], spec['flux_density'],
-                               label=label(k), **kwargs)
-            lines.extend(line)
-        plt.setp(ax, xlabel='Wavelength (μm)', ylabel='r$F_\nu$ (Jy)')
-
-        return lines
-
     def read_all(self, files):
-
         """Read all data and headers."""
         IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
                                   '\\char COMMENT')
+        from astropy.io import ascii
+        
         self.headers = dict()
         self.raw = dict()
         for f in files:
@@ -828,7 +869,7 @@ class IRSCombine(object):
         print('IRSCombine read {} files.'.format(len(f)))
         self.module_lists()
 
-    def remove_nucleus(self):
+    def delete_nucleus(self):
         """Delete the model nucleus."""
         self.nucleus = None
         self.coma = None
@@ -836,13 +877,15 @@ class IRSCombine(object):
         self.comments['nucleus'] = []
         print('IRSCombine: Model nucleus removed.')
         
-    def scale_modules(self, fixed, dlam=1.5):
+    def scale_orders(self, fixed, dlam=1.5):
         """Order-to-order scaling with linear interpolation.
+
+        Within this context, SH and LH are treated as single orders.
 
         Parameters
         ----------
         fixed : string
-          The module name to keep fixed, e.g., 'll2'.
+          The order to keep fixed, e.g., 'll2'.
         dlam : float
           The number of wavelengths to use for linear fitting at the
           edge of each order. [μm]
@@ -850,63 +893,74 @@ class IRSCombine(object):
         """
 
         from collections import OrderedDict
-        from mskpy import between, linefit
+        from ..util import between, linefit
 
-        assert self.coadd_spec is not None, "Spectra must first be coadded (even if there is only one spectrum per module)."
+        assert self.coadded is not None, "Spectra must first be coadded (even if there is only one spectrum per module)."
+
 
         stitching_order = ['sl2', 'sl3', 'sl1', 'sh', 'll2', 'll3', 'll1', 'lh']
         self.order_scales = dict()
-        lines = OrderedDict()
-        edges = dict()
+        self._scale_order_lines = OrderedDict()
+        self._scale_order_edges = dict()
+        self._scale_order_wave = dict()
+        self.order_scaled = None  # reset for self.spectra property
         for k in stitching_order:
-            if k in self.spectrum.keys():
-                self.lines[k] = dict()
-                self.edges[k] = dict()
+            if k in self.spectra.keys():
+                self._scale_order_lines[k] = dict()
+                self._scale_order_edges[k] = dict()
                 self.order_scales[k] = 1.0
 
-                w = self.spectrum[k]['wave']
-                f = self.spectrum[k]['fluxd']
-                e = self.spectrum[k]['err']
+                w = self.spectra[k]['wave']
+                f = self.spectra[k]['fluxd']
+                e = self.spectra[k]['err']
 
                 # short wavlength edge
                 wrange = (w.min(), w.min() + dlam)
                 i = between(w, wrange) * np.isfinite(f)
-                self.lines[k]['short'] = linefit(w[i], f[i], e[i], (1.0, 0))[0]
-                self.edges[k]['short'] = w[i].min()
+                self._scale_order_lines[k]['short'] = linefit(
+                    w[i], f[i], e[i], (1.0, 0))[0]
+                self._scale_order_edges[k]['short'] = w[i].min()
 
                 # long wavlength edge
                 wrange = (w.max() - dlam, w.max())
                 i = between(w, wrange) * np.isfinite(f)
-                self.lines[k]['long'] = linefit(w[i], f[i], e[i], (1.0, 0))[0]
-                self.edges[k]['long'] = w[i].max()
+                self._scale_order_lines[k]['long'] = linefit(
+                    w[i], f[i], e[i], (1.0, 0))[0]
+                self._scale_order_edges[k]['long'] = w[i].max()
 
         # first pass on scale factors
-        orders = self.lines.keys()
-        keys = zip(orders[:-1], orders[1:])
-        for i, (k1, k2) in enumerate(keys):
-            m1, b1 = self.lines[k1]['long']
-            m2, b2 = self.lines[k2]['short']
-            wm = (self.edges[k1]['short'] + self.edges[k2]['long']) / 2
-            self.order_scales[k1] = (m1 * wm + b1) / (m2 * wm + b2)
+        orders = list(self._scale_order_lines.keys())
+        for (k1, k2) in zip(orders[:-1], orders[1:]):
+            m1, b1 = self._scale_order_lines[k1]['long']
+            m2, b2 = self._scale_order_lines[k2]['short']
+            wm = (self._scale_order_edges[k1]['long']
+                  + self._scale_order_edges[k2]['short']) / 2
+            self._scale_order_wave[k1] = wm
+            self.order_scales[k1] = (m2 * wm + b2) / (m1 * wm + b1)
 
         # second pass: scale everything to shortest wavelength order,
         # then next shortest, and so on
         for i, k in enumerate(orders):
             for j in range(i + 1, len(orders)):
-                self.order_scales[orders[j]] *= self.order_scales[k]
+                self.order_scales[k] *= self.order_scales[orders[j]]
 
         # final pass: scale everything to user requested order, and
         # actually apply the scale factors to the data
+        spectra = self.spectra
         self.order_scaled = dict()
         for k in orders:
+            self.order_scaled[k] = dict()
+            for kk, vv in spectra[k].items():
+                self.order_scaled[k][kk] = vv.copy()
+
             self.order_scales[k] /= self.order_scales[fixed]
-            self.order_scaled[k] = self.spectra[k] * self.order_scales[k]
-            self.comments['scale_modules'].append('{} scaled by {}'.format(
+            self.order_scaled[k]['fluxd'] *= self.order_scales[k]
+
+            self.comments['scale_orders'].append('{} scaled by {}'.format(
                 k, self.order_scales[k]))
 
-    def scale_spectra(self, sl2=(9, 11), sl1=(6, 7), ll2=(25, 30),
-                      ll1=(16, 18)):
-
+    def scale_spectra(self, sl1=(9, 11), sl2=(6, 7), ll1=(25, 30),
+                      ll2=(16, 18)):
         """Generate scale factors for combining multiple exposures.
 
         Parameters
@@ -916,7 +970,7 @@ class IRSCombine(object):
 
         """
         
-        from mskpy import between, meanclip
+        from ..util import between, meanclip
 
         ranges = dict(sl1=sl1, sl2=sl2, ll1=ll1, ll2=ll2)
 
@@ -926,8 +980,8 @@ class IRSCombine(object):
             bandfluxd = dict()
             for f in files:
                 i = between(self.raw[f]['wavelength'], ranges[module])
-                bandfluxd[f] = meanclip(spectra[f]['flux_density'][i])
-            mfluxd = np.median(list(bandfluxd.values()))
+                bandfluxd[f] = meanclip(self.raw[f]['flux_density'][i])
+            mfluxd = np.nanmedian(list(bandfluxd.values()))
             for f in files:
                 self.scales[f] = mfluxd / bandfluxd[f]
 
@@ -945,15 +999,15 @@ class IRSCombine(object):
 
         """
 
-        from mskpy import between
+        from ..util import between
 
-        assert self.coadd_spec is not None, 'Must run `coadd()` first.'
+        assert self.coadded is not None, 'Must run `coadd()` first.'
 
         tr = dict(sl1=[0, 13.5], sl2=[0, 100], sl3=[0, 100],
                   ll2=[0, 19.55], ll3=[19.55, 100], ll1=[21.51, 35])
-        self.trimmed = self.coadd_spec.copy()
+        self.trimmed = self.coadded.copy()
         self.comments['trim'] = []
-        for k in trimmed.keys():
+        for k in self.trimmed.keys():
             wrange = tr[k]
             i = between(self.trimmed[k]['wave'], wrange)
             for j in ('wave', 'fluxd', 'err'):
@@ -975,28 +1029,33 @@ class IRSCombine(object):
 
         from scipy.interpolate import splev, splrep
         from astropy.table import Table
-        from mskpy import write_table
+        from ..util import write_table
 
-        assert self.coadd_spec is None, "Spectra must be processed at least through `coadd()`."
+        assert self.coadded is not None, "Spectra must be processed at least through `coadd()`."
         
-        i = np.argsort([s['wave'].min() for s in self.spectrum.values()])
-        keys = np.array(list(self.spectrum.keys()))[i]
+        i = np.argsort([s['wave'].min() for s in self.spectra.values()])
+        keys = np.array(list(self.spectra.keys()))[i]
 
         if self.nucleus is not None:
             nucleus_interp = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
 
-        wave, fluxd, err, orders, scales, nucleus = []
+        wave = []
+        fluxd = []
+        err = []
+        orders = []
+        scales = []
+        nucleus = []
         for k in keys:
-            i = np.isfinite(self.spectrum[k]['fluxd'])
-            wave.extend(self.spectrum[k]['wave'][i])
-            fluxd.extend(self.spectrum[k]['fluxd'][i])
-            err.extend(self.spectrum[k]['err'][i])
+            i = np.isfinite(self.spectra[k]['fluxd'])
+            wave.extend(self.spectra[k]['wave'][i])
+            fluxd.extend(self.spectra[k]['fluxd'][i])
+            err.extend(self.spectra[k]['err'][i])
             orders.extend([k.upper()] * i.sum())
             scales.extend(np.ones(i.sum()) * self.order_scales[k])
             if self.nucleus is None:
                 nucleus.extend(np.zeros(i.sum()))
             else:
-                nf = splev(self.spectrum[k]['wave'][i], nucleus_interp)
+                nf = splev(self.spectra[k]['wave'][i], nucleus_interp)
                 nucleus.extend(nf)
 
         tab = Table((wave, fluxd, err, orders, scales, nucleus),
