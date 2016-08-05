@@ -1061,8 +1061,8 @@ class IRSCombine(object):
         tab = Table((wave, fluxd, err, orders, scales, nucleus),
                     names=['wave', 'fluxd', 'err', 'order',
                            'scales', 'nucleus'])
-        for k in ['wave', 'fluxd', 'err', 'nucleus']:
-            tab[k].format = "{:.5g}"
+        for k in ['wave', 'fluxd', 'err', 'nucleus', 'scales']:
+            tab[k].format = "{:#.5g}"
 
         _comments = list(comments) + ['']
         for method, method_comments in self.comments.items():
