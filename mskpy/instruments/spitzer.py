@@ -463,7 +463,7 @@ class IRSCombine(object):
         self.comments['scale_orders'] = []
         self.comments['scale_spectra'] = []
 
-        self.read_all(files)
+        self.read(files)
 
     @property
     def spectra(self):
@@ -624,59 +624,6 @@ class IRSCombine(object):
         print('IRSCombine found {} supported IRS modules: {}.'.format(
             len(m), ' '.join(m)))
 
-    def subtract_nucleus(self, target, R, Ap, **kwargs):
-        """Generate a model NEATM to subtract from the spectrum.
-
-        Delete this model with `self.delete_nucleus`.
-
-        Parameters
-        ----------
-        target : string
-          The name of the target, passed to `mskpy.getgeom`.
-        R : Quantity
-          The radius.
-        Ap : float
-          The geometric albedo.
-        **kwargs
-          `mskpy.models.NEATM` keyword arguments.
-
-        """
-
-        from scipy.interpolate import splev, splrep
-        from astropy.table import Table
-        from ..models import NEATM
-        from ..ephem import Spitzer, getgeom
-
-        if self.nucleus is not None:
-            self.delete_nucleus()
-
-        model = NEATM(R * 2, Ap, **kwargs)
-        date = list(self.headers.values())[0]['DATE_OBS'].strip("'")
-        g = getgeom(target, Spitzer, date)
-        wave = np.logspace(np.log10(5), np.log10(40), 100) * u.um
-        fluxd = model.fluxd(g, wave, unit=u.Jy)
-
-        self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
-        self.nucleus.meta['R'] = R
-        self.nucleus.meta['Ap'] = Ap
-        for k, v in kwargs.items():
-            self.nucleus.meta[k] = v
-
-        self.comments['subtract_nucleus'] = [
-            "Model nucleus: R={}, Ap={}, {}".format(R, Ap, str(kwargs))
-        ]
-
-        model = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
-        self.coma = dict()
-        for k, v in self.coadded.items():
-            self.coma[k] = {}
-            for kk, vv in self.coadded[k].items():
-                self.coma[k][kk] = vv.copy()
-            f = splev(self.coma[k]['wave'], model)
-            self.coma[k]['fluxd'] -= f
-
-        print('IRSCombine generated and subtracted a model nucleus.')
-
     def plot(self, name='spectra', ax=None, errorbar=True,
              label=str.upper, **kwargs):
         """Plot spectra.
@@ -831,7 +778,7 @@ class IRSCombine(object):
             ax = plt.gca()
         
         lines = []
-        for f, spec in self.raw.items():
+        for f, spec in sorted(self.raw.items()):
             line = ax.errorbar(spec['wavelength'], spec['flux_density'],
                                spec['error'], label=label(f), **kwargs)[0]
             lines.append(line)
@@ -839,12 +786,19 @@ class IRSCombine(object):
 
         return lines
 
-    def read_all(self, files):
+    def read(self, files):
         """Read all data and headers."""
+
+        from collections import OrderedDict
+        from astropy.io import ascii
+        from astropy.coordinates import SkyCoord
+        import astropy.units as u
+        from .. import spice
+        from ..util import cal2time
+        from ..ephem import getgeom, Spitzer
+        
         IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
                                   '\\char COMMENT')
-        from astropy.io import ascii
-        
         self.headers = dict()
         self.raw = dict()
         for f in files:
@@ -868,6 +822,51 @@ class IRSCombine(object):
 
         print('IRSCombine read {} files.'.format(len(f)))
         self.module_lists()
+
+        headers = list(self.headers.values())
+        times = [h['DATE_OBS'][1:-1] for h in headers]
+        first = times.index(min(times))
+        last = times.index(max(times))
+
+        start_time = times[first]
+        dt = float(headers[last]['RAMPTIME']) + float(headers[last]['DEADTIME'])
+        stop_time = (cal2time(times[last]) + dt * u.s).isot
+
+        self.header = OrderedDict()
+        self.header['object'] = headers[first]['OBJECT']
+        self.header['naif id'] = int(headers[first]['NAIFID'])
+        self.header['naif name'] = spice.bodc2s(self.header['naif id'])
+        self.header['observer'] = headers[first]['OBSRVR']
+        self.header['program id'] = headers[first]['PROGID']
+        self.header['start time'] = start_time
+        self.header['stop time'] = stop_time
+
+        for module, files in self.modules.items():
+            n = len(files)
+            k = module.upper() + ' exposures'
+            self.header[k] = (n, 'Number of exposures')
+            itime = np.sum([float(self.headers[f]['RAMPTIME']) for f in files])
+            k = module.upper() + ' itime'
+            self.header[k] = (itime, 'Total time collecting photons')
+
+        g = getgeom(self.header['naif name'], Spitzer, self.header['start time'])
+        self.header['rh'] = '{:.3f}'.format(g.rh)
+        self.header['Delta'] = '{:.3f}'.format(g.delta)
+        self.header['phase'] = '{:.1f}'.format(g.phase)
+        self.header['Sun angle'] = ('{:.1f}'.format(g.sangle), 'Projected Sun angle (E of N)')
+        self.header['Velocity angle'] = ('{:.1f}'.format(g.vangle), 'Projected target velocity angle (E of N)')
+
+        self.header['RA'] = (float(headers[first]['RA_SLT']) * u.deg, 'Initial slit center RA')
+        self.header['Dec'] = (float(headers[first]['DEC_SLT']) * u.deg, 'Initial slit center Dec')
+        self.header['position angle'] = (float(headers[first]['PA_SLT']) * u.deg, 'Initial slit position angle (E of N)')
+
+        c = SkyCoord(self.header['RA'][0], self.header['Dec'][0], 1 * u.Mpc, frame='icrs')
+        self.header['lambda'] = (c.heliocentrictrueecliptic.lon, 'Ecliptic longitude')
+        self.header['beta'] = (c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
+        
+        self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
+        self.header['files'] = self.raw.keys()
+
 
     def delete_nucleus(self):
         """Delete the model nucleus."""
@@ -989,6 +988,62 @@ class IRSCombine(object):
 
         print('IRSCombine generated {} scale factors.'.format(len(self.scales)))
 
+    def subtract_nucleus(self, R, Ap, target=None, **kwargs):
+        """Generate a model NEATM to subtract from the spectrum.
+
+        Delete this model with `self.delete_nucleus`.
+
+        Parameters
+        ----------
+        R : Quantity
+          The radius.
+        Ap : float
+          The geometric albedo.
+        target : string, optional
+          Use this target name, instead of whatever was gleaned from
+          the IRS file.
+        **kwargs
+          `mskpy.models.NEATM` keyword arguments.
+
+        """
+
+        from scipy.interpolate import splev, splrep
+        from astropy.table import Table
+        from ..models import NEATM
+        from ..ephem import Spitzer, getgeom
+
+        if self.nucleus is not None:
+            self.delete_nucleus()
+
+        target = self.header['naif name'] if target is None else target
+            
+        model = NEATM(R * 2, Ap, **kwargs)
+        date = self.header['start time']
+        g = getgeom(target, Spitzer, date)
+        wave = np.logspace(np.log10(5), np.log10(40), 100) * u.um
+        fluxd = model.fluxd(g, wave, unit=u.Jy)
+
+        self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
+        self.nucleus.meta['R'] = R
+        self.nucleus.meta['Ap'] = Ap
+        for k, v in kwargs.items():
+            self.nucleus.meta[k] = v
+
+        self.comments['subtract_nucleus'] = [
+            "Model nucleus: R={}, Ap={}, {}".format(R, Ap, str(kwargs))
+        ]
+
+        model = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
+        self.coma = dict()
+        for k, v in self.coadded.items():
+            self.coma[k] = {}
+            for kk, vv in self.coadded[k].items():
+                self.coma[k][kk] = vv.copy()
+            f = splev(self.coma[k]['wave'], model)
+            self.coma[k]['fluxd'] -= f
+
+        print('IRSCombine generated and subtracted a model nucleus.')
+
     def trim(self, **kwargs):
         """Trim orders at given limits.
 
@@ -1014,14 +1069,15 @@ class IRSCombine(object):
                 self.trimmed[k][j] = self.trimmed[k][j][i]
             self.comments['trim'].append('{} spectra trimmed: {}'.format(k, str(wrange)))
 
-    def write(self, filename, comments=[]):
+    def write(self, filename, params={}, comments=[]):
         """Write the spectra to a single file.
 
         Parameters
         ----------
         filename : string
           The name of the file to which to save the data.
-
+        params : dictionary
+          Key-value pairs to include in the file header.
         comments : list
           A list of additional comments to write to the file.
 
@@ -1032,6 +1088,9 @@ class IRSCombine(object):
         from ..util import write_table
 
         assert self.coadded is not None, "Spectra must be processed at least through `coadd()`."
+
+        header = self.header.copy()
+        header.update(params)
         
         i = np.argsort([s['wave'].min() for s in self.spectra.values()])
         keys = np.array(list(self.spectra.keys()))[i]
@@ -1068,8 +1127,8 @@ class IRSCombine(object):
         for method, method_comments in self.comments.items():
             for line in method_comments:
                 _comments.append('{}: {}'.format(method, method_comments))
-
-        write_table(filename, tab, {}, comments=_comments)
+                
+        write_table(filename, tab, header, comments=_comments)
 
 def irsclean(im, h, bmask=None, maskval=28672,
              rmask=None, func=None, nan=True, sigma=None, box=3,
