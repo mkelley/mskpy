@@ -378,6 +378,8 @@ class IRSCombine(object):
     ----------
     files : array-like, optional
       Files to load.
+    **kwargs
+      Passed to `IRSCombine.read`.
     
     Attributes
     ----------
@@ -442,7 +444,7 @@ class IRSCombine(object):
     
     """
 
-    def __init__(self, files=[]):
+    def __init__(self, files=[], **kwargs):
         from collections import OrderedDict
 
         self.raw = None
@@ -463,7 +465,7 @@ class IRSCombine(object):
         self.comments['scale_orders'] = []
         self.comments['scale_spectra'] = []
 
-        self.read(files)
+        self.read(files, **kwargs)
 
     @property
     def spectra(self):
@@ -597,32 +599,6 @@ class IRSCombine(object):
                     self.comments['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[0], module[:-1], order))
                 else:
                     self.comments['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
-
-    def module_lists(self):
-        """Find all module-order combinations."""
-        self.modules = dict()
-        for f, h in self.headers.items():
-            if 'Short-Lo' in h['FOVNAME']:
-                k = 'sl'
-            elif 'Long-Lo' in h['FOVNAME']:
-                k = 'll'
-            else:
-                raise UserWarning('Only SL and LL are presently supported.')
-
-            if '1st_Order' in h['FOVNAME']:
-                k += '1'
-            elif '2nd_Order' in h['FOVNAME']:
-                k += '2'
-            else:
-                raise UserWarning('Only 1st and 2nd orders are presently supported.')
-
-            if k not in self.modules:
-                self.modules[k] = []
-            self.modules[k].append(f)
-
-        m = self.modules.keys()
-        print('IRSCombine found {} supported IRS modules: {}.'.format(
-            len(m), ' '.join(m)))
 
     def plot(self, name='spectra', ax=None, errorbar=True,
              label=str.upper, **kwargs):
@@ -786,42 +762,69 @@ class IRSCombine(object):
 
         return lines
 
-    def read(self, files):
-        """Read all data and headers."""
+    def read(self, files, **kwargs):
+        """Read all data and headers.
+
+        Parameters
+        ----------
+        files : list
+          The file names.
+        **kwargs
+          Constraints for which files to keep.  For example, use
+          `sl=dict(column=[2], row=[3, 4, 5])` to keep those particular
+          exposures from an IRS map.
+
+        """
 
         from collections import OrderedDict
-        from astropy.io import ascii
         from astropy.coordinates import SkyCoord
         import astropy.units as u
         from .. import spice
         from ..util import cal2time
         from ..ephem import getgeom, Spitzer
         
-        IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
-                                  '\\char COMMENT')
         self.headers = dict()
         self.raw = dict()
+        self.modules = dict()
         for f in files:
-            with open(f, 'r') as inf:
-                h = dict()
-                for line in inf:
-                    if not line.startswith('\\char '):
-                        continue
-                    elif line.startswith(('\\char HISTORY', '\\char COMMENT')):
-                        continue
-                    elif '=' not in line:
-                        continue
+            spec, header, module = spice_read(f)
 
-                    line = line[6:]
-                    k, vc = line.partition('=')[::2]
-                    v, c = vc.partition('/')[::2]
-                    h[k.strip()] = v.strip()
-                self.headers[f] = h
+            # test for column, row contraints
+            keep = False
+            if module in kwargs:
+                m = module
+            elif module[:2] in kwargs:
+                m = module[:2]
+            else:
+                m = None
 
-            self.raw[f] = ascii.read(f)
+            if m is None:
+                keep = True
+            else:
+                if 'column' in kwargs[m]:
+                    print('column test')
+                    if header['COLUMN'] in kwargs[m]['column']:
+                        keep = True
+                if 'row' in kwargs[m]:
+                    if header['ROW'] in kwargs[m]['row']:
+                        keep = True
+
+            if not keep:
+                continue
+                    
+            self.raw[f] = spec
+            self.headers[f] = header
+
+            if module not in self.modules:
+                self.modules[module] = []
+                
+            self.modules[module].append(f)
 
         print('IRSCombine read {} files.'.format(len(f)))
-        self.module_lists()
+
+        m = self.modules.keys()
+        print('IRSCombine found {} supported IRS modules: {}.'.format(
+            len(m), ' '.join(m)))
 
         headers = list(self.headers.values())
         times = [h['DATE_OBS'][1:-1] for h in headers]
@@ -866,7 +869,6 @@ class IRSCombine(object):
         
         self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
         self.header['files'] = self.raw.keys()
-
 
     def delete_nucleus(self):
         """Delete the model nucleus."""
@@ -1379,6 +1381,92 @@ def moving_wcs_fix(files, ref=None):
         h.add_history("WCS updated for moving target motion with mskpy.instrum3ents.spitzer.moving_wcs_fix")
         fits.update(f, im, h)
 
+def spice_read(filename):
+    """Read in an IRS spectrum and header from a SPICE file.
+
+    Parameters
+    ----------
+    filename : string
+      The name of the file to read.
+
+    Returns
+    -------
+    spec : astropy Table
+      The data.
+    h : dictionary
+      The header.
+    module : string
+      The module name of the primary field of view, e.g., sl1.
+
+    """
+
+    from astropy.io import ascii
+
+    IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
+                              '\\char COMMENT')
+    
+    h = dict()
+    with open(filename, 'r') as inf:
+        for line in inf:
+            if not line.startswith('\\char '):
+                continue
+            elif line.startswith(IGNORE_HEADER_PREFIXES):
+                continue
+            elif '=' not in line:
+                continue
+
+            line = line[6:]
+            k, vc = line.partition('=')[::2]
+            v, c = vc.partition('/')[::2]
+            h[k.strip()] = v.strip()
+
+    spec = ascii.read(filename)
+
+    module = 'unknown'
+    if 'Short-Lo' in h['FOVNAME']:
+        module = 'sl'
+    elif 'Long-Lo' in h['FOVNAME']:
+        module = 'll'
+    else:
+        raise UserWarning('Only SL and LL are presently supported.')
+
+    if '1st_Order' in h['FOVNAME']:
+        module += '1'
+    elif '2nd_Order' in h['FOVNAME']:
+        module += '2'
+
+    return spec, h, module
+        
+def irs_summary(files):
+    """Summarize a set of IRS spectra produced with SPICE.
+
+    Primarily for selecting DCEs to use in IRSCombine.
+
+    Parameters
+    ----------
+    files : list
+      The list of files to check.
+
+    """
+
+    from astropy.table import Table
+    from ..util import between
+
+    tab = Table(names=['file', 'date', 'module', 'expid', 'dce',
+                       'column', 'row', 'fluxd'],
+                dtype=['S256', 'S32', 'S4', int, int, int, int, float])
+
+    ranges = dict(sl1=(9, 11), sl2=(6, 7), ll1=(25, 30), ll2=(16, 18))
+    
+    for f in files:
+        spec, h, module = spice_read(f)
+        i = between(spec['wavelength'], ranges[module])
+        tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
+                     h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+
+    tab.pprint(max_lines=-1, max_width=-1)
+    return tab
+        
 # update module docstring
 from ..util import autodoc
 autodoc(globals())
