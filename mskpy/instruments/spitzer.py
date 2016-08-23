@@ -789,7 +789,7 @@ class IRSCombine(object):
         for f in files:
             spec, header, module = spice_read(f)
 
-            # test for column, row contraints
+            # test for column, row constraints
             keep = False
             if module in kwargs:
                 m = module
@@ -801,13 +801,16 @@ class IRSCombine(object):
             if m is None:
                 keep = True
             else:
+                keep_column = False
+                keep_row = False
                 if 'column' in kwargs[m]:
-                    print('column test')
-                    if header['COLUMN'] in kwargs[m]['column']:
-                        keep = True
+                    if int(header['COLUMN']) in kwargs[m]['column']:
+                        keep_column = True
                 if 'row' in kwargs[m]:
-                    if header['ROW'] in kwargs[m]['row']:
-                        keep = True
+                    if int(header['ROW']) in kwargs[m]['row']:
+                        keep_row = True
+
+                keep = keep_column and keep_row
 
             if not keep:
                 continue
@@ -825,9 +828,9 @@ class IRSCombine(object):
         m = self.modules.keys()
         print('IRSCombine found {} supported IRS modules: {}.'.format(
             len(m), ' '.join(m)))
-
+        
         headers = list(self.headers.values())
-        times = [h['DATE_OBS'][1:-1] for h in headers]
+        times = [h['DATE_OBS'] for h in headers]
         first = times.index(min(times))
         last = times.index(max(times))
 
@@ -1051,7 +1054,7 @@ class IRSCombine(object):
 
         Parameters
         ----------
-        sl2, sl1, ll2, ll1 : two-element tuple, optional
+        sl3, sl2, sl1, ll3, ll2, ll1 : two-element tuples, optional
           Keep wavelengths within these ranges.
 
         """
@@ -1062,6 +1065,8 @@ class IRSCombine(object):
 
         tr = dict(sl1=[0, 13.5], sl2=[0, 100], sl3=[0, 100],
                   ll2=[0, 19.55], ll3=[19.55, 100], ll1=[21.51, 35])
+        tr.update(kwargs)
+        
         self.trimmed = self.coadded.copy()
         self.comments['trim'] = []
         for k in self.trimmed.keys():
@@ -1418,7 +1423,7 @@ def spice_read(filename):
             line = line[6:]
             k, vc = line.partition('=')[::2]
             v, c = vc.partition('/')[::2]
-            h[k.strip()] = v.strip()
+            h[k.strip()] = v.strip(' \'')
 
     spec = ascii.read(filename)
 
