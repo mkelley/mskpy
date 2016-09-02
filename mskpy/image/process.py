@@ -501,12 +501,12 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
 
     return K / K.sum()
 
-def stripes(im, axis=0, stat=np.median, image=False, **keywords):
+def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
 
     Parameters
     ----------
-    im : array
+    im : array, including MaskedArray
       The image with stripe artifacts.  The image is first sigma
       clipped with `util.meanclip`.
     axis : int, optional
@@ -549,7 +549,7 @@ def stripes(im, axis=0, stat=np.median, image=False, **keywords):
             s = np.outer(np.ones(im.shape[0]), s)
         else:
             s = np.outer(s, np.ones(im.shape[1]))
-    
+
     return s
 
 def subim(im, yx, half_box):
