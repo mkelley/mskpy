@@ -1043,6 +1043,8 @@ def leading_num_key(s):
 
     if len(pfx) > 0:
         pfx = int(pfx)
+    else:
+        pfx = 0
     return pfx, sfx
 
 def nearest(array, v):
