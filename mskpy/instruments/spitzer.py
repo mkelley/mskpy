@@ -420,7 +420,7 @@ class IRSCombine(object):
     combine.trim()
     combine.subtract_nucleus('schwassmann-wachmann 1', 30.2 * u.km, 0.04,
                              eta=0.99, epsilon=0.95)
-    combine.aploss_correct()
+    combine.aploss_correct()  # only for full-width extractions
     combine.scale_orders('ll2')
     combine.write('comet-irs.txt')
 
@@ -509,7 +509,7 @@ class IRSCombine(object):
             self.aploss_corrected[k]['fluxd'] *= alcf
             self.aploss_corrected[k]['err'] *= alcf
 
-        self.comments['aploss_correct'] = ['Extended source calibrated.']
+        self.comments['aploss_correct'] = ['Aperture loss corrected.']
 
     def coadd(self, scales=dict(), sig=2.5):
         """Combine by module.
