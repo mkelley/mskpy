@@ -155,7 +155,7 @@ def harrows(header, xy, length, **kwargs):
     length : float or 2-element array
       Length of the arrows in data units.
     **kwargs
-      Any valid `plt.annotate` or `plt.arrows` keyword argument
+      Any valid `plt.annotate` or `mskpy.arrows` keyword argument
       (except rot).
 
     Returns
@@ -167,7 +167,7 @@ def harrows(header, xy, length, **kwargs):
 
     from .util import getrot
 
-    rot = np.radians(getrot(header)[1])
+    rot = getrot(header)[1]
     return arrows(xy, length, rot=rot, **kwargs)
 
 def jdaxis2date(axis, fmt):
