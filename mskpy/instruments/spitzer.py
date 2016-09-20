@@ -426,17 +426,20 @@ class IRSCombine(object):
     combine.subtract_nucleus(2.23 * u.km, 0.04, eta=1.03, epsilon=0.95)
     # combine.aploss_correct()  # only for full-width extractions
     combine.slitloss_correct()  # uses IRS pipeline SLCF
+    # combine.shape_correct(correction)  # Other shape corrections?
     combine.scale_orders('ll2')
     combine.write('comet-irs.txt')
 
     fig = plt.figure(1)
     plt.clf()
+    plt.minorticks_on()
     combine.plot('raw')
     plt.setp(plt.gca(), ylim=(0, 0.8))
     plt.draw()
     
     fig = plt.figure(2)
     plt.clf()
+    plt.minorticks_on()
     combine.plot('coadded')
     combine.plot('nucleus', ls='--', label='nucleus')
     mskpy.nicelegend(loc='lower right')
@@ -444,6 +447,7 @@ class IRSCombine(object):
     
     fig = plt.figure(3)
     plt.clf()
+    plt.minorticks_on()
     combine.plot_spectra()
     plt.draw()
 
@@ -458,6 +462,8 @@ class IRSCombine(object):
         self.nucleus = None
         self.coma = None
         self.aploss_corrected = None
+        self.slitloss_corrected = None
+        self.shape_corrected = None
         self.order_scaled = None
 
         self.comments = OrderedDict()
@@ -468,6 +474,8 @@ class IRSCombine(object):
         self.comments['trim'] = []
         self.comments['nucleus'] = []
         self.comments['aploss_correct'] = []
+        self.comments['slitloss_correct'] = []
+        self.comments['shape_correct'] = []
         self.comments['scale_orders'] = []
         self.comments['scale_spectra'] = []
 
@@ -475,8 +483,9 @@ class IRSCombine(object):
 
     @property
     def spectra(self):
-        for k in ['order_scaled', 'aploss_corrected', 'coma', 'trimmed',
-                  'coadded', 'trimmed']:
+        for k in ['order_scaled', 'shape_corrected', 'slitloss_corrected',
+                  'aploss_corrected', 'coma', 'trimmed', 'coadded',
+                  'trimmed']:
             if getattr(self, k) is not None:
                 return getattr(self, k)
 
@@ -1086,7 +1095,46 @@ class IRSCombine(object):
 
         self.comments['slitloss_correct'] = ['Slit loss corrected for point sources using IRS pipeline correction.']
 
+    def shape_correct(self, correction):
+        """Correct the shape of the coma spectra.
+
+        This module should be executed after `subtract_nucleus`,
+        `aploss_correct`, and `slitloss_correct` (if using).
+
+        Parameters
+        ----------
+        correction : dict of functions
+          Keys are order names, e.g., 'sl2', and values are functions
+          that return multiplicative correction factors given
+          wavelength, e.g., a `scipy.interpolate.UnivariateSpline`
+          instance.
+
+        """
+
+        import os.path
+        from astropy.io import ascii
+
+        assert self.coma is not None
+        if self.slitloss_corrected is not None:
+            spec = self.slitloss_corrected
+        elif self.aploss_corrected is not None:
+            spec = self.aploss_corrected
+        else:
+            spec = self.coma
+
+        self.slitloss_corrected = dict()
+        for k in spec.keys():
+            self.slitloss_corrected[k] = dict()
+            for kk, vv in spec[k].items():
+                self.slitloss_corrected[k][kk] = vv
+            w = self.slitloss_corrected[k]['wave']
+            self.slitloss_corrected[k]['fluxd'] *= correction[k](w)
+            self.slitloss_corrected[k]['err'] *= correction[k](w)
+
+        self.comments['shape_correct'] = ['Shape corrected with user provided data.']
+
     def trim(self, **kwargs):
+
         """Trim orders at given limits.
 
         Parameters
