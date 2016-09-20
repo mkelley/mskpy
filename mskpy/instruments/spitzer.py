@@ -823,7 +823,7 @@ class IRSCombine(object):
                 
             self.modules[module].append(f)
 
-        print('IRSCombine read {} files.'.format(len(f)))
+        print('IRSCombine read {} files.'.format(len(raw)))
 
         m = self.modules.keys()
         print('IRSCombine found {} supported IRS modules: {}.'.format(
