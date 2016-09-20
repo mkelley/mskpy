@@ -416,12 +416,13 @@ class IRSCombine(object):
     --------
 
     files = sorted(glob('extract/*/*/*spect.tbl'))
-    combine = IRSCombine(files=files)
+    tab = irs_summary(files)
+
+    combine = IRSCombine(files=files, sl=dict(column=[2], row=[4]))
     combine.scale_spectra()
     combine.coadd()
     combine.trim()
-    combine.subtract_nucleus('schwassmann-wachmann 1', 30.2 * u.km, 0.04,
-                             eta=0.99, epsilon=0.95)
+    combine.subtract_nucleus(2.23 * u.km, 0.04, eta=1.03, epsilon=0.95)
     combine.aploss_correct()  # only for full-width extractions
     combine.scale_orders('ll2')
     combine.write('comet-irs.txt')
