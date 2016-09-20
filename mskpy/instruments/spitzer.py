@@ -8,6 +8,7 @@ spitzer --- Spitzer instruments.
    ---------
    irsclean
    irsclean_files
+   irs_summary
    moving_wcs_fix
 
    Classes
@@ -28,7 +29,8 @@ except ImportError:
 
 from .instrument import Instrument, Camera, LongSlitSpectrometer
 
-__all__ = ['irsclean', 'irsclean_files', 'IRAC', 'IRS', 'IRSCombine']
+__all__ = ['irsclean', 'irsclean_files', 'irs_summary',
+           'IRAC', 'IRS', 'IRSCombine']
 
 campaign2rogue = {
     'IRSX002500': 'IRS1',
