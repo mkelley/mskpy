@@ -441,7 +441,7 @@ class IRSCombine(object):
     plt.clf()
     combine.plot_spectra()
     plt.draw()
-    
+
     """
 
     def __init__(self, files=[], **kwargs):
@@ -823,7 +823,7 @@ class IRSCombine(object):
                 
             self.modules[module].append(f)
 
-        print('IRSCombine read {} files.'.format(len(raw)))
+        print('IRSCombine read {} files.'.format(len(self.raw)))
 
         m = self.modules.keys()
         print('IRSCombine found {} supported IRS modules: {}.'.format(
@@ -840,8 +840,8 @@ class IRSCombine(object):
 
         self.header = OrderedDict()
         self.header['object'] = headers[first]['OBJECT']
-        self.header['naif id'] = int(headers[first]['NAIFID'])
-        self.header['naif name'] = spice.bodc2s(self.header['naif id'])
+        self.header['naif id'] = headers[first]['NAIFID']
+        self.header['naif name'] = spice.bodc2s(int(self.header['naif id']))
         self.header['observer'] = headers[first]['OBSRVR']
         self.header['program id'] = headers[first]['PROGID']
         self.header['start time'] = start_time
@@ -855,7 +855,7 @@ class IRSCombine(object):
             k = module.upper() + ' itime'
             self.header[k] = (itime, 'Total time collecting photons')
 
-        g = getgeom(self.header['naif name'], Spitzer, self.header['start time'])
+        g = getgeom(self.header['naif id'], Spitzer, self.header['start time'])
         self.header['rh'] = '{:.3f}'.format(g.rh)
         self.header['Delta'] = '{:.3f}'.format(g.delta)
         self.header['phase'] = '{:.1f}'.format(g.phase)
@@ -1020,7 +1020,7 @@ class IRSCombine(object):
         if self.nucleus is not None:
             self.delete_nucleus()
 
-        target = self.header['naif name'] if target is None else target
+        target = self.header['naif id'] if target is None else target
             
         model = NEATM(R * 2, Ap, **kwargs)
         date = self.header['start time']
