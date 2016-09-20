@@ -1139,7 +1139,7 @@ class IRSCombine(object):
         _comments = list(comments) + ['']
         for method, method_comments in self.comments.items():
             for line in method_comments:
-                _comments.append('{}: {}'.format(method, method_comments))
+                _comments.append('{}: {}'.format(method, line))
                 
         write_table(filename, tab, header, comments=_comments)
 
