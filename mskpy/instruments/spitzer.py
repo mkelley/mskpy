@@ -422,10 +422,11 @@ class IRSCombine(object):
     combine.scale_spectra()
     combine.coadd()
     combine.trim()
-    combine.subtract_nucleus(2.23 * u.km, 0.04, eta=1.03, epsilon=0.95)
-    combine.aploss_correct()  # only for full-width extractions
-    combine.scale_orders('ll2')
     combine.zap(ll2=[15.34, 15.42])
+    combine.subtract_nucleus(2.23 * u.km, 0.04, eta=1.03, epsilon=0.95)
+    # combine.aploss_correct()  # only for full-width extractions
+    combine.slitloss_correct()  # uses IRS pipeline SLCF
+    combine.scale_orders('ll2')
     combine.write('comet-irs.txt')
 
     fig = plt.figure(1)
@@ -1054,6 +1055,36 @@ class IRSCombine(object):
             self.coma[k]['fluxd'] -= f
 
         print('IRSCombine generated and subtracted a model nucleus.')
+
+    def slitloss_correct(self):
+        import os.path
+        from astropy.io import ascii
+        from ..config import config
+
+        path = config.get('irs', 'spice_path')
+        h = list(self.headers.values())[0]
+        calset = h['CAL_SET'].strip("'").strip('.A')
+
+        assert self.coma is not None
+        if self.aploss_corrected is not None:
+            spec = self.aploss_corrected
+        else:
+            spec = self.coma
+            
+        self.slitloss_corrected = dict()
+        for k in spec.keys():
+            fn = 'b{}_slitloss_convert.tbl'.format(module2channel[k[:2]])
+            tab = ascii.read(os.path.join(path, 'cal', calset, fn))
+            slcf = np.interp(spec[k]['wave'], tab['wavelength'],
+                             tab['correction'])
+
+            self.slitloss_corrected[k] = dict()
+            for kk, vv in spec[k].items():
+                self.slitloss_corrected[k][kk] = vv
+            self.slitloss_corrected[k]['fluxd'] *= slcf
+            self.slitloss_corrected[k]['err'] *= slcf
+
+        self.comments['slitloss_correct'] = ['Slit loss corrected for point sources using IRS pipeline correction.']
 
     def trim(self, **kwargs):
         """Trim orders at given limits.
