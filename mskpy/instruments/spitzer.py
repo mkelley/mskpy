@@ -425,6 +425,7 @@ class IRSCombine(object):
     combine.subtract_nucleus(2.23 * u.km, 0.04, eta=1.03, epsilon=0.95)
     combine.aploss_correct()  # only for full-width extractions
     combine.scale_orders('ll2')
+    combine.zap(ll2=[15.34, 15.42])
     combine.write('comet-irs.txt')
 
     fig = plt.figure(1)
@@ -638,6 +639,8 @@ class IRSCombine(object):
 
         if name == 'raw':
             return self.plot_raw(ax=ax, label=label, **kwargs)
+        elif name == 'nucleus':
+            return self.plot_nucleus(ax=ax, label=label, **kwargs)
         
         if ax is None:
             ax = plt.gca()
