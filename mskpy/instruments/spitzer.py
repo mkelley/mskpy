@@ -463,6 +463,7 @@ class IRSCombine(object):
         self.comments['read_files'] = []
         self.comments['scale_spectra'] = []
         self.comments['coadd'] = []
+        self.comments['zap'] = []
         self.comments['trim'] = []
         self.comments['nucleus'] = []
         self.comments['aploss_correct'] = []
@@ -862,6 +863,7 @@ class IRSCombine(object):
             self.header[k] = (itime, 'Total time collecting photons')
 
         g = getgeom(self.header['naif id'], Spitzer, self.header['start time'])
+        self.geom = g
         self.header['rh'] = '{:.3f}'.format(g.rh)
         self.header['Delta'] = '{:.3f}'.format(g.delta)
         self.header['phase'] = '{:.1f}'.format(g.phase)
@@ -1021,7 +1023,7 @@ class IRSCombine(object):
         from scipy.interpolate import splev, splrep
         from astropy.table import Table
         from ..models import NEATM
-        from ..ephem import Spitzer, getgeom
+        from ..ephem import Spitzer
 
         if self.nucleus is not None:
             self.delete_nucleus()
@@ -1029,10 +1031,8 @@ class IRSCombine(object):
         target = self.header['naif id'] if target is None else target
             
         model = NEATM(R * 2, Ap, **kwargs)
-        date = self.header['start time']
-        g = getgeom(target, Spitzer, date)
         wave = np.logspace(np.log10(5), np.log10(40), 100) * u.um
-        fluxd = model.fluxd(g, wave, unit=u.Jy)
+        fluxd = model.fluxd(self.geom, wave, unit=u.Jy)
 
         self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
         self.nucleus.meta['R'] = R
@@ -1142,6 +1142,33 @@ class IRSCombine(object):
                 _comments.append('{}: {}'.format(method, method_comments))
                 
         write_table(filename, tab, header, comments=_comments)
+
+    def zap(self, **kwargs):
+        """Remove data points from the coadded spectra.
+
+        Parameters
+        ----------
+        kwargs
+          The orders and wavelengths to remove, e.g., `ll2=[15.34, 15.42]`.
+
+        """
+
+        from ..util import nearest
+        
+        for order, waves in kwargs.items():
+            assert order in self.coadded
+            for w in waves:
+                i = nearest(self.coadded[order]['wave'], w)
+                j = list(range(len(self.coadded[order]['wave'])))
+                del j[i]
+                w = self.coadded[order]['wave'][i]
+                self.coadded[order]['wave'] = self.coadded[order]['wave'][j]
+                self.coadded[order]['fluxd'] = self.coadded[order]['fluxd'][j]
+                self.coadded[order]['err'] = self.coadded[order]['err'][j]
+                print('IRSCombine zapped {} from {}'.format(w, order))
+                self.comments['zap'].append('Zapped {} from {}'.format(
+                    w, order))
+        
 
 def irsclean(im, h, bmask=None, maskval=28672,
              rmask=None, func=None, nan=True, sigma=None, box=3,
@@ -1475,6 +1502,7 @@ def irs_summary(files):
         tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
                      h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
 
+    tab.sort('date')
     tab.pprint(max_lines=-1, max_width=-1)
     return tab
         
