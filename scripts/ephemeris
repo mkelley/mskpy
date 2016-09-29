@@ -22,8 +22,11 @@ parser.add_argument('--start', type=str, action='store',
                     help='The first day of the ephemeris, YYYY-MM-DD [today].')
 parser.add_argument('--end', type=str, action='store', default=None,
                     help='The last day of the ephemeris, YYYY-MM-DD [today + n].')
-parser.add_argument('-n', type=int, action='store', default=30,
-                    help='The number of days for the ephemeris.')
+parser.add_argument('-n', type=int, action='store', default=None,
+                    help='The number of days for the ephemeris, or, if --end is provided, the number of time steps.')
+
+parser.add_argument('--include', type=str, default=None,
+                    help='List additional columns to include, e.g., lelong (Lunar elongation), lam (Ecliptic longitude), bet (Ecliptic latitude), sangle (projected Sun angle), vangle (projected velocity angle).')
 
 parser.add_argument('--observer', type=str, action='store', default='Earth',
                     help='The observer.')
@@ -67,14 +70,20 @@ if args.target == []:
     print()
     sys.exit()
 
+eph_opts = {}
 if args.end is None:
     ymd = [int(x) for x in args.start.split('-')]
     start = datetime.date(*ymd).toordinal()
-    end = datetime.date.fromordinal(start + args.n).isoformat()
-    n = args.n + 1
+    n = 31 if args.n is None else args.n + 1
+    end = datetime.date.fromordinal(start + n - 1).isoformat()
 else:
     end = args.end
-    n = int(util.cal2time(end).jd - util.cal2time(args.start).jd + 1)
+    if args.n is None:
+        n = int(util.cal2time(end).jd - util.cal2time(args.start).jd + 1)
+    else:
+        n = args.n + 1
+
+eph_opts['num'] = n
 
 if len(args.kernel) > 0:
     for k in args.kernel:
@@ -100,10 +109,15 @@ else:
     if ((args.afrho is not None) and (args.D is not None)):
         raise AssertionError("D (asteroid) and afrho (coma) cannot be"
                              " simulatenously requested.")
+
+columns = ['date', 'ra', 'dec', 'rh', 'delta', 'phase', 'selong']
+if args.include is not None:
+    columns.extend(args.include.split(','))
     
 arg_list = ['start', 'end', 'n', 'observer', 'selong']
 if ephemeris_only:
-    t = target.ephemeris(observer, [args.start, end], num=n)
+    t = target.ephemeris(observer, [args.start, end], num=n,
+                         columns=columns)
 else:
     if args.afrho is not None:
         arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
