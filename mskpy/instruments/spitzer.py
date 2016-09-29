@@ -656,15 +656,20 @@ class IRSCombine(object):
         if ax is None:
             ax = plt.gca()
 
+        if not callable(label):
+            _label = lambda k: label
+        else:
+            _label = label
+            
         lines = []
         spectra = getattr(self, name, None)
         assert spectra is not None, '{} does not exist.'.format(name)
         for k, spec in spectra.items():
             if errorbar:
                 line = ax.errorbar(spec['wave'], spec['fluxd'], spec['err'],
-                                   label=label(k), **kwargs)[0]
+                                   label=_label(k), **kwargs)[0]
             else:
-                line = ax.plot(spec['wave'], spec['fluxd'], label=label(k),
+                line = ax.plot(spec['wave'], spec['fluxd'], label=_label(k),
                                **kwargs)
             lines.append(line)
         plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
