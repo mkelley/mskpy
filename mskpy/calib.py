@@ -320,14 +320,11 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     else:
         skiprows = i + 2
 
-    wave, fl, efl = np.loadtxt(templatefile, skiprows=skiprows, unpack=True,
+    wave, fd, efd = np.loadtxt(templatefile, skiprows=skiprows, unpack=True,
                                usecols=(0, 1, 2))
 
     wave = wave * u.um
-    fl = fl * u.Unit('W/(cm2 um)')
-    if fl.unit != unit:
-        equiv = u.spectral_density(wave.unit, wave.value)
-        fl = fl.to(unit, equivalencies=equiv)
+    fd = (fd * u.Unit('W/(cm2 um)')).to(unit, u.spectral_density(wave))
 
     return wave, fl
 
