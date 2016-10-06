@@ -326,7 +326,7 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     wave = wave * u.um
     fd = (fd * u.Unit('W/(cm2 um)')).to(unit, u.spectral_density(wave))
 
-    return wave, fl
+    return wave, fd
 
 def dw_atran(airmass, fw, ft, pw='2.5'):
     """Use the Diane Wooden method to compute the transmission of the
