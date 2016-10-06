@@ -1092,7 +1092,7 @@ def trace(im, err, guess):
     Returns
     -------
     y : ndarray
-      y-axis positions of the peak, along the second axis.
+      Positions of the peak.
 
     """
 
@@ -1106,17 +1106,17 @@ def trace(im, err, guess):
             mu, sigma, height = p
             m, b = 0, 0
         model = gaussian(x, mu, sigma) * height + m * x + b
-        chi = (y - model) / err
-        return chi
+        _chi = (y - model) / err
+        return _chi
 
     y = np.zeros(im.shape[1])
-    y0 = np.arange(im.shape[0])
+    x = np.arange(im.shape[0])
     last = guess
+    if err is None:
+        err = np.ones_like(im)
 
     for i in range(im.shape[1]):
-        if err is None:
-            err = np.ones_like(y)
-        fit, err = lsq(chi, last, (np.array(x), np.array(y), np.array(err)))
+        fit, fiterr = lsq(chi, last, (x, im[:, i], err[:, i]))
         y[i] = fit[0]
         last = fit
 
