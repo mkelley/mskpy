@@ -433,7 +433,7 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
         
     if setup:
         tplot_setup()
-    linestyle = plotkws.pop('linestyle', plotkws.pop('ls', 'none'))
+    linestyle = kwargs.pop('linestyle', kwargs.pop('ls', 'none'))
 
     x = lambda b, c: np.array(b) + np.array(c) / 2.0
     y = lambda c: np.array(c) * 0.86603
@@ -470,9 +470,9 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
                                    np.c_[y(lc), y(uc)].T,
                                    '-', color='0.5'))
         
-        points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **plotkws))
+        points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs))
     else:
-        points = plt.plot(x(b, c), y(c), linestyle=linestyle, **plotkws)
+        points = plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs)
 
     return points        
 
@@ -492,6 +492,10 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
       Plot keywords for the axis lines, or None for no axes.
     grid : dictionary, optional
       Plot keywords for the grid lines, or None for no grid lines.
+
+    Returns
+    -------
+    ax : matplotlib axes
 
     """
 
@@ -526,20 +530,21 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
                        ha='center', va='center', rotation=a[i])
 
     if alabel is not None:
-        plt.annotate(alabel, (-0.05, -0.04), ha='center',
-                     va='baseline')
+        plt.text(x(0.5, 0.5) + 0.04, y(0.5) + 0.03, alabel,
+                 ha='center', va='center', rotation=-60, fontsize=14)
     if blabel is not None:
-        plt.annotate(blabel, (1.05, -0.04), ha='center',
-                   va='baseline')
+        plt.text(x(0, 0.5) - 0.04, y(0.5) + 0.03, blabel,
+                 ha='center', va='center', rotation=60, fontsize=14)
     if clabel is not None:
-        plt.annotate(clabel, (0.5, 0.9), ha='center',
-                   va='baseline')
+        plt.text(x(0.5, 0), y(0) - 0.05, clabel, ha='center',
+                 va='center', fontsize=14)
 
     plt.gcf().subplots_adjust(top=1.0, left=0, bottom=0, right=1.0)
     ax = plt.gca()
     ax.axis('off')
     ax.axis('equal')
     plt.setp(plt.gca(), ylim=(-0.1, 1), xlim=(-0.01, 1.01))
+    return ax
 
 # update module docstring
 from .util import autodoc
