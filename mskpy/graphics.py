@@ -493,8 +493,8 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
                 grid=dict(color='0.5', linestyle='--')):
     """Set up a ternary plot.
 
-    a is the lower-left corner, b is the lower-right corner, c is the
-    top.
+    a is the lower-left corner & base, b is the lower-right
+    corner & right side, c is the top corner & left side.
 
     Parameters
     ----------
@@ -530,26 +530,37 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
         c = [0.5, 0, 0.5, 0.5]
         plt.plot(x(b, c), y(c), **grid)
 
-        b = [0.25, 0.5, 0.75, 0.75, 0.5, 0.25, 0, 0, 0]
-        c = [0, 0, 0, 0.25, 0.5, 0.75, 0.75, 0.5, 0.25]
-        l = ['75/25', '50', '25/75', '25/75', '50', '75/25',
-             '25/75', '50', '75/25']
-        dx = [0, 0, 0, 0.015, 0.015, 0.015, -0.015, -0.015, -0.015]
-        dy = [-0.021, -0.021, -0.021, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        a = [0, 0, 0, -60, -60, -60, 60, 60, 60]
+        b = [0, 0.25, 0.5, 0.75, 1.0,
+             1.0, 0.75, 0.5, 0.25, 0,
+             0, 0, 0, 0, 0]
+        c = [0, 0, 0, 0, 0,
+             0, 0.25, 0.5, 0.75, 1.0,
+             1.0, 0.75, 0.5, 0.25, 0]
+        l = ['100', '75', '50', '25', '0',  # a
+             '100', '75', '50', '25', '0',  # b
+             '100', '75', '50', '25', '0']  # c
+        dx = [0, 0, 0, 0, 0,
+              0.015, 0.015, 0.015, 0.015, 0.015,
+              -0.015, -0.015, -0.015, -0.015, -0.015]
+        dy = [-0.021, -0.021, -0.021, -0.021, -0.021,
+              0.01, 0.01, 0.01, 0.01, 0.01,
+              0.01, 0.01, 0.01, 0.01, 0.01]
+        a = [0, 0, 0, 0, 0,
+             -60, -60, -60, -60, -60,
+             60, 60, 60, 60, 60]
         for i in range(len(b)):
             plt.annotate(l[i], (x(b[i], c[i]) + dx[i], y(c[i]) + dy[i]),
                        ha='center', va='center', rotation=a[i])
 
     if alabel is not None:
-        plt.text(x(0.5, 0.5) + 0.04, y(0.5) + 0.03, alabel,
-                 ha='center', va='center', rotation=-60, fontsize=14)
-    if blabel is not None:
-        plt.text(x(0, 0.5) - 0.04, y(0.5) + 0.03, blabel,
-                 ha='center', va='center', rotation=60, fontsize=14)
-    if clabel is not None:
-        plt.text(x(0.5, 0), y(0) - 0.05, clabel, ha='center',
+        plt.text(x(0.5, 0), y(0) - 0.05, alabel, ha='center',
                  va='center', fontsize=14)
+    if blabel is not None:
+        plt.text(x(0.5, 0.5) + 0.04, y(0.5) + 0.03, blabel,
+                 ha='center', va='center', rotation=-60, fontsize=14)
+    if clabel is not None:
+        plt.text(x(0, 0.5) - 0.04, y(0.5) + 0.03, clabel,
+                 ha='center', va='center', rotation=60, fontsize=14)
 
     plt.gcf().subplots_adjust(top=1.0, left=0, bottom=0, right=1.0)
     ax = plt.gca()
