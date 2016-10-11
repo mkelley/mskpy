@@ -190,13 +190,16 @@ def jdaxis2date(axis, fmt):
     return axis.set_ticklabels(
         [jd2time(t).datetime.strftime(fmt) for t in jd])
 
-def ksplot(x, ax=None, **kwargs):
+def ksplot(x, xmax=None, ax=None, **kwargs):
     """Graphical version of the Kolmogorov-Smirnov test.
 
     Parameters
     ----------
     x : array
       The dataset to plot.
+    xmax : float
+      The maximal x value.  If provided, then a final line will be
+      drawn from `x[-1]` to `xmax` along `y=1.0`.
     ax : matplotlib.axes
       Plot to this axis.
     **kwargs
@@ -213,11 +216,20 @@ def ksplot(x, ax=None, **kwargs):
     import matplotlib.pyplot as plt
 
     xx = np.sort(x)
-    yy = np.ones(x.size).cumsum() / x.size
-    ls = keywords.pop('ls', keywords.pop('linestyle', 'steps-post'))
+    yy = np.ones(xx.size).cumsum() / xx.size
+
+    if xmax is None:
+        xx = np.r_[xx[0], xx]
+        yy = np.r_[0, yy]
+    else:
+        xx = np.r_[xx[0], xx, xmax]
+        yy = np.r_[0, yy, 1]
+
+    ls = kwargs.pop('ls', kwargs.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()
-    return plt.plot(np.r_[xx[0], xx], np.r_[0, yy], ls=ls, **keywords)
+
+    line = plt.plot(xx, yy, ls=ls, **kwargs)
 
 def nicelegend(*args, **kwargs):
     """A pretty legend for publications.
