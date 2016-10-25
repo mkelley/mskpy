@@ -904,7 +904,7 @@ class IRSCombine(object):
         self.comments['nucleus'] = []
         print('IRSCombine: Model nucleus removed.')
         
-    def scale_orders(self, fixed, dlam=1.5):
+    def scale_orders(self, fixed, dlam=0.1):
         """Order-to-order scaling with linear interpolation.
 
         Within this context, SH and LH are treated as single orders.
@@ -914,8 +914,10 @@ class IRSCombine(object):
         fixed : string
           The order to keep fixed, e.g., 'll2'.
         dlam : float
-          The number of wavelengths to use for linear fitting at the
-          edge of each order. [μm]
+          A scale factor to determine the number of wavelengths to use
+          for linear fitting at the edge of each order, e.g., for
+          `dlam=0.1` at 13.2 μm, `scale_orders` would use 11.9–13.2 μm
+          (1.3 μm).
 
         """
 
@@ -942,14 +944,14 @@ class IRSCombine(object):
                 e = self.spectra[k]['err']
 
                 # short wavlength edge
-                wrange = (w.min(), w.min() + dlam)
+                wrange = (w.min(), w.min() * (1 + dlam))
                 i = between(w, wrange) * np.isfinite(f)
                 self._scale_order_lines[k]['short'] = linefit(
                     w[i], f[i], e[i], (1.0, 0))[0]
                 self._scale_order_edges[k]['short'] = w[i].min()
 
                 # long wavlength edge
-                wrange = (w.max() - dlam, w.max())
+                wrange = (w.max() * (1 - dlam), w.max())
                 i = between(w, wrange) * np.isfinite(f)
                 self._scale_order_lines[k]['long'] = linefit(
                     w[i], f[i], e[i], (1.0, 0))[0]
