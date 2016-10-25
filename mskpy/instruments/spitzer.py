@@ -616,7 +616,7 @@ class IRSCombine(object):
                     self.comments['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
 
     def plot(self, name='spectra', ax=None, errorbar=True,
-             label=str.upper, **kwargs):
+             label=str.upper, unit=u.Jy, lambda_scale=False, **kwargs):
         """Plot spectra.
 
         The plot is not cleared, and the x and y labels are changed.
@@ -635,6 +635,10 @@ class IRSCombine(object):
         label : function or string, optional
           A label generator.  Accepts a single paramter, the order
           being plotted.
+        unit : astropy Unit, optional
+          Convert to these units first.
+        lambda_scale : bool, optional
+          Multiply by wavelength before plotting.
         **kwargs
           Additional keyword arguments are passed to `matplotlib`'s
           `errorbar`.
@@ -649,9 +653,14 @@ class IRSCombine(object):
         import matplotlib.pyplot as plt
 
         if name == 'raw':
-            return self.plot_raw(ax=ax, label=label, **kwargs)
+            return self.plot_raw(ax=ax, label=label, unit=unit,
+                                 lambda_scale=lambda_scale, **kwargs)
         elif name == 'nucleus':
-            return self.plot_nucleus(ax=ax, label=label, **kwargs)
+            return self.plot_nucleus(ax=ax, label=label, unit=unit,
+                                     lambda_scale=lambda_scale, **kwargs)
+
+        if lambda_scale:
+            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
         
         if ax is None:
             ax = plt.gca()
@@ -665,14 +674,25 @@ class IRSCombine(object):
         spectra = getattr(self, name, None)
         assert spectra is not None, '{} does not exist.'.format(name)
         for k, spec in spectra.items():
+            c = u.Jy.to(unit, 1, u.spectral_density(spec['wave'] * u.um))
+            if lambda_scale:
+                c *= spec['wave']
             if errorbar:
-                line = ax.errorbar(spec['wave'], spec['fluxd'], spec['err'],
-                                   label=_label(k), **kwargs)[0]
+                line = ax.errorbar(spec['wave'], c * spec['fluxd'],
+                                   c * spec['err'], label=_label(k),
+                                   **kwargs)[0]
             else:
-                line = ax.plot(spec['wave'], spec['fluxd'], label=_label(k),
-                               **kwargs)
+                line = ax.plot(spec['wave'], c * spec['fluxd'],
+                               label=_label(k), **kwargs)
             lines.append(line)
-        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
+        plt.setp(ax, xlabel='Wavelength (μm)')
+        if lambda_scale:
+            plt.setp(ax, ylabel=r'$\lambda F_\lambda$ ({})'.format(unit * u.um))
+        else:
+            if unit.is_equivalent('W/(m2 um)'):
+                plt.setp(ax, ylabel=r'$F_\lambda$ ({})'.format(unit))
+            else:
+                plt.setp(ax, ylabel=r'$F_\nu$ ({})'.format(unit))
 
         return lines
 
@@ -716,7 +736,7 @@ class IRSCombine(object):
                 ax.plot(w, w * m + b, ls='-', color='k', alpha=0.5)
                 ax.scatter(wm, wm * m + b, color='k', marker='o')
 
-    def plot_nucleus(self, ax=None, **kwargs):
+    def plot_nucleus(self, ax=None, unit=u.Jy, lambda_scale=False, **kwargs):
         """Plot the nucleus spectrum.
 
         The plot is not cleared, and the x and y labels are changed.
@@ -725,6 +745,10 @@ class IRSCombine(object):
         ----------
         ax : matplotlib Axes
           Plot to this axis.
+        unit : astropy Unit, optional
+          Convert to these units first.
+        lambda_scale : bool, optional
+          Multiply by wavelength before plotting.
         **kwargs
           Additional keyword arguments are passed to `matplotlib`'s
           `errorbar`.
@@ -740,14 +764,20 @@ class IRSCombine(object):
 
         if ax is None:
             ax = plt.gca()
-        
-        line = ax.plot(self.nucleus['wave'], self.nucleus['fluxd'], **kwargs)
+
+        c = u.Jy.to(unit, 1, u.spectral_density(self.nucleus['wave'] * u.um))
+        if lambda_scale:
+            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+            c *= self.nucleus['wave']
+
+        line = ax.plot(self.nucleus['wave'], c * self.nucleus['fluxd'],
+                       **kwargs)
         plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
 
         return line
 
     def plot_raw(self, ax=None, label=lambda f: ' '.join(f.split('_')[3:5]),
-                 **kwargs):
+                 unit=u.Jy, lambda_scale=False, **kwargs):
         """Plot all raw spectra.
 
         The plot is not cleared, and the x and y labels are changed.
@@ -759,6 +789,10 @@ class IRSCombine(object):
         label : function or string, optional
           A label generator.  Accepts a single paramter, the file
           name.
+        unit : astropy Unit, optional
+          Convert to these units first.
+        lambda_scale : bool, optional
+          Multiply by wavelength before plotting.
         **kwargs
           Additional keyword arguments are passed to `matplotlib`'s
           `errorbar`.
@@ -775,10 +809,16 @@ class IRSCombine(object):
         if ax is None:
             ax = plt.gca()
         
+        if lambda_scale:
+            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+
         lines = []
         for f, spec in sorted(self.raw.items()):
-            line = ax.errorbar(spec['wavelength'], spec['flux_density'],
-                               spec['error'], label=label(f), **kwargs)[0]
+            c = u.Jy.to(unit, 1, u.spectral_density(spec['wavelength'] * u.um))
+            if lambda_scale:
+                c *= spec['wavelength']
+            line = ax.errorbar(spec['wavelength'], c * spec['flux_density'],
+                               c * spec['error'], label=label(f), **kwargs)[0]
             lines.append(line)
         plt.setp(ax, xlabel='Wavelength (μm)', ylabel='DN')
 
