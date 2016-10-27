@@ -3,7 +3,7 @@ mskpy v3.0.2
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: python3 (3.4+ recommended), numpy, scipy, astropy v1.0.
+Requires: python3 (3.4+ recommended), numpy, scipy, astropy v1.0, FORTRAN compiler.
 
 Recommended: spiceypy (v0.6.2), matplotlib.
 
