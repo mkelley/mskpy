@@ -533,6 +533,7 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
 
     """
 
+    from glob import glob
     from astropy.io import fits
 
     if files is None:
