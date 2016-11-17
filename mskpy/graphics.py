@@ -14,25 +14,27 @@ graphics --- Helper functions for making plots.
    noborder
    remaxes
    rem_interior_ticklabels
+   savepdf2pdf
    tplot
    tplot_setup
 
 """
 
 __all__ = [
-   'arrows',
-   'axcolor',
-   'circle',
-   'harrows',
-   'jdaxis2date',
-   'ksplot',
-   'nicelegend',
-   'niceplot',
-   'noborder',
-   'remaxes',
-   'rem_interior_ticklabels',
-   'tplot',
-   'tplot_setup'
+    'arrows',
+    'axcolor',
+    'circle',
+    'harrows',
+    'jdaxis2date',
+    'ksplot',
+    'nicelegend',
+    'niceplot',
+    'noborder',
+    'remaxes',
+    'rem_interior_ticklabels',
+    'savepdf2pdf',
+    'tplot',
+    'tplot_setup'
 ]
 
 import numpy as np
@@ -402,6 +404,34 @@ def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
             if not ax.is_first_col():
                 ax.set_yticklabels([])
 
+def savepdf2pdf(filename, **kwargs):
+    """Save figure as pdf, then process with pdf2pdf.
+
+    On my system, funny things happen with markers that have `alpha !=
+    0` when vied with mupdf.  pdf2pdf (ghostscript) fixes it.
+
+    Parameters
+    ----------
+    filename : string
+      The name of the file to save.
+    **kwargs
+      Any `matplotlib.pyplot.savefig` keywords.
+
+    """
+    import os
+    import matplotlib.pyplot as plt
+    from tempfile import NamedTemporaryFile
+
+    assert isinstance(filename, str)
+
+    name = ""
+    with NamedTemporaryFile(delete=False) as outf:
+        name = outf.name
+        plt.savefig(outf, format='pdf')
+
+    os.system('pdf2pdf {} {}'.format(name, filename))
+    os.system('rm {}'.format(name))
+                
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
 
