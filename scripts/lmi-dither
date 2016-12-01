@@ -10,6 +10,8 @@
 
 2016-04-18: New --offset, --no-filter, and --no-alternate options.
 
+2016-05-26: New title argument, new -g (group) option.
+
 - Michael S. P. Kelley, UMD
 
 """
@@ -37,37 +39,31 @@ def to_list(_type=str):
     else:
         return lambda s: [_type(x) for x in s.split(',')]
 
-def positions(n, pattern, scale, offset):
-    from itertools import cycle
-
-    p = cycle(pattern)
-    for i in range(n):
-        px, py = next(p)
-        x = scale * px + offset[0]
-        y = scale * py + offset[1]
-        yield i, x, y
-
-def exposures(positions, filters, itimes, no_alternate):
+def exposures(n, group, pattern, scale, offset, filters, itimes):
     from itertools import cycle
 
     filter = cycle(filters + filters[::-1])
     itime = cycle(itimes + itimes[::-1])
+    position = cycle(pattern)
 
-    if no_alternate:
-        p = list(positions)
+    for i in range(0, n, group):
+        subpattern = []
+        for j in range(group):
+            subpattern.append(next(position))
+
+        p = cycle(subpattern)
         for j in range(len(filters)):
-            _filter = next(filter)
-            _itime = next(itime)
-            for i, x, y in p:
-                yield dict(filter=_filter, itime=_itime, x=x, y=y,
-                           comment='Position {}'.format(i))
-    else:
-        for i, x, y in positions:
-            for j in range(len(filters)):
-                yield dict(filter=next(filter), itime=next(itime), x=x, y=y,
-                           comment='Position {}'.format(i))
+            f = next(filter)
+            t = next(itime)
+            for k in range(i, min(n, i + group)):
+                px, py = next(p)
+                x = scale * px + offset[0]
+                y = scale * py + offset[1]
 
-def dither(n, scale, offset, pattern, filters, itimes, no_alternate,
+                yield dict(filter=f, itime=t, x=x, y=y,
+                           comment='Position {}'.format(k))
+
+def dither(n, scale, offset, pattern, filters, itimes, group,
            context_itime, no_context, no_filter):
     from itertools import product
 
@@ -80,8 +76,10 @@ def dither(n, scale, offset, pattern, filters, itimes, no_alternate,
         yield line.format(itime=context_itime, filter='SL-r',
                           x=offset[0], y=offset[1], comment="Context")
 
-    for exposure in exposures(positions(n, pattern, scale, offset),
-                              filters, itimes, no_alternate):
+    #for exposure in exposures(positions(n, group, pattern, scale, offset),
+    #                          filters, itimes, group):
+    #    yield line.format(**exposure)
+    for exposure in exposures(n, group, pattern, scale, offset, filters, itimes):
         yield line.format(**exposure)
 
     if no_context is False:
@@ -91,8 +89,12 @@ def dither(n, scale, offset, pattern, filters, itimes, no_alternate,
 
 parser = argparse.ArgumentParser(description='Generate a DCT/LMI dither macro.')
 
+parser.add_argument('title', type=str, default=None, nargs='*',
+                    help='Image title.')
 parser.add_argument('-n', type=int, default=0,
                     help='Number of dithers; even is best for airmass matching')
+parser.add_argument('-g', type=int, default=0,
+                    help='Number of dithers to group before changing filters.  Set to 1 to disable.')
 parser.add_argument('--scale', type=int, default=60,
                     help='Scale factor for offsets.  [arcsec]')
 parser.add_argument('--offset', type=to_list(float), default=[0, 0],
@@ -149,15 +151,37 @@ pattern = patterns[args.pattern]
 
 n = args.n if args.n > 0 else len(pattern)
 
-print("""#title=false ra=false dec=false exposureTime=true numExposures=false filter={0:s} muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
-#""".format(filter_col))
+# consider grouping
+if args.no_alternate:
+    assert args.g == 0, "Only one of group (-g) or no_alternate can be specified."
+    group = n
+elif args.g > 0:
+    group = args.g
+else:
+    if n % 3 == 0 and n != 3:
+        group = 3
+    elif n % 2 == 0 and n != 2:
+        group = 2
+    else:
+        group = 1
+
+# set the title column
+if args.title == []:
+    title_col = 'false'
+    title = ''
+else:
+    title_col = 'true'
+    title = '"{0:s}" '.format(' '.join(args.title))
+
+print("""#title={0:s} ra=false dec=false exposureTime=true numExposures=false filter={1:s} muRA=false muDec=false epoch=false dRA=false dDec=false rotatorPA=false rotatorFrame=false xi=true eta=true comment=true commandOption=false
+#""".format(title_col, filter_col))
 it = 0
 wt = 0
 nf = 0
 for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
-                   args.no_alternate, args.context_itime, args.no_context,
+                   group, args.context_itime, args.no_context,
                    args.no_filter):
-    print(line)
+    print(title + line)
     nf += 1
     it += float(line.split()[0])
     wt += float(line.split()[0]) + 24

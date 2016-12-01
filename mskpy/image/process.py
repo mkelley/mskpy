@@ -13,6 +13,7 @@ image.process --- Process (astronomical) images.
    columnpull
    combine
    crclean
+   cutout
    fixpix
    mkflat
    psfmatch
@@ -31,6 +32,7 @@ __all__ = [
     'columnpull',
     'combine',
     'crclean',
+    'cutout',
     'fixpix',
     'mkflat',
     'psfmatch',
@@ -360,7 +362,39 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
 
     return clean
 
+def cutout(yx, half_size, shape=None):
+    """Return a slice to cut out a subarray from an array.
+
+    Parameters
+    ----------
+    yx : array of ints
+      The center of the cutout.
+    half_size : int or array of ints
+      The half_size of the array.  The cut out will have shape `2 *
+      half_size + 1`.
+    shape : tuple, optional
+      If provided, then the slice will not extend beyond the lengths
+      of the axes.
+    
+    Returns
+    -------
+    s : slice
+
+    """
+
+    if shape is None:
+        shape = (inf, inf)
+    if not np.iterable(half_size):
+        half_size = (half_size, half_size)
+
+    s = np.s_[max(yx[0] - half_size[0], 0):
+              min(yx[0] + half_size[0] + 1, shape[0]),
+              max(yx[1] - half_size[1], 0):
+              min(yx[1] + half_size[1] + 1, shape[1])]
+    return s
+    
 def fixpix(im, mask, max_area=10):
+
     """Replace masked values replaced with a linear interpolation.
 
     Probably only good for isolated bad pixels.
@@ -501,12 +535,12 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
 
     return K / K.sum()
 
-def stripes(im, axis=0, stat=np.median, image=False, **keywords):
+def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
 
     Parameters
     ----------
-    im : array
+    im : array, including MaskedArray
       The image with stripe artifacts.  The image is first sigma
       clipped with `util.meanclip`.
     axis : int, optional
@@ -549,7 +583,7 @@ def stripes(im, axis=0, stat=np.median, image=False, **keywords):
             s = np.outer(np.ones(im.shape[0]), s)
         else:
             s = np.outer(s, np.ones(im.shape[1]))
-    
+
     return s
 
 def subim(im, yx, half_box):

@@ -1,3 +1,92 @@
+3.0.3
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- Fixed crashes with numpy 1.11 and astropy quantities.
+
+- Fixed rounding errors with `refine_center`.
+
+- `graphics.harrows` was using radians for north when it shouldn't have been!
+
+- Fixed `image.trace` which looks like it hasn't really ever worked.
+
+- Fixed `fitslog` script crash.
+
+New features
+^^^^^^^^^^^^
+
+- `util.horizons_csv` to read in a JPL HORIZONS CSV formatted file.
+
+- `comet.silicate_feature` to examine a 10-μm silicate feature.
+
+- `instruments.spitzer`
+  - `warm_aperture_correction` for warm-mission (IRAC) aperture corrections.
+  - `IRSCombine` for combining extracted Spitzer/IRS spectra.
+  - `irs_summary` to summarize a set of IRS spectra extracted with SPICE.
+  - `spice_read` to read in IRS SPICE files.
+
+- `graphics`
+  - `ksplot` can now plot a line to a user given final x value.
+  - `savepdf2pdf` saves the current figure as a PDF, then reprocesses it with ghostscript.  Useful on my system when marker alpha is used.
+
+- `image.process.cutout` to cutout stamps from an image.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `scripts/`
+  - `lmi-dither`
+    - Allows a title column.
+    - New group (-g) option to group together dither sets.
+  - `ephemeris`
+    - `-n` option finally works.
+    - Additional columns may be included via `--include`.
+
+- `leading_num_sort` correctly works when there is no leading number.
+
+- `graphics.tplot_setup` tweak the axis labels and ticks.
+  
+3.0.2
+-----
+
+New features
+^^^^^^^^^^^^
+
+- `comet.efrho2fluxd` to convert epsilon-f-rho to flux density.
+
+- `scripts/lmi-dither` new options: --no-alternate, --no-filter, --offset, additional context image, configurable context itimes, updated default itimes.
+
+- `instruments.spitzer`
+  - `irsclean` and `irsclean_files` to clean IRS 2D spectra.
+  - `moving_wcs_fix` to correct WCS headers of moving target observations.
+
+- `util.file2list` read in a text file and return a list of lines without trailing new lines.
+
+- `image.process.stripes` can optionally return an image of the stripes.
+
+- `graphics.rem_interior_ticklabels` to remove interior tick labels from multi-axis plots.
+  
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- New config value "irs.spice_path" and defaults are saved when there are missing configuration values.
+
+- `image.analysis.align_by_wcs` raises `NoSourcesFound` when no
+  sources are in the image.
+
+- `image.analysis.align_by_wcs` and `align_by_centroid` use
+  `align_by_offset` which fixes a rollover masking bug.
+
+- `util.dh2hms` fixed handling of arbitrary precision of fractional seconds.
+
+- `catalogs`
+  - `find_offset` returns more stats.
+  - `project_catalog` can handle different projection modes for WCS to pix.
+  
+
+
 3.0.1
 -----
 

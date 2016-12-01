@@ -97,7 +97,7 @@ def rarray(shape, yx=None, subsample=0, dtype=float):
     r = (np.sqrt(x**2 + y**2)).astype(dtype)
 
     if subsample > 0:
-        r = refine_center(rarray, r, yx, 11, 10, scale=-1, dtype=dtype)
+        r = refine_center(rarray, r, yx, 11, subsample, scale=-1, dtype=dtype)
 
     return r
 
@@ -237,7 +237,7 @@ def tarray(shape, yx=None, subsample=0, dtype=float):
     th = np.arctan2(y, x)
 
     if subsample > 0:
-        th = refine_center(tarray, th, yx, 5, 10, dtype=dtype)
+        th = refine_center(tarray, th, yx, 5, subsample, dtype=dtype)
 
     return th
 
@@ -275,6 +275,14 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     refined : ndarray
       The refined array.
 
+    Notes
+    -----
+    Numpy rounds to even numbers, which causes an error when working
+    with an origin at half-pixel steps (i.e., 50.5 rounds to 50, but
+    should be 51).  `refine_center` adds a small value to `yx` to
+    mitigate this issue.  If better than 1e-4 pixel precision is
+    needed, this function may not work for you.
+
     """
 
     refined = im.copy()
@@ -295,8 +303,11 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
 
     # The region to be refined: xi, yi
     yi, xi = np.indices((N, N)) - N // 2
-    yi += int(round(yx[0]))
-    xi += int(round(yx[1]))
+
+    # numpy only rounds to even numbers, adding a small value fixes
+    # this.  Hopefully 1e-5 pixel precision is never needed!
+    yi += int(np.around(yx[0] + 1e-5))
+    xi += int(np.around(yx[1] + 1e-5))
 
     # insert into the result
     i = (yi >= 0) * (xi >= 0) * (yi < im.shape[0]) * (xi < im.shape[1])

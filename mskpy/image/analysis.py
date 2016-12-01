@@ -1272,6 +1272,7 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
     peaks = np.ma.MaskedArray(np.zeros(im.shape[1]),
                               np.zeros(im.shape[1], bool))
     x = np.arange(im.shape[1], dtype=float)
+
     if err is None:
         err = np.ones_like(im)
 
