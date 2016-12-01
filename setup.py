@@ -42,7 +42,11 @@ if __name__ == "__main__":
     files = find_data_files()
 
     setup(name='mskpy',
+<<<<<<< HEAD
           version='3.0.3-dev',
+=======
+          version='3.0.3',
+>>>>>>> master
           description='General purpose and astronomy related tools',
           author="Michael S. P. Kelley",
           author_email="msk@astro.umd.edu",
