@@ -951,7 +951,8 @@ class SpeXPrism60(SpeX):
         if debug:
             return offset, xcor_offset
 
-    def peak(self, im, mode='AB', rap=5, smooth=0, plot=True):
+    def peak(self, im, mode='AB', rap=5, smooth=0, plot=True,
+             ex_rap=None, bgap=None):
         """Find approximate locations of profile peaks in an image.
 
         The strongest peaks are found via centroid on the profile
@@ -971,6 +972,10 @@ class SpeXPrism60(SpeX):
           searching for the peak.
         plot : bool, optional
           Plot results.
+        ex_rap : float
+          Show this extraction aperture radius in the plot.
+        bgap : array of two floats
+          Show this extraction background aperture in the plot.
 
         Result
         ------
@@ -1009,6 +1014,16 @@ class SpeXPrism60(SpeX):
             ax.plot(profile, color='k')
             for p in self.peaks:
                 ax.axvline(p, color='r')
+
+                if ex_rap is not None:
+                    i = between(x, p + np.r_[-1, 1] * ex_rap)
+                    ax.plot(x[i], profile[i], color='b', lw=3)
+                                  
+                if bgap is not None:
+                    for s in [-1, 1]:
+                        i = between(x, np.sort(p + s * np.r_[bgap]))
+                        ax.plot(x[i], profile[i], color='c', lw=3)
+                                  
             fig.canvas.draw()
             fig.show()
 
