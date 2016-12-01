@@ -626,9 +626,9 @@ class SpeXPrism60(SpeX):
                     var = np.ma.vstack((var_A, var_B))
 
                     headers_B = [[a, b] for a, b in zip(headers[3::4], headers[2::4])]
-                    headers = []
-                    for a, b in zip(headers_A, headers_B):
-                        headers.extend([a, b])
+                    headers = [None] * (len(headers_A) + len(headers_B))
+                    headers[::2] = headers_A
+                    headers[1::2] = headers_B
                 else:
                     stack = stack_A[0]
                     var = var_A[0]
