@@ -114,8 +114,8 @@ def wehrli(smooth=True, unit=u.Unit('W/(m2 um)')):
         w *= 0.001  # nm -> micron
         f *= 0.1    # W/m2/nm -> 1e-4 m2/cm2 * 1e3 nm/um = W/cm2/um
 
-    w *= u.um
-    f *= u.W / u.cm**2 / u.um
+    w = w * u.um
+    f = f * u.W / u.cm**2 / u.um
     if f.unit != unit:
         equiv = u.spectral_density(w.unit, w.value)
         f = f.to(unit, equivalencies=equiv)
@@ -320,16 +320,13 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     else:
         skiprows = i + 2
 
-    wave, fl, efl = np.loadtxt(templatefile, skiprows=skiprows, unpack=True,
+    wave, fd, efd = np.loadtxt(templatefile, skiprows=skiprows, unpack=True,
                                usecols=(0, 1, 2))
 
-    wave *= u.um
-    fl *= u.Unit('W/(cm2 um)')
-    if fl.unit != unit:
-        equiv = u.spectral_density(wave.unit, wave.value)
-        fl = fl.to(unit, equivalencies=equiv)
+    wave = wave * u.um
+    fd = (fd * u.Unit('W/(cm2 um)')).to(unit, u.spectral_density(wave))
 
-    return wave, fl
+    return wave, fd
 
 def dw_atran(airmass, fw, ft, pw='2.5'):
     """Use the Diane Wooden method to compute the transmission of the

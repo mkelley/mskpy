@@ -14,25 +14,27 @@ graphics --- Helper functions for making plots.
    noborder
    remaxes
    rem_interior_ticklabels
+   savepdf2pdf
    tplot
    tplot_setup
 
 """
 
 __all__ = [
-   'arrows',
-   'axcolor',
-   'circle',
-   'harrows',
-   'jdaxis2date',
-   'ksplot',
-   'nicelegend',
-   'niceplot',
-   'noborder',
-   'remaxes',
-   'rem_interior_ticklabels',
-   'tplot',
-   'tplot_setup'
+    'arrows',
+    'axcolor',
+    'circle',
+    'harrows',
+    'jdaxis2date',
+    'ksplot',
+    'nicelegend',
+    'niceplot',
+    'noborder',
+    'remaxes',
+    'rem_interior_ticklabels',
+    'savepdf2pdf',
+    'tplot',
+    'tplot_setup'
 ]
 
 import numpy as np
@@ -155,7 +157,7 @@ def harrows(header, xy, length, **kwargs):
     length : float or 2-element array
       Length of the arrows in data units.
     **kwargs
-      Any valid `plt.annotate` or `plt.arrows` keyword argument
+      Any valid `plt.annotate` or `mskpy.arrows` keyword argument
       (except rot).
 
     Returns
@@ -167,7 +169,7 @@ def harrows(header, xy, length, **kwargs):
 
     from .util import getrot
 
-    rot = np.radians(getrot(header)[1])
+    rot = getrot(header)[1]
     return arrows(xy, length, rot=rot, **kwargs)
 
 def jdaxis2date(axis, fmt):
@@ -190,13 +192,16 @@ def jdaxis2date(axis, fmt):
     return axis.set_ticklabels(
         [jd2time(t).datetime.strftime(fmt) for t in jd])
 
-def ksplot(x, ax=None, **kwargs):
+def ksplot(x, xmax=None, ax=None, **kwargs):
     """Graphical version of the Kolmogorov-Smirnov test.
 
     Parameters
     ----------
     x : array
       The dataset to plot.
+    xmax : float
+      The maximal x value.  If provided, then a final line will be
+      drawn from `x[-1]` to `xmax` along `y=1.0`.
     ax : matplotlib.axes
       Plot to this axis.
     **kwargs
@@ -213,11 +218,20 @@ def ksplot(x, ax=None, **kwargs):
     import matplotlib.pyplot as plt
 
     xx = np.sort(x)
-    yy = np.ones(x.size).cumsum() / x.size
-    ls = keywords.pop('ls', keywords.pop('linestyle', 'steps-post'))
+    yy = np.ones(xx.size).cumsum() / xx.size
+
+    if xmax is None:
+        xx = np.r_[xx[0], xx]
+        yy = np.r_[0, yy]
+    else:
+        xx = np.r_[xx[0], xx, xmax]
+        yy = np.r_[0, yy, 1]
+
+    ls = kwargs.pop('ls', kwargs.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()
-    return plt.plot(np.r_[xx[0], xx], np.r_[0, yy], ls=ls, **keywords)
+
+    line = plt.plot(xx, yy, ls=ls, **kwargs)
 
 def nicelegend(*args, **kwargs):
     """A pretty legend for publications.
@@ -390,6 +404,34 @@ def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
             if not ax.is_first_col():
                 ax.set_yticklabels([])
 
+def savepdf2pdf(filename, **kwargs):
+    """Save figure as pdf, then process with pdf2pdf.
+
+    On my system, funny things happen with markers that have `alpha !=
+    0` when vied with mupdf.  pdf2pdf (ghostscript) fixes it.
+
+    Parameters
+    ----------
+    filename : string
+      The name of the file to save.
+    **kwargs
+      Any `matplotlib.pyplot.savefig` keywords.
+
+    """
+    import os
+    import matplotlib.pyplot as plt
+    from tempfile import NamedTemporaryFile
+
+    assert isinstance(filename, str)
+
+    name = ""
+    with NamedTemporaryFile(delete=False) as outf:
+        name = outf.name
+        plt.savefig(outf, format='pdf')
+
+    os.system('pdf2pdf {} {}'.format(name, filename))
+    os.system('rm {}'.format(name))
+                
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
 
@@ -433,7 +475,7 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
         
     if setup:
         tplot_setup()
-    linestyle = plotkws.pop('linestyle', plotkws.pop('ls', 'none'))
+    linestyle = kwargs.pop('linestyle', kwargs.pop('ls', 'none'))
 
     x = lambda b, c: np.array(b) + np.array(c) / 2.0
     y = lambda c: np.array(c) * 0.86603
@@ -470,9 +512,9 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
                                    np.c_[y(lc), y(uc)].T,
                                    '-', color='0.5'))
         
-        points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **plotkws))
+        points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs))
     else:
-        points = plt.plot(x(b, c), y(c), linestyle=linestyle, **plotkws)
+        points = plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs)
 
     return points        
 
@@ -481,8 +523,8 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
                 grid=dict(color='0.5', linestyle='--')):
     """Set up a ternary plot.
 
-    a is the lower-left corner, b is the lower-right corner, c is the
-    top.
+    a is the lower-left corner & base, b is the lower-right
+    corner & right side, c is the top corner & left side.
 
     Parameters
     ----------
@@ -492,6 +534,10 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
       Plot keywords for the axis lines, or None for no axes.
     grid : dictionary, optional
       Plot keywords for the grid lines, or None for no grid lines.
+
+    Returns
+    -------
+    ax : matplotlib axes
 
     """
 
@@ -514,32 +560,44 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
         c = [0.5, 0, 0.5, 0.5]
         plt.plot(x(b, c), y(c), **grid)
 
-        b = [0.25, 0.5, 0.75, 0.75, 0.5, 0.25, 0, 0, 0]
-        c = [0, 0, 0, 0.25, 0.5, 0.75, 0.75, 0.5, 0.25]
-        l = ['75/25', '50', '25/75', '25/75', '50', '75/25',
-             '25/75', '50', '75/25']
-        dx = [0, 0, 0, 0.015, 0.015, 0.015, -0.015, -0.015, -0.015]
-        dy = [-0.021, -0.021, -0.021, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-        a = [0, 0, 0, -60, -60, -60, 60, 60, 60]
+        b = [0, 0.25, 0.5, 0.75, 1.0,
+             1.0, 0.75, 0.5, 0.25, 0,
+             0, 0, 0, 0, 0]
+        c = [0, 0, 0, 0, 0,
+             0, 0.25, 0.5, 0.75, 1.0,
+             1.0, 0.75, 0.5, 0.25, 0]
+        l = ['100', '75', '50', '25', '0',  # a
+             '100', '75', '50', '25', '0',  # b
+             '100', '75', '50', '25', '0']  # c
+        dx = [0, 0, 0, 0, 0,
+              0.015, 0.015, 0.015, 0.015, 0.015,
+              -0.015, -0.015, -0.015, -0.015, -0.015]
+        dy = [-0.021, -0.021, -0.021, -0.021, -0.021,
+              0.01, 0.01, 0.01, 0.01, 0.01,
+              0.01, 0.01, 0.01, 0.01, 0.01]
+        a = [0, 0, 0, 0, 0,
+             -60, -60, -60, -60, -60,
+             60, 60, 60, 60, 60]
         for i in range(len(b)):
             plt.annotate(l[i], (x(b[i], c[i]) + dx[i], y(c[i]) + dy[i]),
                        ha='center', va='center', rotation=a[i])
 
     if alabel is not None:
-        plt.annotate(alabel, (-0.05, -0.04), ha='center',
-                     va='baseline')
+        plt.text(x(0.5, 0), y(0) - 0.05, alabel, ha='center',
+                 va='center', fontsize=14)
     if blabel is not None:
-        plt.annotate(blabel, (1.05, -0.04), ha='center',
-                   va='baseline')
+        plt.text(x(0.5, 0.5) + 0.04, y(0.5) + 0.03, blabel,
+                 ha='center', va='center', rotation=-60, fontsize=14)
     if clabel is not None:
-        plt.annotate(clabel, (0.5, 0.9), ha='center',
-                   va='baseline')
+        plt.text(x(0, 0.5) - 0.04, y(0.5) + 0.03, clabel,
+                 ha='center', va='center', rotation=60, fontsize=14)
 
     plt.gcf().subplots_adjust(top=1.0, left=0, bottom=0, right=1.0)
     ax = plt.gca()
     ax.axis('off')
     ax.axis('equal')
     plt.setp(plt.gca(), ylim=(-0.1, 1), xlim=(-0.01, 1.01))
+    return ax
 
 # update module docstring
 from .util import autodoc
