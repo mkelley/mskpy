@@ -621,11 +621,9 @@ class SpeXPrism60(SpeX):
                 if len(files) > 2:
                     stack_B = stack[3::4] - stack[2::4] # -(B - A)
                     stack = np.ma.vstack((stack_A, stack_B))
-                    stack = stack.reshape((len(files) / 2, 2048, 2048))
 
                     var_B = var[2::4] + var[3::4]
-                    var = np.vstack((var_A, var_B))
-                    var = var.reshape((len(files) / 2, 2048, 2048))
+                    var = np.ma.vstack((var_A, var_B))
 
                     headers_B = [[a, b] for a, b in zip(headers[3::4], headers[2::4])]
                     headers = []
