@@ -411,7 +411,8 @@ class SpeXPrism60(SpeX):
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
         
         self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
-        self.bias /= self.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR']
+        self.bias = (fits.getdata(calpath + 'uSpeX_bias.fits')
+                     / self.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR'])
         
         self.linecal = fits.getdata(calpath + 'Prism_LineCal.fits')
         # Prism_LineCal header is bad and will throw a warning
@@ -619,11 +620,11 @@ class SpeXPrism60(SpeX):
                 headers_A = [[a, b] for a, b in zip(headers[::4], headers[1::4])]
                 if len(files) > 2:
                     stack_B = stack[3::4] - stack[2::4] # -(B - A)
-                    stack = np.ma.hstack((stack_A, stack_B))
+                    stack = np.ma.vstack((stack_A, stack_B))
                     stack = stack.reshape((len(files) / 2, 2048, 2048))
 
                     var_B = var[2::4] + var[3::4]
-                    var = np.hstack((var_A, var_B))
+                    var = np.vstack((var_A, var_B))
                     var = var.reshape((len(files) / 2, 2048, 2048))
 
                     headers_B = [[a, b] for a, b in zip(headers[3::4], headers[2::4])]
