@@ -259,6 +259,7 @@ class SpiceState(State):
     r : Position vector.
     v : Velocity vector.
     rv : Both vectors.
+    oscelt : Conic orbital elements.
 
     Attributes
     ----------
@@ -356,3 +357,49 @@ class SpiceState(State):
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, frame, corr, observer)
         return np.array(state[:3]), np.array(state[3:])
+
+    def oscelt(self, date, frame="ECLIPJ2000", mu=None):
+        """Concic osculating orbital elements.
+
+        Returns the orbit from oscelt in the SPICE toolkit.  The
+        results are unreliable for eccentricities very close to 1.0,
+        specific angular momentum near zero, and inclinations near 0
+        or 180 degrees.  See the SPICE toolkit for notes.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime
+          Processed via `util.date2time`.
+        frame : string
+          The name of a SPICE reference frame.
+        mu : float, optional
+          `G M` of the primary body, or `None` to use the Sun.
+        
+        Returns
+        -------
+        orbit : dict
+          Orbital parameters as a dictionary.
+
+        """
+
+        import astropy.units as u
+        from mskpy.ephem import GM_sun
+        from mskpy.util import jd2time
+
+        et = core.date2et(date)
+        state, lt = spice.spkez(self.naifid, et, frame, "NONE", 10)
+
+        if mu is None:
+            mu = GM_sun.to('km3 / s2').value
+
+        o = spice.oscelt(state, et, mu)
+        orbit = {}
+        orbit['q'] = (o[0] * u.km).to(u.au)
+        orbit['e'] = o[1]
+        orbit['i'] = (o[2] * u.rad).to(u.deg)
+        orbit['node'] = (o[3] * u.rad).to(u.deg)
+        orbit['peri'] = (o[4] * u.rad).to(u.deg)
+        orbit['n'] = (o[5] * u.rad).to(u.deg) / u.s
+        orbit['t'] = jd2time(float(core.et2jd(o[6])))
+
+        return orbit
