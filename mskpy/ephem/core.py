@@ -123,6 +123,23 @@ def date2et(date):
 
     return et
 
+def et2jd(et):
+    """Ephemeris time to Julian date, UTC.
+
+    Parameters
+    ----------
+    et : float
+      Ephemeris time.
+
+    Returns
+    -------
+    jd : string
+      The Julian date, UTC.
+
+    """
+
+    return spice.et2utc(et, "J", 14)[3:]
+
 def jd2et(jd):
     """Convert Julian date to SPICE ephemeris time.
 
