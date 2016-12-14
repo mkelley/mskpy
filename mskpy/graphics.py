@@ -231,7 +231,7 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
     if ax is None:
         ax = plt.gca()
 
-    line = plt.plot(xx, yy, ls=ls, **kwargs)
+    return ax.plot(xx, yy, ls=ls, **kwargs)
 
 def nicelegend(*args, **kwargs):
     """A pretty legend for publications.
