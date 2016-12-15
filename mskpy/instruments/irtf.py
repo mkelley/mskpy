@@ -435,6 +435,9 @@ class SpeXPrism60(SpeX):
         self.wave = None
         self.spec = None
         self.var = None
+        self.rap = None
+        self.bgap = None
+        self.bgorder = None
         
         SpeX.__init__(self, *args, **kwargs)
     
@@ -1167,6 +1170,21 @@ class SpeXPrism60(SpeX):
             h = h[::2]
             for i in range(len(s)):
                 h[i].add_history('AB beam combined (sum)')
+                ps = h[i]['PLATE_SC']
+                h[i]['APRADIUS'] = rap * ps, 'Aperture radius in arcseconds'
+                h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
+                h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
+                h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
+                h[i]['MODENAME'] = 'LowRes15', 'Spectroscopy mode'
+                h[i]['NAPS'] = 1, 'Number of apertures'
+                h[i]['NORDERS'] = 1, 'Number of orders'
+                h[i]['ORDERS'] = '1', 'Order numbers'
+                #h[i]['RES'] = 20.0, 'Average spectral resolving power'
+                h[i]['XUNITS'] = 'um', 'Units of the X axis'
+                h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
+                h[i]['XTITLE'] = '!7k!5 (!7l!5m)', 'IDL X title'
+                h[i]['YTITLE'] = 'f (!5DN s!u-1!N)', 'IDL Y title'
+
                 b = i * 2 + 1
 
                 mask = s[i].mask + wave[b].mask + spec[b].mask + var[b].mask
