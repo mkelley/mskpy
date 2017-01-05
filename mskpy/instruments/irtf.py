@@ -1170,25 +1170,7 @@ class SpeXPrism60(SpeX):
             h = h[::2]
             for i in range(len(s)):
                 h[i].add_history('AB beam combined (sum)')
-                ps = h[i]['PLATE_SC']
-                h[i]['APRADIUS'] = rap * ps, 'Aperture radius in arcseconds'
-                h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
-                if bgap is None:
-                    h[i]['BGSTART'] = 0
-                    h[i]['BGWIDTH'] = 0
-                else:
-                    h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
-                    h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
-                h[i]['MODENAME'] = 'LowRes15', 'Spectroscopy mode'
-                h[i]['NAPS'] = 1, 'Number of apertures'
-                h[i]['NORDERS'] = 1, 'Number of orders'
-                h[i]['ORDERS'] = '1', 'Order numbers'
-                #h[i]['RES'] = 20.0, 'Average spectral resolving power'
-                h[i]['DISP001'] = 0.0022735, 'Dispersion (um pixel-1) for order 01'
-                h[i]['XUNITS'] = 'um', 'Units of the X axis'
-                h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
-                h[i]['XTITLE'] = '!7k!5 (!7l!5m)', 'IDL X title'
-                h[i]['YTITLE'] = 'f (!5DN s!u-1!N)', 'IDL Y title'
+                h[i]['ITOT'] = h[i]['ITOT'] * 2
 
                 b = i * 2 + 1
 
@@ -1203,6 +1185,29 @@ class SpeXPrism60(SpeX):
             wave = w
             spec = s
             var = v
+
+        # for spextool compatability
+        for i in range(len(h)):
+            ps = h[i]['PLATE_SC']
+            appos = (self.peaks - self.config['bottom']) * ps
+            h[i]['APPOSO01'] = str(list(appos))[1:-1], 'Aperture positions (arcsec) for order 01'
+            h[i]['AP01RAD'] = rap * ps, 'Aperture radius in arcseconds'
+            h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
+            if bgap is None:
+                h[i]['BGSTART'] = 0
+                h[i]['BGWIDTH'] = 0
+            else:
+                h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
+                h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
+            h[i]['MODENAME'] = 'Prism', 'Spectroscopy mode'
+            h[i]['NORDERS'] = 1, 'Number of orders'
+            h[i]['ORDERS'] = '1', 'Order numbers'
+            h[i]['RP'] = int(82 * h[i]['SLTW_ARC'] / 0.8), 'Resovling power'
+            h[i]['DISP001'] = 0.00243624, 'Dispersion (um pixel-1) for order 01'
+            h[i]['XUNITS'] = 'um', 'Units of the X axis'
+            h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
+            h[i]['XTITLE'] = '!7k!5 (!7l!5m)', 'IDL X title'
+            h[i]['YTITLE'] = 'f (!5DN s!u-1!N)', 'IDL Y title'
             
         if (self.spec is None) or (self.spec is not None and not append):
             self.wave = wave
