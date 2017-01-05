@@ -1173,13 +1173,18 @@ class SpeXPrism60(SpeX):
                 ps = h[i]['PLATE_SC']
                 h[i]['APRADIUS'] = rap * ps, 'Aperture radius in arcseconds'
                 h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
-                h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
-                h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
+                if bgap is None:
+                    h[i]['BGSTART'] = 0
+                    h[i]['BGWIDTH'] = 0
+                else:
+                    h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
+                    h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
                 h[i]['MODENAME'] = 'LowRes15', 'Spectroscopy mode'
                 h[i]['NAPS'] = 1, 'Number of apertures'
                 h[i]['NORDERS'] = 1, 'Number of orders'
                 h[i]['ORDERS'] = '1', 'Order numbers'
                 #h[i]['RES'] = 20.0, 'Average spectral resolving power'
+                h[i]['DISP001'] = 0.0022735, 'Dispersion (um pixel-1) for order 01'
                 h[i]['XUNITS'] = 'um', 'Units of the X axis'
                 h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
                 h[i]['XTITLE'] = '!7k!5 (!7l!5m)', 'IDL X title'
