@@ -1167,10 +1167,11 @@ class SpeXPrism60(SpeX):
             w = wave[::2]
             s = spec[::2]
             v = var[::2]
+            h_other = h[1::2]
             h = h[::2]
             for i in range(len(s)):
                 h[i].add_history('AB beam combined (sum)')
-                h[i]['ITOT'] = h[i]['ITOT'] * 2
+                h[i]['ITOT'] = h[i]['ITIME'] + h_other[i]['ITIME']
 
                 b = i * 2 + 1
 
@@ -1202,7 +1203,14 @@ class SpeXPrism60(SpeX):
             h[i]['MODENAME'] = 'Prism', 'Spectroscopy mode'
             h[i]['NORDERS'] = 1, 'Number of orders'
             h[i]['ORDERS'] = '1', 'Order numbers'
-            h[i]['RP'] = int(82 * h[i]['SLTW_ARC'] / 0.8), 'Resovling power'
+
+            slit = [float(x) for x in h[i]['SLIT'].split('x')]
+            h[i]['SLTW_ARC'] = slit[0]
+            h[i]['SLTH_ARC'] = slit[1]
+            h[i]['SLTW_PIX'] = slit[0] / ps
+            h[i]['SLTH_PIX'] = slit[1] / ps
+
+            h[i]['RP'] = int(82 * slit[0] / 0.8), 'Resovling power'
             h[i]['DISP001'] = 0.00243624, 'Dispersion (um pixel-1) for order 01'
             h[i]['XUNITS'] = 'um', 'Units of the X axis'
             h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
