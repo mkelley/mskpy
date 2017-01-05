@@ -598,7 +598,7 @@ class SpeXPrism60(SpeX):
         if isinstance(files, (list, tuple)):
             print('Loading {} files.'.format(len(files)))
             stack = MaskedArray(np.empty((len(files), 2048, 2048)))
-            var = np.empty((len(files), 2048, 2048))
+            var = MaskedArray(np.empty((len(files), 2048, 2048)))
             headers = []
             for i in range(len(files)):
                 kwargs = dict(pair=False, ampcor=ampcor, lincor=lincor,
@@ -1093,7 +1093,7 @@ class SpeXPrism60(SpeX):
         aper = aper.sum(1) / subsample
         return aper
 
-    def extract(self, im, h, rap, bgap=None, bgorder=0, traces=True,
+    def extract(self, im, h, rap, bgap=None, bgorder=0, var=None, traces=True,
                 abcombine=True, append=False):
         """Extract a spectrum from an image.
 
@@ -1114,6 +1114,8 @@ class SpeXPrism60(SpeX):
           for no background subtraction.
         bgorder : int, optional
           Fit the background with a `bgorder` polynomial.
+        var : MaskedArray, optional
+          The variance image.  Used when `bgap` is not provided.
         traces : bool, optional
           Use `self.traces` for each peak.
         abcombine : bool, optional
@@ -1129,7 +1131,9 @@ class SpeXPrism60(SpeX):
         self.spec : list of ndarray
           The spectra.
         self.var : list of ndarray
-          The variance on the spectrum due to background.
+          The variance on the spectrum due to background.  If the
+          background is not estimated, the variance will be based on
+          the signal, integration time, gain, and read noise.
 
         """
 
@@ -1148,7 +1152,11 @@ class SpeXPrism60(SpeX):
         if bgap is None:
             spec = image.spextract(im, self.peaks, rap, trace=trace,
                                    subsample=5)[1]
-            var = np.ma.MaskedArray(np.zeros(spec.shape))
+            if var is None:
+                var = np.zeros_like(spec)
+            else:
+                var = image.spextract(var, self.peaks, rap, trace=trace,
+                                      subsample=5)[1]
         else:
             n, spec, nbg, mbg, bgvar = image.spextract(
                 im, self.peaks, rap, trace=trace, bgap=bgap,
@@ -1263,7 +1271,8 @@ class SpeXPrism60(SpeX):
     
             x = np.c_[self.wave[i].filled(np.nan),
                       self.spec[i].filled(np.nan),
-                      np.sqrt(self.var[i]).filled(np.nan)].T
+                      np.sqrt(self.var[i]).filled(np.nan),
+                      np.zeros(len(self.wave[i]))].T
             j = np.flatnonzero(np.isfinite(np.prod(x, 0)))
             fits.writeto(fn, x[:, j], self.h[i], **kwargs)
 
