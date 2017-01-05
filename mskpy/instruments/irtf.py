@@ -1171,7 +1171,7 @@ class SpeXPrism60(SpeX):
             h = h[::2]
             for i in range(len(s)):
                 h[i].add_history('AB beam combined (sum)')
-                h[i]['ITOT'] = h[i]['ITIME'] + h_other[i]['ITIME']
+                h[i]['ITOT'] = h[i]['ITIME'] + h_other[i]['ITIME'], 'Total integration time (sec)'
 
                 b = i * 2 + 1
 
@@ -1190,8 +1190,12 @@ class SpeXPrism60(SpeX):
         # for spextool compatability
         for i in range(len(h)):
             ps = h[i]['PLATE_SC']
-            appos = (self.peaks - self.config['bottom']) * ps
-            h[i]['APPOSO01'] = str(list(appos))[1:-1], 'Aperture positions (arcsec) for order 01'
+
+            appos = ['{:.2f}'.format(x) for x in
+                     (self.peaks - self.config['bottom']) * ps]
+            h[i]['APPOSO01'] = appos[0], 'Aperture positions (arcsec) for order 01'
+            if abcombine:
+                h[i]['ABAPS'] = ','.join(appos), 'Aperture positions before AB combination.'
             h[i]['AP01RAD'] = rap * ps, 'Aperture radius in arcseconds'
             h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
             if bgap is None:
@@ -1201,6 +1205,7 @@ class SpeXPrism60(SpeX):
                 h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
                 h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
             h[i]['MODENAME'] = 'Prism', 'Spectroscopy mode'
+            h[i]['NAPS'] = 1, 'Number of apertures'
             h[i]['NORDERS'] = 1, 'Number of orders'
             h[i]['ORDERS'] = '1', 'Order numbers'
 
