@@ -907,6 +907,7 @@ class SpeXPrism60(SpeX):
             p2w.append(self.linecal_header['P2W_A0{}'.format(i)])
 
         xr = slice(*self.config['x range'])
+        #xr = slice(wave_anchor[0], wave_anchor[1])
         xcor_offset = np.zeros(2048)
         for i in range(self.config['bottom'], self.config['top']):
             spec = arc[i, xr]
@@ -947,8 +948,11 @@ class SpeXPrism60(SpeX):
             import matplotlib.pyplot as plt
             fig = plt.figure()
             plt.clf()
+            plt.plot(np.polyval(p2w[::-1], wave_anchor), flux_anchor,
+                     'k-', lw=1.5)
+            lax = plt.gca().twinx()
             for y in (700, 920, 1150):
-                plt.plot(self.wavecal[y, xr], arc[y, xr])
+                lax.plot(self.wavecal[y, xr], arc[y, xr])
             plt.draw()
 
         if debug:
@@ -1223,7 +1227,7 @@ class SpeXPrism60(SpeX):
             h[i]['SLTW_PIX'] = slit[0] / ps
             h[i]['SLTH_PIX'] = slit[1] / ps
 
-            h[i]['RP'] = int(82 * slit[0] / 0.8), 'Resovling power'
+            h[i]['RP'] = int(82 * 0.8 / slit[0]), 'Resovling power'
             h[i]['DISP001'] = 0.00243624, 'Dispersion (um pixel-1) for order 01'
             h[i]['XUNITS'] = 'um', 'Units of the X axis'
             h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
