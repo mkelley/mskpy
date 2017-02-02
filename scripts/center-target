@@ -1,0 +1,107 @@
+#!/usr/bin/python3
+import sys
+import argparse
+import numpy as np
+import pyds9
+from astropy.io import fits
+from mskpy.image.analysis import gcentroid, UnableToCenter
+
+parser = argparse.ArgumentParser(description='Manually find target centers in FITS images.')
+parser.add_argument('file', nargs='+', help='FITS images to center.')
+parser.add_argument('--center-keys', default='CX,CY', help='FITS header keywords to use for x and y centers.  Default: CX,CY.')
+
+args = parser.parse_args()
+kx, ky = args.center_keys.split(',')
+
+ds9 = pyds9.DS9('center-target')
+ds9.set('frame 1')
+ds9.set('scale log')
+ds9.set('scale mode 99.5')
+ds9.set('cmap viridis')
+
+for fn in args.file:
+    with fits.open(fn, mode='update') as hdu:
+        ds9.set('frame 1')
+        ds9.set_pyfits(hdu)
+        ds9.set('mode crosshair')
+
+        print("\n\n{}\n".format(fn))
+
+        if kx in hdu[0].header and ky in hdu[0].header:
+            cyx = hdu[0].header[ky], hdu[0].header[kx]
+            ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+            print("Object already centered, crosshair updated to: y, x = {}.".format(cyx))
+        else:
+            print("Mark object center with crossahir.")
+            
+        print("""
+  [enter] center
+  [d] delete previous center keywords and skip to next file
+  [s] skip
+  [q] quit
+""".format(fn))
+        sys.stdin.flush()
+        inp = sys.stdin.readline().strip().lower()
+        if inp == 'd':
+            if kx in hdu[0].header:
+                del hdu[0].header[kx]
+            if ky in hdu[0].header:
+                del hdu[0].header[ky]
+            continue
+        elif inp == 's':
+            continue
+        elif inp == 'q':
+            break
+
+        recenter = True
+        box = 7
+        while recenter:
+            guess = np.array(ds9.get('crosshair').split(), float)[::-1] - 1
+            print('Box = {}'.format(box))
+            try:
+                cyx = gcentroid(hdu[0].data, guess, box=box)
+            except UnableToCenter:
+                print('Unable to center.')
+                cyx = 0, 0
+
+            ds9.set('frame 1')
+            ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+
+            print("""  guess y, x = {}
+  center y, x = {}
+
+  [a] accept center and skip to next file
+  [r] re-center with current crosshair position
+  [-] re-center with smaller box size
+  [+] re-center with larger box size
+  [s] skip this file
+  [q] quit without accepting center
+""".format(guess, cyx))
+
+            sys.stdin.flush()
+            inp = ''
+            while inp not in ['a', 'r', '-', '+', 's', 'q']:
+                inp = sys.stdin.readline().strip()
+
+            inp = inp[0].lower()
+            if inp == 'a':
+                hdu[0].header[ky] = cyx[0], 'Estimated y position of target, 0-based index'
+                hdu[0].header[kx] = cyx[1], 'Estimated x position of target, 0-based index'
+                recenter = False
+            elif inp == 'r':
+                pass
+            elif inp == '-':
+                box = max(3, box - 2)
+            elif inp == '+':
+                box = min(hdu[0].data.shape[0], hdu[0].data.shape[1], box + 2)
+            elif inp == 's':
+                recenter = False
+            elif inp == 'q':
+                recenter = False
+
+        if inp == 'q':
+            break
+
+del ds9
