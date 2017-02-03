@@ -4,7 +4,7 @@ import argparse
 import datetime
 import astropy.units as u
 import mskpy
-from mskpy import ephem, util, between, Coma, Asteroid
+from mskpy import ephem, util, between, Coma, Asteroid, HYmag
 
 today = datetime.date.today()
 
@@ -29,40 +29,45 @@ parser.add_argument('--include', type=str, default=None,
                     help='List additional columns to include, e.g., lelong (Lunar elongation), lam (Ecliptic longitude), bet (Ecliptic latitude), sangle (projected Sun angle), vangle (projected velocity angle).')
 
 parser.add_argument('--observer', type=str, action='store', default='Earth',
-                    help='The observer.')
+                    help='The observer.  Default: Earth.')
 parser.add_argument('--selong', type=str, action=ListAction, default=[0, 180],
-                    help='The allowed solar elongation limits.')
+                    help='The allowed solar elongation limits. Default: 0,180.')
 
 parser.add_argument('--kernel', type=str, action='append', default=[],
                     help='Load this kernel.')
 
+parser.add_argument('-M', type=float, action='store', default=None,
+                    help='Absolute total magnitude at rh=Delta=1 au, phase=0 deg.')
+parser.add_argument('-K', type=float, action='store', default=4.0,
+                    help='Heliocentric distance magnitude slope. Default: 10..')
+
 parser.add_argument('--afrho', type=float, action='store', default=None,
                     help='Afrho parameter at phase angle = 0 [cm].')
 parser.add_argument('-k', type=float, action='store', default=-2.0,
-                    help='Afrho heliocentric distance power-law slope.')
+                    help='Afrho heliocentric distance power-law slope.  Default: -2.')
 parser.add_argument('--rh', type=float, action='store', default=1.0,
-                    help='Afrho parameter specified at this rh [AU].')
+                    help='Afrho parameter specified at this rh [AU].  Default: 1.')
 parser.add_argument('--ef2af', type=float, action='store', default=3.5,
-                    help='The ratio of IR emissivity to albedo.')
+                    help='The ratio of IR emissivity to albedo.  Default: 3.5.')
 parser.add_argument('--tscale', type=float, action='store', default=1.1,
-                    help='Effective temperature scale factor.')
+                    help='Effective temperature scale factor. Default: 1.1.')
 parser.add_argument('--phasef', type=str, action='store', default='phaseHM',
-                    help='Phase function: phaseK, phaseH, phaseHM.')
+                    help='Phase function: phaseK, phaseH, phaseHM.  Default: phaseHM.')
 
 parser.add_argument('-D', type=float, action='store', default=None,
                     help='Asteroid diameter [km].')
 parser.add_argument('--eta', type=float, action='store', default=1.0,
-                    help='IR-beaming parameter.')
+                    help='IR-beaming parameter.  Default: 1.')
 parser.add_argument('--Ap', type=float, action='store', default=0.04,
-                    help='Asteroid/nucleus geometric albedo.')
+                    help='Asteroid/nucleus geometric albedo.  Default: 0.04.')
 
 parser.add_argument('--wave', type=str, action=ListAction,
                     default=[0.6, 2.2, 10, 20],
-                    help='Wavelengths for estimate flux densities.')
+                    help='Wavelengths for estimate flux densities.  Default: 0.6,2.2,10,20.')
 parser.add_argument('--rap', type=float, action='store', default=1.0,
-                    help='Aperture radius [arcsec].')
+                    help='Aperture radius [arcsec].  Default: 1.')
 parser.add_argument('--unit', type=str, action='store', default='Jy',
-                    help='Flux density unit.')
+                    help='Flux density unit.  Default: Jy')
 
 args = parser.parse_args()
 if args.target == []:
@@ -103,37 +108,43 @@ except AttributeError:
     observer = ephem.getspiceobj(' '.join(args.observer))
 
 ephemeris_only = False
-if args.afrho is None and args.D is None:
+test = [x is not None for x in (args.afrho, args.D, args.M)]
+if not any(test):
+    # no brightness estimate requested
     ephemeris_only = True
 else:
-    if ((args.afrho is not None) and (args.D is not None)):
-        raise AssertionError("D (asteroid) and afrho (coma) cannot be"
-                             " simulatenously requested.")
+    # make sure only one brightness estimate was requested
+    assert sum(test) == 1, "Only one of M, afrho, or D may be requested at a time."
 
 columns = ['date', 'ra', 'dec', 'rh', 'delta', 'phase', 'selong']
 if args.include is not None:
     columns.extend(args.include.split(','))
     
 arg_list = ['start', 'end', 'n', 'observer', 'selong']
-if ephemeris_only:
+if ephemeris_only or args.M is not None:
     t = target.ephemeris(observer, [args.start, end], num=n,
                          columns=columns)
-else:
-    if args.afrho is not None:
-        arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
-                         'wave', 'rap', 'unit'])
-        afrho1 = args.afrho / args.rh**args.k * u.cm
-        coma = Coma(target.state, afrho1, k=args.k,
-                    ef2af=args.ef2af, Tscale=args.tscale,
-                    phasef=getattr(mskpy.models, args.phasef))
-        t = coma.lightcurve(observer, [args.start, end], args.wave * u.um,
-                            num=n, rap=args.rap * u.arcsec,
-                            unit=u.Unit(args.unit), verbose=False)
-    elif args.D is not None: 
-        arg_list.extend(['D', 'Ap', 'eta', 'wave', 'unit'])
-        asteroid = Asteroid(target.state, args.D * u.km, args.Ap, eta=args.eta)
-        t = asteroid.lightcurve(observer, [args.start, end], args.wave * u.um,
-                                num=n, unit=u.Unit(args.unit), verbose=False)
+    if args.M is not None:
+        arg_list.extend(['M', 'K'])
+        t['V'] = HYmag(args.M, args.K, t)
+        t['V'].format = '{:.2f}'
+elif args.afrho is not None:
+    arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
+                     'wave', 'rap', 'unit'])
+    afrho1 = args.afrho / args.rh**args.k * u.cm
+    coma = Coma(target.state, afrho1, k=args.k,
+                ef2af=args.ef2af, Tscale=args.tscale,
+                phasef=getattr(mskpy.models, args.phasef))
+    t = coma.lightcurve(observer, [args.start, end], args.wave * u.um,
+                        num=n, rap=args.rap * u.arcsec,
+                        unit=u.Unit(args.unit), verbose=False)
+elif args.D is not None: 
+    arg_list.extend(['D', 'Ap', 'eta', 'wave', 'unit'])
+    asteroid = Asteroid(target.state, args.D * u.km, args.Ap, eta=args.eta)
+    t = asteroid.lightcurve(observer, [args.start, end], args.wave * u.um,
+                            num=n, unit=u.Unit(args.unit), verbose=False)
+
+            
 
 t = t[between(t['selong'], args.selong)]
 
