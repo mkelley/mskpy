@@ -2,6 +2,7 @@
 import sys
 import argparse
 import datetime
+import numpy as np
 import astropy.units as u
 import mskpy
 from mskpy import ephem, util, between, Coma, Asteroid, HYmag
@@ -37,9 +38,14 @@ parser.add_argument('--kernel', type=str, action='append', default=[],
                     help='Load this kernel.')
 
 parser.add_argument('-M', type=float, action='store', default=None,
-                    help='Absolute total magnitude at rh=Delta=1 au, phase=0 deg.')
+                    help='Comet absolute total magnitude (rh=Delta=1 au, phase=0 deg).')
 parser.add_argument('-K', type=float, action='store', default=4.0,
                     help='Heliocentric distance magnitude slope. Default: 10..')
+
+parser.add_argument('-H', type=float, action='store', default=None,
+                    help='Absolute asteroidal/nuclear magnitude (rh=Delta=1 au, phase=0 deg).')
+parser.add_argument('--beta', type=float, action='store', default=0.04,
+                    help='Asteroidal/nuclear phase coefficient.  Default: 0.04 mag/deg.')
 
 parser.add_argument('--afrho', type=float, action='store', default=None,
                     help='Afrho parameter at phase angle = 0 [cm].')
@@ -121,13 +127,26 @@ if args.include is not None:
     columns.extend(args.include.split(','))
     
 arg_list = ['start', 'end', 'n', 'observer', 'selong']
-if ephemeris_only or args.M is not None:
+if ephemeris_only or args.M is not None or args.N is not None:
     t = target.ephemeris(observer, [args.start, end], num=n,
                          columns=columns)
     if args.M is not None:
         arg_list.extend(['M', 'K'])
-        t['V'] = HYmag(args.M, args.K, t)
-        t['V'].format = '{:.2f}'
+        t['mT'] = HYmag(args.M, args.K, t)
+        t['mT'].format = '{:.2f}'
+
+    if args.H is not None:
+        if args.M is not None:
+            # call it mN for comet nuclear mag
+            k = 'mN'
+        else:
+            k = 'm'
+            
+        arg_list.append('H')
+        arg_list.append('beta')
+        t[k] = HYmag(args.H, 5, t) + 2.5 * np.log10(args.beta * t['phase'].data)
+        t[k].format = '{:.2f}'
+            
 elif args.afrho is not None:
     arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
                      'wave', 'rap', 'unit'])
