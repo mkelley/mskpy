@@ -134,6 +134,7 @@ if ephemeris_only or args.M is not None or args.N is not None:
         arg_list.extend(['M', 'K'])
         t['mT'] = HYmag(args.M, args.K, t)
         t['mT'].format = '{:.2f}'
+        t['mT'].unit = 'mag'
 
     if args.H is not None:
         if args.M is not None:
@@ -146,6 +147,7 @@ if ephemeris_only or args.M is not None or args.N is not None:
         arg_list.append('beta')
         t[k] = HYmag(args.H, 5, t) + 2.5 * np.log10(args.beta * t['phase'].data)
         t[k].format = '{:.2f}'
+        t[k].unit = 'mag'
             
 elif args.afrho is not None:
     arg_list.extend(['afrho', 'k', 'rh', 'ef2af', 'tscale', 'phasef',
