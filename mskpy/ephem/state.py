@@ -29,7 +29,6 @@ from datetime import datetime
 import numpy as np
 from astropy.time import Time
 import spiceypy as spice
-from spiceypy.support_types import SpiceyError
 
 from . import core
 
