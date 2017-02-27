@@ -17,7 +17,7 @@ from datetime import datetime
 
 import numpy as np
 import spiceypy as spice
-from spiceypy.util.support_types import SpiceyError
+from spiceypy.utils.support_types import SpiceyError
 
 _spice_setup = False
 
