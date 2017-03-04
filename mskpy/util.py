@@ -415,8 +415,8 @@ def gaussian2d(shape, sigma, theta=0):
     c = np.sin(thr)**2 / 2.0 / sx**2 + np.cos(thr)**2 / 2.0 / sy**2
 
     y, x = np.indices(shape)
-    y -= (shape[0] - 1) / 2.0
-    x -= (shape[1] - 1) / 2.0
+    y = y - (shape[0] - 1) / 2
+    x = x - (shape[1] - 1) / 2
 
     G = np.exp(-(a * x**2 + 2 * b * x * y + c * y**2))
     G /= 2.0 * np.pi * sx * sy

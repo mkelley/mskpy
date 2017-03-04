@@ -42,7 +42,7 @@ if __name__ == "__main__":
     files = find_data_files()
 
     setup(name='mskpy',
-          version='3.0.4-dev',
+          version='3.0.5-dev',
           description='General purpose and astronomy related tools',
           author="Michael S. P. Kelley",
           author_email="msk@astro.umd.edu",
@@ -51,7 +51,8 @@ if __name__ == "__main__":
                     'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing',
                     'mskpy.photometry'],
           data_files=files,
-          scripts=['scripts/ephemeris', 'scripts/transit'],
+          scripts=['scripts/ephemeris', 'scripts/transit',
+                   'scripts/center-target'],
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
           cmdclass={'test': PyTest, 'install': my_install},

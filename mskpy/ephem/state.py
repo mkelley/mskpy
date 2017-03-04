@@ -26,11 +26,9 @@ __all__ = [
 ]
 
 from datetime import datetime
-
 import numpy as np
 from astropy.time import Time
-import spiceypy.wrapper as spice
-from spiceypy.support_types import SpiceyError
+import spiceypy as spice
 
 from . import core
 

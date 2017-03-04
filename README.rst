@@ -1,13 +1,11 @@
-mskpy v3.0.4-dev
+mskpy v3.0.5-dev
 ============
 
 MSK's personal Python library, mostly for astronomy work.
 
 Requires: python3 (3.5+ recommended), numpy, scipy, astropy v1.2+, FORTRAN compiler.
 
-Recommended: spiceypy (v0.6.2), matplotlib.
-
-Optional: pyds9.
+Recommended: spiceypy (v1.1.0), matplotlib, pyds9.
 
 
 Caution
@@ -24,7 +22,7 @@ After installation, the file $HOME/.config/mskpy/mskpy.cfg should be
 created.  If not simply execute ``python -c 'import mskpy.config'``.
 This file currently contains paths to your SPICE kernels, Cohen
 mid-IR standards, and IRTF spextool data files. (none are required to
-run mskpy).
+use `mskpy`).
 
 SPICE Kernels
 -------------
@@ -40,12 +38,6 @@ These kernels are available from the NAIF group at JPL:
   http://naif.jpl.nasa.gov/pub/naif/generic_kernels/
 
 See the `ephem` module documentation for more details.
-
-Known Issues
-============
-
-None at this time.
-
 
 Examples
 ========

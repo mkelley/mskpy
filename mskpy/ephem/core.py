@@ -16,8 +16,8 @@ core --- Basic functions, mostly time, for ephem.
 from datetime import datetime
 
 import numpy as np
-import spiceypy.wrapper as spice
-from spiceypy.support_types import SpiceyError
+import spiceypy as spice
+from spiceypy.utils.support_types import SpiceyError
 
 _spice_setup = False
 

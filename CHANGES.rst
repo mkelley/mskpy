@@ -1,3 +1,27 @@
+3.0.4
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- Fixed import errors with SpiceyPy under some circumstances.
+
+New features
+^^^^^^^^^^^^
+
+- `SpiceState.oscelt` for osculating elements
+
+- `SpiceState.core.et2jd` to convert ephemeris time to Julian date.
+
+- New `center-target` command-line script for annotating FITS headers with target coordinates.
+
+- `ephemeris` command-line script can now estimate apparent magnitudes when given appropriate parameters.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- Corrected `ksplot` return value.
+
 3.0.3
 -----
 
