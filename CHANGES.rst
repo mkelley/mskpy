@@ -1,3 +1,20 @@
+3.0.5
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- Another fix for crashing imports with SpiceyPy.
+
+- Fixed `util.gaussian2d` crash.
+    
+New features
+^^^^^^^^^^^^
+
+- New Sun-Earth L2 ephemeris object, `Earth_L2`, if a kernel named
+  `L2.bsp` is available.
+
+
 3.0.4
 -----
 
