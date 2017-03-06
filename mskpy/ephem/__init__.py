@@ -20,7 +20,7 @@ Requres SpiceyPy.
    Built-in SolarSysObjects
    ------------------------
    Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
-   Neptune, PlutoSys.  Optional: Spitzer, DeepImpact, Kepler.
+   Neptune, PlutoSys.  Optional: Spitzer, DeepImpact, Kepler, Earth_L2.
 
    Exceptions
    ----------
@@ -36,7 +36,7 @@ kernel file names from object names.
 Three SPICE kernels are required:
   - naif.tls : a leap seconds kernel,
   - pck.tpc : a planetary constants kernel,
-  - planets.bsp : a planetary ephemeris kernel, e.g., de421.
+  - planets.bsp : a planetary ephemeris kernel, e.g., de431.
 
 There are five optional kernels:
   - L2.bsp : an ephemeris kernel for the second Lagrange point in the Earth-Sun system, https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/lagrange_point/

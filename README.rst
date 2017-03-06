@@ -1,4 +1,4 @@
-mskpy v3.0.5-dev
+mskpy v3.0.5
 ============
 
 MSK's personal Python library, mostly for astronomy work.
@@ -30,16 +30,31 @@ SPICE Kernels
 To use the `ephem` and `observing` modules, `spiceypy` is required.
 At a minimum, three kernels are needed to be present in your kernel
 directory:
-- naif.tls : a leap seconds kernel, e.g., naif0012.tls,
-- pck.tpc : a planetary constants kernel,
-- planets.bsp : a planetary ephemeris kernel, e.g., DE431.
+  - naif.tls : a leap seconds kernel, e.g., naif0012.tls,
+  - pck.tpc : a planetary constants kernel,
+  - planets.bsp : a planetary ephemeris kernel, e.g., DE431.
 These kernels are available from the NAIF group at JPL:
 
   http://naif.jpl.nasa.gov/pub/naif/generic_kernels/
 
-In general, download the most recent versions for the leap seconds and planetary constants kernels.  For the planetary ephemeris kernel, check the NAIF comments and readme files to determine which is the best for your installation.   See the `ephem` module documentation for more details.
+In general, download the most recent versions for the leap seconds and
+planetary constants kernels.  For the planetary ephemeris kernel,
+check the NAIF comments and readme files to determine which is the
+best for your installation.
 
-Copy the kernels to your kernel directory.  I recommend keeping the original file names and using symbolic links to match what `mskpy` requires, i.e., link `naif.tls` to `naif0012.tls`.  After importing `mskpy` for the first time, edit the configuration file (see above) to match your kernel installation location.
+Copy the kernels to your kernel directory.  I recommend keeping the
+original file names and using symbolic links to match what `mskpy`
+requires, i.e., link `naif.tls` to `naif0012.tls`.  After importing
+`mskpy` for the first time, edit the configuration file (see above) to
+match your kernel installation location.
+
+There are five optional kernels:
+  - L2.bsp : an ephemeris kernel for the second Lagrange point in the Earth-Sun system, https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/lagrange_point/
+  - spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope, ftp://naif.jpl.nasa.gov/pub/naif/SIRTF/kernels/spk/
+  - kepler.bsp : an ephemeris kernel for the Kepler Telescope, https://archive.stsci.edu/pub/k2/spice/
+  - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby, ftp://naif.jpl.nasa.gov/pub/naif/
+  - naif-names.txt : your own body to ID code mappings.  See "Use of an External Mapping Definition Kernel" in the `NAIF ID Integer Codes <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html>`_ document.
+
 
 Examples
 ========
