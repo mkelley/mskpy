@@ -29,15 +29,17 @@ SPICE Kernels
 
 To use the `ephem` and `observing` modules, `spiceypy` is required.
 At a minimum, three kernels are needed to be present in your kernel
-directory (as set by the module configuration):
-- naif.tls : a leap seconds kernel,
+directory:
+- naif.tls : a leap seconds kernel, e.g., naif0012.tls,
 - pck.tpc : a planetary constants kernel,
-- planets.bsp : a planetary ephemeris kernel, e.g., DE430.
+- planets.bsp : a planetary ephemeris kernel, e.g., DE431.
 These kernels are available from the NAIF group at JPL:
 
   http://naif.jpl.nasa.gov/pub/naif/generic_kernels/
 
-See the `ephem` module documentation for more details.
+In general, download the most recent versions for the leap seconds and planetary constants kernels.  For the planetary ephemeris kernel, check the NAIF comments and readme files to determine which is the best for your installation.   See the `ephem` module documentation for more details.
+
+Copy the kernels to your kernel directory.  I recommend keeping the original file names and using symbolic links to match what `mskpy` requires, i.e., link `naif.tls` to `naif0012.tls`.  After importing `mskpy` for the first time, edit the configuration file (see above) to match your kernel installation location.
 
 Examples
 ========
