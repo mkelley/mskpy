@@ -65,7 +65,7 @@ Solar System observing geometry
 Download 2P/Encke SPICE kernel from JPL HORIZONS; save as
 'encke.bsp'::
 
-  >>> from mskpy import getspiceobj
+  >>> from mskpy import getspiceobj, Earth
   >>> encke = getspiceobj('encke')
   >>> Earth.observe(encke, '2013-11-01').summary()
   
@@ -104,7 +104,7 @@ Ephemerides
 -----------
 
   >>> from mskpy import Earth, Moon
-  >>> print Moon.ephemeris(Earth, ['2013-1-1', '2013-12-31'], num=365)
+  >>> print(Moon.ephemeris(Earth, ['2013-1-1', '2013-12-31'], num=365))
         date         ra   dec     rh  delta phase selong
   ---------------- ----- ------ ----- ----- ----- ------
   2013-01-01 00:00 09:25  09:46 0.985 0.003    40    140
@@ -159,6 +159,11 @@ Read in a HORIZONS CSV formatted table:
   2016-Dec-30 00:00   --   --         22 39 11.83 ... 59.3016  /T 36.9235    --
   2016-Dec-31 00:00   --   --         22 42 00.64 ... 59.0374  /T 36.7793    --
 
+The same file can be directly read with `astropy`:
+
+  >>> import mskpy
+  >>> from astropy.table import Table
+  >>> eph = Table.read('horizons_results.txt', format='horizons.csv')
 
 
 Flux estimates
@@ -176,7 +181,7 @@ A) Thermal emission from (24) Themis.  If you are not using SPICE, but
       >>> from mskpy.models import NEATM
       >>> geom = dict(rh=2.741 * u.au, delta=3.317 * u.au, phase=15.5 * u.deg)
       >>> themis = NEATM(198 * u.km, 0.067, G=0.19, eta=1.0)
-      >>> print themis.fluxd(geom,  [0.55, 3.0, 10] * u.um, unit=u.Jy)
+      >>> print(themis.fluxd(geom,  [0.55, 3.0, 10] * u.um, unit=u.Jy))
       [  6.43548331e-42   9.33984255e-05   6.19350889e+00] Jy
 
 B) Thermal emission and/or reflected light from (24) Themis.  Download
@@ -186,13 +191,13 @@ B) Thermal emission and/or reflected light from (24) Themis.  Download
       >>> from mskpy import Asteroid, SpiceState, Earth
       >>> themis = Asteroid(SpiceState(2000024), 198 * u.km, 0.067, G=0.19, eta=1.0)
       # Thermal + Reflected
-      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy)
+      >>> print(themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy))
       [ 0.03174409  0.01327644  6.19537937] Jy
       # Thermal only
-      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, reflected=False)
+      >>> print(themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, reflected=False))
       [  6.46956946e-42   9.34730285e-05   6.19402381e+00] Jy
       # Reflected only
-      >>> print themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, thermal=False)
+      >>> print(themis.fluxd(Earth, '2013-10-15', [0.55, 3.0, 10] * u.um, unit=u.Jy, thermal=False))
       [ 0.03174409  0.01318297  0.00135556] Jy
 
 Comet coma
@@ -206,8 +211,7 @@ Download *Spitzer Space Telescope* kernel from JPL NAIF; save as
   >>> from mskpy import Coma, SpiceState, Spitzer
   >>> Afrho1 = 8.9 * u.cm * 2.53**2
   >>> encke = Coma(SpiceState('encke'), Afrho1, ef2af=3.5, Tscale=1.1)
-  >>> print encke.fluxd(Spitzer, '2004-06-20 18:35', 23.7 * u.um,
-                        rap=12.5 * u.arcsec, unit=u.Jy)
+  >>> print(encke.fluxd(Spitzer, '2004-06-20 18:35', 23.7 * u.um, rap=12.5 * u.arcsec, unit=u.Jy))
   [ 0.02589534] Jy
 
 
