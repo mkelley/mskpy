@@ -45,7 +45,7 @@ for fn in args.file:
                 cyx = wcs.wcs_world2pix(objects[obj], 0)[0][::-1]
                 ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
                 ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
-            print("Object not centered, but I have guessed its location: y, x = {}.".format(cyx))
+                print("Object not centered, but I have guessed its location: y, x = {}.".format(cyx))
             
         print("Mark object center with crosshair.")
             
