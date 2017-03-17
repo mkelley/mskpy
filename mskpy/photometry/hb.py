@@ -60,7 +60,7 @@ cw = {  # center wavelengths
     'H2O+': u.Quantity(0.7028, 'um'),
       'RC': u.Quantity(0.7133, 'um'),
        'R': u.Quantity(0.641,  'um'),  # Bessell 1998
-  'SDSS-R': u.Quantity(0.6261, 'um'),  # Fukugita et al. 1996
+  'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
 }
 
 cw_50 = {  # 50% power width
@@ -91,7 +91,7 @@ F_0 = {  # Zero magnitude flux density
       'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
       'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
        'R': u.Quantity(2.177e-8, 'W/(m2 um)'), # Bessell 1998
-  'SDSS-R': u.Quantity(2.777e-8, 'W/(m2 um)')  # Smith et al. 2002 for zeropoint in Jy, Fukugita et al. 1996 for effective wavelength 6261 Å.
+  'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)')  # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
 }
 
 MmBC_sun = {  # M - BC for the Sun
