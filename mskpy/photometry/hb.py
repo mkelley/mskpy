@@ -60,6 +60,7 @@ cw = {  # center wavelengths
     'H2O+': u.Quantity(0.7028, 'um'),
       'RC': u.Quantity(0.7133, 'um'),
        'R': u.Quantity(0.641,  'um'),  # Bessell 1998
+       'V': u.Quantity(0.545,  'um'),  # Bessell 1998
   'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
 }
 
@@ -91,6 +92,7 @@ F_0 = {  # Zero magnitude flux density
       'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
       'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
        'R': u.Quantity(2.177e-8, 'W/(m2 um)'), # Bessell 1998
+       'V': u.Quantity(3.631e-8, 'W/(m2 um)'), # Bessell 1998
   'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)')  # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
 }
 
