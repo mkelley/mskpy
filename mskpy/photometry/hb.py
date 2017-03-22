@@ -62,6 +62,7 @@ cw = {  # center wavelengths
        'R': u.Quantity(0.641,  'um'),  # Bessell 1998
        'V': u.Quantity(0.545,  'um'),  # Bessell 1998
   'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
+   'SDSSR': u.Quantity(0.6222, 'um'),
 }
 
 cw_50 = {  # 50% power width
@@ -93,7 +94,8 @@ F_0 = {  # Zero magnitude flux density
       'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
        'R': u.Quantity(2.177e-8, 'W/(m2 um)'), # Bessell 1998
        'V': u.Quantity(3.631e-8, 'W/(m2 um)'), # Bessell 1998
-  'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)')  # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
+  'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)'), # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
+   'SDSSR': u.Quantity(2.812e-8, 'W/(m2 um)'),
 }
 
 MmBC_sun = {  # M - BC for the Sun
@@ -108,7 +110,10 @@ MmBC_sun = {  # M - BC for the Sun
       'BC':  0.000,
       'GC': -0.507,
       'RC': -1.276,
-       'R': -0.90  # From solar mags, below
+       'V': -0.53,  # From solar mags, below
+       'R': -0.90,  # From solar mags, below
+  'SDSS-R': -0.70,  # From solar mags, below
+   'SDSSR': -0.70,
 }
 
 gamma_XX_XX = {
@@ -136,8 +141,10 @@ Msun = {  # apparent magnitude of the Sun, based on Appendix D.
     'BC': -26.23,
     'GC': -26.77,
     'RC': -27.44,
-     'R': -27.13,  # Bessell 1998, Vsun=-26.76, (V-R)sun=0.370
+     'V': -26.76,  # Bessell 1998
+     'R': -27.13,  # Bessell 1998, (V-R)sun=0.370
 'SDSS-R': -26.93,  # Smith et al. 2002 + Bessel 1998
+ 'SDSSR': -26.93,
 }
 
 S0 = {  # Solar flux density at 1 AU, based on Appendix D.
@@ -146,7 +153,8 @@ S0 = {  # Solar flux density at 1 AU, based on Appendix D.
     'GC': u.Quantity(1841, 'W/(m2 um)'),
     'RC': u.Quantity(1250, 'W/(m2 um)'),
      'R': u.Quantity(1534, 'W/(m2 um)'), # Bessell 1998
-'SDSS-R': u.Quantity(1643, 'W/(m2 um)')  # From Msun and zeropoint above
+'SDSS-R': u.Quantity(1643, 'W/(m2 um)'), # From Msun and zeropoint above
+ 'SDSSR': u.Quantity(1643, 'W/(m2 um)')
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
@@ -534,8 +542,8 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
             + ext_ozone_oh(z_true, toz, c))
 
-def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
-    """Extrapolate BC continuum to another filter.
+def fluxd_continuum(filt, m, m_unc, Rm, Rm_unc):
+    """Extrapolate continuum to other filters.
 
     Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
 
@@ -543,17 +551,20 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
 
     Parameters
     ----------
-    bc, bc_unc : float
-      Observed BC magnitude and uncertainty.
-    Rm, Rm_unc : float or Quantity
-      Observed color, in units of magnitudes per 1000 A, and uncertainty.
     filt : string
-      Name of the other filter: OH, NH, CN, C3, CO+, C2.
+      The continuum filter.
+    m, m_unc : float
+      Observed magnitude and uncertainty at `filt`.
+    Rm, Rm_unc : float or Quantity
+      Observed color, in units of magnitudes per 1000 Å, and
+      uncertainty, measured with respect to the central wavelength of
+      `filt`.
 
     Returns
     -------
-    fc, fc_unc : Quantity
-      Continuum flux density and uncertainty.
+    fc, fc_unc : dict of Quantity
+      Continuum flux density and uncertainty for all other configured
+      filters.
 
     """
 
@@ -561,16 +572,20 @@ def fluxd_continuum(bc, bc_unc, Rm, Rm_unc, filt):
     Rm_unc = u.Quantity(Rm_unc, '10 mag / um').value
 
     filt = filt.upper()
-    if filt == 'OH':
-        fc = (10**(-0.4 * bc) * 10**(-0.4 * MmBC_sun[filt])
-              * 10**(-0.5440 * Rm))
-        m_unc = np.sqrt(bc_unc**2 + (0.544 / 0.4 * Rm_unc)**2)
-        fc_unc = fc * m_unc / 1.0857
-    else:
-        raise ValueError('{} not yet implemented.'.format(filt))
+    filters = F_0.keys()
+    assert filt in filters, 'Unknown filter: {}'.format(filt)
+    
+    si = dict()  # solar index with respect to filt
+    for f in filters:
+        si[f] = MmBC_sun[f] - MmBC_sun[filt]
 
-    fc *= F_0[filt]
-    fc_unc *= F_0[filt]
+    fc = {}
+    fc_unc = {}
+    for f in filters:
+        dw = 10 * (cw[filt] - cw[f]).to('um').value  # units of 0.1 μm
+        fc[f] = F_0[filt] * 10**(-0.4 * (m + si[f] + dw * Rm))
+        fc_unc[f] = fc[f] * np.sqrt(m_unc**2 + (dw * Rm_unc)**2) / 1.0857
+    
     return fc, fc_unc
 
 def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
@@ -625,13 +640,13 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
-    fc, fc_unc = fluxd_continuum(bc, bc_unc, Rm, Rm_unc, 'OH')
+    fc, fc_unc = fluxd_continuum('BC', bc, bc_unc, Rm, Rm_unc)
 
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     f_unc = oh_unc * f / 1.0857  # first estimate
 
-    frac = fc / f  # fraction that is continuum
-    frac_unc = np.sqrt(f_unc**2 * fc**2 + fc_unc**2 * f**2) / f**2
+    frac = fc['OH'] / f  # fraction that is continuum
+    frac_unc = np.sqrt(f_unc**2 * fc['OH']**2 + fc_unc['OH']**2 * f**2) / f**2
     #E_unc = frac_unc / frac * 1.0857
     #E_unc = np.sqrt(oh_unc**2 + ((fc_unc / fc) * 1.0857)**2)
 
@@ -651,13 +666,15 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     f = F_0['OH'] * 10**(-0.4 * m)
     f_unc = m_unc * f / 1.0857
 
-    f_oh, f_oh_unc = flux_gas(f, f_unc, fc, fc_unc, 'OH')
+    f_oh, f_oh_unc = flux_gas(f, f_unc, fc['OH'], fc_unc['OH'], 'OH')
     return E_tot, E_unc, m, m_unc, f_oh, f_oh_unc
 
 def flux_gas(f, f_unc, fc, fc_unc, filt):
     """Gas emission band total flux.
 
-    Table VI and Eqs. 45-51 of Farnham et al. 2000.
+    Does not consider contamination from other species.
+
+    Table VI of Farnham et al. 2000.
 
     Parameters
     ----------
@@ -673,11 +690,12 @@ def flux_gas(f, f_unc, fc, fc_unc, filt):
     Returns
     -------
     fgas, fgas_unc : Quantity
+      Estimated total gas flux, including contaimintion from any other
+      species.
 
     """
 
     filt = filt.upper()
-    assert filt in filters
 
     if isinstance(f, u.Quantity):
         f_unc = u.Quantity(f_unc, f.unit)
@@ -688,11 +706,8 @@ def flux_gas(f, f_unc, fc, fc_unc, filt):
         f = u.Quantity(f, f.unit)
         f_unc = u.Quantity(f_unc, f.unit)
 
-    if filt in ['OH', 'C3', 'C2', 'H2O+']:
-        fgas = (f - fc) / gamma_XX_XX[filt]
-        fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX_XX[filt]
-    else:
-        raise ValueError('{} not yet implemented.'.format(filt))
+    fgas = (f - fc) / gamma_XX_XX[filt]
+    fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX_XX[filt]
 
     return fgas.decompose([u.W, u.m]), fgas_unc.decompose([u.W, u.m])
 
