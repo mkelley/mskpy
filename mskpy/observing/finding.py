@@ -31,10 +31,10 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
 
     Parameters
     ----------
-    target : SolarSysObject
-      The target.
-    observer : SolarSysObject
-      The observer.
+    target : string
+      The target, sent to `callhorizons`.
+    observer : string
+      The observer location, sent to `callhorizons`.
     date : array-like of string
       The start and end dates for the finding charts.  Processed with
       `util.date2time`.
@@ -51,9 +51,11 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     import os
     from astropy.io import fits
     from astropy.wcs import WCS
+    from astropy.wcs.utils import skycoord_to_pixel
     import astropy.units as u
     import astropy.coordinates as coords
     from astroquery.skyview import SkyView
+    import callhorizons
     import aplpy
     from .. import util
 
@@ -62,19 +64,32 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
     jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
 
-    # geometry
-    g = observer.observe(target, jd, ltt=True)
-    g_labels = observer.observe(target, jd_labels, ltt=True)
+    ra, dec = [], []
+    q = callhorizons.query(target)
+    for i in range(len(jd)):
+        q.set_discreteepochs([jd[i]])
+        q.get_ephemerides(observer)
+        ra.append(q['RA'])
+        dec.append(q['DEC'])
 
-    eph = coords.SkyCoord(g.ra, g.dec)
+    eph = coords.SkyCoord(ra, dec, unit='deg')
+    
+    ra, dec = [], []
+    for i in range(len(jd_labels)):
+        q.set_discreteepochs([jd_labels[i]])
+        q.get_ephemerides(observer)
+        ra.append(q['RA'])
+        dec.append(q['DEC'])
+
+    labels = coords.SkyCoord(ra, dec, unit='deg')
     
     step = 0
-    while step < len(g):
+    while step < len(eph):
         print('This step: ', util.date2time(jd[step]).iso,
-              eph[step].to_string('hmsdms', sep=':', precision=0))
+              eph[step][0].to_string('hmsdms', sep=':', precision=0))
 
         fn = '{}'.format(
-            eph[step].to_string('hmsdms', sep='', precision=0).replace(' ', ''))
+            eph[step][0].to_string('hmsdms', sep='', precision=0).replace(' ', ''))
 
         if os.path.exists('sky-{}.fits.gz'.format(fn)):
             print('reading from file')
@@ -108,10 +123,10 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
             im.writeto('sky-{}.fits.gz'.format(fn))
 
         wcs = WCS(im[0].header)
-        c = wcs.wcs_world2pix(g.ra.degree, g.dec.degree, 0)
+        c = skycoord_to_pixel(eph, wcs, 0)
         i = (c[0] > 0) * (c[0] < 900) * (c[1] > 0) * (c[1] < 900)
 
-        c = wcs.wcs_world2pix(g_labels.ra.degree, g_labels.dec.degree, 0)
+        c = skycoord_to_pixel(labels, wcs, 0)
         j = (c[0] > 0) * (c[0] < 900) * (c[1] > 0) * (c[1] < 900)
 
         fig = aplpy.FITSFigure(im)
@@ -128,13 +143,13 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
 
         for k in np.flatnonzero(j):
             d = util.date2time(jd_labels[k])
-            fig.add_label(g_labels.ra[k].degree, g_labels.dec[k].degree,
+            fig.add_label(labels.ra[k].degree[0], labels.dec[k].degree[0],
                           d.datetime.strftime('%H:%M'), color='w',
                           alpha=alpha, size='small')
 
-        fig.show_rectangles(eph[step].ra.degree, eph[step].dec.degree,
+        fig.show_rectangles(eph[step].ra.degree[0], eph[step].dec.degree[0],
                             1 / 60, 1 / 60, edgecolors='w', alpha=alpha)
-        t = target.name.replace(' ', '').replace('/', '').replace("'", '').lower()
+        t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
         d = util.date2time(jd[step])
         fig.save('{}-{}-{}.png'.format(t, fn, d.isot[:16].replace(':', '')),
                  dpi=300)

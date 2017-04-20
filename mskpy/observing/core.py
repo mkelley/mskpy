@@ -94,7 +94,7 @@ def ct2lst(date, lon, tz):
 
     d = date2time(date)
     jd = d.jd
-    if isinstance(tz, float):
+    if isinstance(tz, (float, int)):
         tzoff = tz
     else:
         tzoff = tz2utc(d, tz).total_seconds() / 3600.0
@@ -278,4 +278,4 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
             s = ct[i]
 
     return r, t, s
-        
+
