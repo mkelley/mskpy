@@ -1237,6 +1237,7 @@ class SpeXPrism60(SpeX):
             if abcombine:
                 h[i]['ABAPS'] = ','.join(appos), 'Aperture positions before AB combination.'
             h[i]['AP01RAD'] = rap * ps, 'Aperture radius in arcseconds'
+            h[i]['APREF'] = self.config['bottom'], 'Aperture position reference pixel'
             h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
             if bgap is None:
                 h[i]['BGSTART'] = 0
