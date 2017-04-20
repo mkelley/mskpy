@@ -81,20 +81,20 @@ cw_50 = {  # 50% power width
 
 # Table VI of Farnham et al. 2000
 F_0 = {  # Zero magnitude flux density
-      'OH': u.Quantity(1.0560e-7, 'W/(m2 um)'),
-      'NH': u.Quantity(8.420e-8, 'W/(m2 um)'),
-      'CN': u.Quantity(8.6e-8,   'W/(m2 um)'),
-      'C3': u.Quantity(8.160e-8, 'W/(m2 um)'),
-     'CO+': u.Quantity(7.323e-8, 'W/(m2 um)'),
-      'C2': u.Quantity(3.887e-8, 'W/(m2 um)'),
-    'H2O+': u.Quantity(1.380e-8, 'W/(m2 um)'),
-      'UC': u.Quantity(7.802e-8, 'W/(m2 um)'),
-      'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
-      'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
-      'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
-       'R': u.Quantity(2.177e-8, 'W/(m2 um)'), # Bessell 1998
-       'V': u.Quantity(3.631e-8, 'W/(m2 um)'), # Bessell 1998
-  'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)'), # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
+      'OH': u.Quantity(10.560e-8, 'W/(m2 um)'),
+      'NH': u.Quantity( 8.420e-8, 'W/(m2 um)'),
+      'CN': u.Quantity( 8.6e-8,   'W/(m2 um)'),
+      'C3': u.Quantity( 8.160e-8, 'W/(m2 um)'),
+     'CO+': u.Quantity( 7.323e-8, 'W/(m2 um)'),
+      'C2': u.Quantity( 3.887e-8, 'W/(m2 um)'),
+    'H2O+': u.Quantity( 1.380e-8, 'W/(m2 um)'),
+      'UC': u.Quantity( 7.802e-8, 'W/(m2 um)'),
+      'BC': u.Quantity( 6.210e-8, 'W/(m2 um)'),
+      'GC': u.Quantity( 3.616e-8, 'W/(m2 um)'),
+      'RC': u.Quantity( 1.316e-8, 'W/(m2 um)'),
+       'R': u.Quantity( 2.177e-8, 'W/(m2 um)'), # Bessell 1998
+       'V': u.Quantity( 3.631e-8, 'W/(m2 um)'), # Bessell 1998
+  'SDSS-R': u.Quantity( 2.812e-8, 'W/(m2 um)'), # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
    'SDSSR': u.Quantity(2.812e-8, 'W/(m2 um)'),
 }
 
@@ -136,25 +136,41 @@ gamma_prime_XX_XX = {
     'H2O+': 1.00
 }
 
-Msun = {  # apparent magnitude of the Sun, based on Appendix D.
-    'UC': -25.17,
-    'BC': -26.23,
-    'GC': -26.77,
-    'RC': -27.44,
+Msun = {  # apparent magnitude of the Sun, based on Appendix Table VI
+          # and Appendix D text near Eq. 44.
+    'OH': -24.443,
+    'NH': -25.046,
+    'CN': -25.203,
+    'C3': -25.737,
+   'CO+': -25.896,
+    'C2': -26.657,
+  'H2O+': -27.483,
+    'UC': -25.133,
+    'BC': -26.234,  # -2.5 * log10(2.4685e19 / 1.276e17 / 6.210e-9)
+    'GC': -26.741,
+    'RC': -27.510,
      'V': -26.76,  # Bessell 1998
-     'R': -27.13,  # Bessell 1998, (V-R)sun=0.370
-'SDSS-R': -26.93,  # Smith et al. 2002 + Bessel 1998
- 'SDSSR': -26.93,
+     'R': -27.13,  # Bessell 1998, (V-R)sun=0.370 (Colina et al. 1996)
+#'SDSS-R': -26.93,  # Smith et al. 2002 + Bessel 1998
+# 'SDSSR': -26.93,
 }
 
-S0 = {  # Solar flux density at 1 AU, based on Appendix D.
-    'UC': u.Quantity(908.9, 'W/(m2 um)'),
-    'BC': u.Quantity(1934, 'W/(m2 um)'),
-    'GC': u.Quantity(1841, 'W/(m2 um)'),
-    'RC': u.Quantity(1250, 'W/(m2 um)'),
-     'R': u.Quantity(1534, 'W/(m2 um)'), # Bessell 1998
-'SDSS-R': u.Quantity(1643, 'W/(m2 um)'), # From Msun and zeropoint above
- 'SDSSR': u.Quantity(1643, 'W/(m2 um)')
+S0 = {  # Solar flux density at 1 AU, F_0 * 10**(-0.4 * Msun)
+    'OH': u.Quantity( 632.2, 'W/(m2 um)'),
+    'NH': u.Quantity( 878.4, 'W/(m2 um)'),
+    'CN': u.Quantity(1036.8, 'W/(m2 um)'),
+    'C3': u.Quantity(1608.8, 'W/(m2 um)'),
+   'CO+': u.Quantity(1671.4, 'W/(m2 um)'),
+    'C2': u.Quantity(1788.2, 'W/(m2 um)'),
+  'H2O+': u.Quantity(1358.6, 'W/(m2 um)'),
+    'UC': u.Quantity( 881.9, 'W/(m2 um)'),
+    'BC': u.Quantity(1935.0, 'W/(m2 um)'),
+    'GC': u.Quantity(1797.3, 'W/(m2 um)'),
+    'RC': u.Quantity(1328.2, 'W/(m2 um)'),
+     'V': u.Quantity(1836.4, 'W/(m2 um)'),
+     'R': u.Quantity(1548.3, 'W/(m2 um)'),
+'SDSS-R': u.Quantity(1663.5, 'W/(m2 um)'),
+ 'SDSSR': u.Quantity(1663.5, 'W/(m2 um)')
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
@@ -269,9 +285,8 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
 
     Parameters
     ----------
-    w0 : string or Quantity
-      The shorter wavelength filter name, or the effective wavelength.
-      May be any of UC, BC, GC, RC, or R.
+    w0 : string
+      The shorter wavelength filter name.
     m0 : float
       The apparant magnitude through the shorter wavelength filter.
     m0_unc : Quantity
@@ -290,39 +305,25 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc, s0=None, s1=None):
 
     from ..calib import solar_flux
 
-    if isinstance(w0, str):
-        w0 = w0.upper()
-    if isinstance(w1, str):
-        w1 = w1.upper()
+    assert isinstance(w0, str)
+    w0 = w0.upper()
+    assert isinstance(w1, str)
+    w1 = w1.upper()
 
-    if w0 in filters and w1 in filters:
-        assert cw[w1] > cw[w0], 'w0 must be the shorter wavelength bandpass'
-        dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
-        ci = MmBC_sun[w0] - MmBC_sun[w1]
-        Rm = (m0 - m1 - ci) * u.mag / dw
-        Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
-        return Rm, Rm_unc
-
-    if w0 in Msun:
-        s0 = Msun[w0]
-        w0 = cw[w0]
-    if w1 in Msun:
-        s1 = Msun[w1]
-        w1 = cw[w1]
-
-    assert isinstance(w0, u.Quantity)
-    assert w0.unit.is_equivalent(u.m)
-
-    assert s0 is not None        
-    assert s1 is not None
-
-    assert isinstance(w1, u.Quantity)
-    assert w1.unit.is_equivalent(u.m)
-    assert w0 < w1
-
-    dw = (w1 - w0).to(0.1 * u.um)
-    ci = s0 - s1
-    Rm = (m0 - m1 - ci) * u.mag / dw
+    assert cw[w1] > cw[w0], 'w0 must be the shorter wavelength bandpass'
+    #dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
+    #ci = MmBC_sun[w0] - MmBC_sun[w1]
+    #Rm = (-2.5 * np.log10(F_0[w0] / F_0[w1]) + m0 - m1 - ci) * u.mag / dw
+    #Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
+    dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
+    #ci = MmBC_sun[w0] - MmBC_sun[w1]
+    ci = Msun[w0] - Msun[w1]
+    print(dw)
+    print(1/dw)
+    print(ci)
+    f0 = F_0[w0] * 10**(-0.4 * m0)
+    f1 = F_0[w1] * 10**(-0.4 * m1)
+    Rm = (2.5 * np.log(f1.value / f0.value) - ci) * u.mag / dw
     Rm_unc = np.sqrt(m0_unc**2 + m1_unc**2) * u.mag / dw
     return Rm, Rm_unc
 
