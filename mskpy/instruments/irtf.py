@@ -958,9 +958,28 @@ class SpeXPrism60(SpeX):
         if debug:
             return offset, xcor_offset
 
+    def _profile(self, im):
+        """Create the image spatial profile.
+
+        Currently just an unintelligent median.
+
+        Parameters
+        ----------
+        im : ndarray or MaskedArray
+          The 2D spectral image or an array of 2D images.
+        
+        Returns
+        -------
+        profile : MaskedArray
+          The spatial profile.
+
+        """
+
+        return np.ma.median(im, 1)
+
     def peak(self, im, mode='AB', rap=5, smooth=0, plot=True,
              ex_rap=None, bgap=None):
-        """Find approximate locations of profile peaks in an image.
+        """Find approximate locations of profile peaks in a spatial profile.
 
         The strongest peaks are found via centroid on the profile
         min/max.
@@ -968,7 +987,7 @@ class SpeXPrism60(SpeX):
         Parameters
         ----------
         im : ndarray or MaskedArray
-          An image.
+          The 2D spectral image.
         mode : string, optional
           'AB' if there is both a positive and a negative peak.  Else,
           set to 'A' for a single positive peak.
@@ -995,12 +1014,12 @@ class SpeXPrism60(SpeX):
         import scipy.ndimage as nd
         from ..util import between, gaussfit
 
-        profile = np.ma.median(im, 1)
+        profile = self._profile(im)
         if smooth > 0:
             profile = nd.gaussian_filter(profile, smooth)
 
         self.peaks = []
-        x = np.arange(im.shape[1])
+        x = np.arange(len(profile))
 
         i = between(x, profile.argmax() + np.r_[-rap, rap])
         c = nd.center_of_mass(profile[i]) + x[i][0]
@@ -1061,7 +1080,7 @@ class SpeXPrism60(SpeX):
 
         from .. import image
 
-        profile = np.ma.median(im, 1)
+        profile = self._profile(im)
         self.traces = []
         self.trace_fits = []
         for i in range(len(self.peaks)):
@@ -1108,7 +1127,7 @@ class SpeXPrism60(SpeX):
         Parameters
         ----------
         im : MaskedArray
-          The 2D spectral image.
+          The 2D spectral image, or array thereof.
         h : astropy FITS header
           The header for im.
         rap : float
@@ -1130,14 +1149,18 @@ class SpeXPrism60(SpeX):
 
         Results
         -------
-        self.wave : list of ndarray
+        self.wave : array of ndarray
           The wavelengths.
-        self.spec : list of ndarray
+        self.spec : array of ndarray
           The spectra.
-        self.var : list of ndarray
+        self.var : array of ndarray
           The variance on the spectrum due to background.  If the
           background is not estimated, the variance will be based on
           the signal, integration time, gain, and read noise.
+        self.profile : array of ndarray
+          The spatial profiles.
+        self.h : list of headers
+          Meta data.
 
         """
 
@@ -1153,6 +1176,10 @@ class SpeXPrism60(SpeX):
         else:
             trace = None
 
+        profile = self._profile(im)
+        if profile.ndim == 1:
+            profile = profile[np.newaxis]
+        
         if bgap is None:
             spec = image.spextract(im, self.peaks, rap, trace=trace,
                                    subsample=5)[1]
@@ -1179,6 +1206,7 @@ class SpeXPrism60(SpeX):
             w = wave[::2]
             s = spec[::2]
             v = var[::2]
+            p = profile[::2]
             h_other = h[1::2]
             h = h[::2]
             for i in range(len(s)):
@@ -1238,14 +1266,16 @@ class SpeXPrism60(SpeX):
             self.wave = wave
             self.spec = spec
             self.var = var
+            self.profile = p
             self.h = h
         else:
             self.wave = np.ma.concatenate((self.wave, wave))
             self.spec = np.ma.concatenate((self.spec, spec))
             self.var = np.ma.concatenate((self.var, var))
+            self.profile = np.ma.concatenate((self.profile, profile))
             self.h.extend(h)
 
-    def save_spec(self, fnformat='spec-{n}.fits', **kwargs):
+    def save_spec(self, fnformat='{data}-{n}', path='./', **kwargs):
         """Write extracted spectra to FITS files.
 
         The file columns are wavelength, DN/s, and uncertainty.
@@ -1255,15 +1285,21 @@ class SpeXPrism60(SpeX):
         Parameters
         ----------
         fnformat : string, optional
-          The format string for file names.  Use '{n}' for the
-          spectrum number which will be gleaned from the FITS headers.
+          The format string for file names.  Use `'{data}'` for the
+          data type (spec, or profile).  Use `'{n}'` for the spectrum
+          number which will be gleaned from the FITS headers.  '.fits'
+          is always appended.
+        path : string, optional
+          Save to this directory.
         **kwargs
           `astropy.io.fits.writeto` keyword arguments.
 
         """
 
+        import os
         import re
         from astropy.io import fits
+        from astropy.table import Table
 
         assert self.spec is not None, "No spectra have been extracted"
         kwargs['output_verify'] = kwargs.get('output_verify', 'silentfix')
@@ -1271,14 +1307,19 @@ class SpeXPrism60(SpeX):
         for i in range(len(self.spec)):
             n = re.findall('.*-([0-9]+).[ab].fits', self.h[i]['IRAFNAME'],
                            re.IGNORECASE)[0]
-            fn = fnformat.format(n=n)
+            fn = os.sep.join((path, fnformat.format(data='spec', n=n)))
     
             x = np.c_[self.wave[i].filled(np.nan),
                       self.spec[i].filled(np.nan),
                       np.sqrt(self.var[i]).filled(np.nan),
                       np.zeros(len(self.wave[i]))].T
             j = np.flatnonzero(np.isfinite(np.prod(x, 0)))
-            fits.writeto(fn, x[:, j], self.h[i], **kwargs)
+            fits.writeto(fn + '.fits', x[:, j], self.h[i], **kwargs)
+
+            fn = os.sep.join((path, fnformat.format(data='profile', n=n)))
+            tab = Table(data=[self.profile[i]], names=['profile'])
+            tab.write(fn + '.csv', format='ascii.ecsv')
+            
 
 # update module docstring
 from ..util import autodoc
