@@ -415,8 +415,8 @@ def gaussian2d(shape, sigma, theta=0):
     c = np.sin(thr)**2 / 2.0 / sx**2 + np.cos(thr)**2 / 2.0 / sy**2
 
     y, x = np.indices(shape)
-    y -= (shape[0] - 1) / 2.0
-    x -= (shape[1] - 1) / 2.0
+    y = y - (shape[0] - 1) / 2
+    x = x - (shape[1] - 1) / 2
 
     G = np.exp(-(a * x**2 + 2 * b * x * y + c * y**2))
     G /= 2.0 * np.pi * sx * sy
@@ -2162,7 +2162,7 @@ def phase_integral(phasef, range=[0, 180]):
                       min(range), max(range))[0]
     return pint
 
-def planck(wave, T, unit=None, deriv=None):
+def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
     """The Planck function.
 
     Parameters
@@ -2171,27 +2171,29 @@ def planck(wave, T, unit=None, deriv=None):
       The wavelength(s) to evaluate the Planck function. [micron]
     T : float or array
       The temperature(s) of the Planck function. [Kelvin]
-    unit : u.Unit
-      The output units.  Set to `None` to return a float in the
-      default units.
+    unit : astropy Unit
+      The output units.  Do not include K for derivatives.  If `None`,
+      returns a float in units of W/m2/Hz/sr (may be faster than using
+      astropy units).
     deriv : string
       Set to 'T' to return the first derivative with respect to
-      temperature.
+      temperature in units of `unit` per K.
 
     Returns
     -------
     B : float or Quantity
-      If `unit is None`, a `float` will be returned in units of
-      W/m2/sr/Hz.
+      The Planck function or its derivative.
 
     Raises
     ------
-    ValueError when deriv isn't an allowed value.
+    AssertionError when `deriv` isn't an allowed value.
 
     """
 
     import astropy.units as u
     from astropy.units import Quantity
+
+    assert deriv in [None, 'T', 't']
 
     # prevent over/underflow warnings
     oldseterr = np.seterr(all='ignore')
@@ -2212,26 +2214,15 @@ def planck(wave, T, unit=None, deriv=None):
     c2 = 0.0143877695998  # K m
     a = np.exp(c2 / wave / T)
     B = c1 / (wave**3 * (a - 1.0))
-
     if unit is not None:
-        Bunit = u.Unit('W / (m2 sr Hz)')
+        B = B * u.Unit('W/(m2 Hz sr)')
+        B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
-    if deriv is not None:
-        if deriv.lower() == 't':
-            B *= c2 / T**2 / wave * a / (a - 1.0)
-            if unit is not None:
-                Bunit /= u.K
-        else:
-            raise ValueError("deriv parameter not allowed: {}".format(
-                    deriv))
+    if deriv in ['T', 't']:
+        B = B * c2 / T**2 / wave * a / (a - 1.0) / u.K
 
     # restore seterr
     np.seterr(**oldseterr)
-
-    if unit is not None:
-        B = B * Bunit
-        if unit != Bunit:
-            B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
     return B
 

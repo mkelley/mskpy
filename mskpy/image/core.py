@@ -285,34 +285,31 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
 
     """
 
-    refined = im.copy()
+    yx_f, yx_i = np.modf(yx)  # fractional and integer parts
+    yx_i = yx_i.astype(int)
 
     # where is the center of the NxN region?
-    yx_N = (np.ones(2) * N - 1.0) / 2.0
-    yx_N += (yx - np.array([round(x) for x in yx]))
+    yx_N = (np.ones(2) * N - 1.0) / 2.0 + yx_f
 
-    # subsample the NxN region, where is the center of that?
-    shape_c = np.ones(2) * N * subsample
-    yx_c = (np.ones(2) * N * subsample - 1) / 2.0
-    yx_c += (yx_N - np.array([round(x) for x in yx_N])) * subsample
-
+    # subsample the NxN region, where is the center in that?
+    shape_s = np.ones(2) * N * subsample
+    yx_s = subsample * (yx_N + 0.5) - 0.5    
+    
     # generate the subsampled center
-    refined_c = func(shape_c, yx=yx_c, subsample=0, **kwargs)
-    refined_c = rebin(refined_c, -subsample, flux=False)
-    refined_c *= subsample**scale
+    refined_s = func(shape_s, yx=yx_s, subsample=0, **kwargs)
+    refined_s = rebin(refined_s, -subsample, flux=False)
+    refined_s *= subsample**scale
 
     # The region to be refined: xi, yi
     yi, xi = np.indices((N, N)) - N // 2
-
-    # numpy only rounds to even numbers, adding a small value fixes
-    # this.  Hopefully 1e-5 pixel precision is never needed!
-    yi += int(np.around(yx[0] + 1e-5))
-    xi += int(np.around(yx[1] + 1e-5))
+    yi += yx_i[0]
+    xi += yx_i[1]
 
     # insert into the result
+    refined = im.copy()
     i = (yi >= 0) * (xi >= 0) * (yi < im.shape[0]) * (xi < im.shape[1])
     if np.any(i):
-        refined[yi[i], xi[i]] = refined_c[i]
+        refined[yi[i], xi[i]] = refined_s[i]
 
     return refined
 

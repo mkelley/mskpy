@@ -20,7 +20,7 @@ Requres SpiceyPy.
    Built-in SolarSysObjects
    ------------------------
    Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
-   Neptune, PlutoSys.  Optional: Spitzer, DeepImpact, Kepler.
+   Neptune, PlutoSys.  Optional: Spitzer, DeepImpact, Kepler, Earth_L2.
 
    Exceptions
    ----------
@@ -36,9 +36,10 @@ kernel file names from object names.
 Three SPICE kernels are required:
   - naif.tls : a leap seconds kernel,
   - pck.tpc : a planetary constants kernel,
-  - planets.bsp : a planetary ephemeris kernel, e.g., de421.
+  - planets.bsp : a planetary ephemeris kernel, e.g., de431.
 
-There are three optional kernels:
+There are five optional kernels:
+  - L2.bsp : an ephemeris kernel for the second Lagrange point in the Earth-Sun system, https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/lagrange_point/
   - spitzer.bsp : an ephemeris kernel for the Spitzer Space Telescope, ftp://naif.jpl.nasa.gov/pub/naif/SIRTF/kernels/spk/
   - kepler.bsp : an ephemeris kernel for the Kepler Telescope, https://archive.stsci.edu/pub/k2/spice/
   - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby, ftp://naif.jpl.nasa.gov/pub/naif/
@@ -96,6 +97,13 @@ _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
 __all__.extend(['Sun', 'Earth', 'Moon'])
 
 # load 'em if you got 'em
+try:
+    Earth_L2 = getspiceobj('392', kernel='L2.bsp', name='Earth L2')
+    _loaded_objects['earth_l2'] = Earth_L2
+    __all__.append('Earth_L2')
+except OSError:
+    pass
+
 try:
     Spitzer = getspiceobj('-79', kernel='spitzer.bsp', name='Spitzer')
     _loaded_objects['spitzer'] = Spitzer

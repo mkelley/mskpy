@@ -42,7 +42,7 @@ from . import observing
 
 # depends on SpiceyPy
 try:
-    import spiceypy.wrapper as spice
+    import spiceypy as spice
     _spiceypy = True
 except ImportError:
     _spiceypy = False
@@ -73,5 +73,4 @@ from astropy.io import registry
 from astropy.table import Table
 registry.register_reader('horizons.csv', Table, util.horizons_csv)
 del registry, Table
-    
-del _spiceypy, _matplotlib
+

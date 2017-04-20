@@ -20,6 +20,8 @@ comet --- Comets!
    flux2Q
    fluxd2afrho
    fluxd2efrho
+   H10mag
+   HYmag
    m2afrho
    M2afrho1
    m2qh2o
@@ -37,6 +39,8 @@ __all__ = [
     'flux2Q',
     'fluxd2afrho',
     'fluxd2efrho',
+    'H10mag',
+    'HYmag',
     'm2afrho',
     'M2afrho1',
     'm2qh2o',
@@ -683,6 +687,44 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     Om = np.pi * (rho / 206265.)**2  # sr
     I = flux / Om  # W/m2/um/sr
     return I * _rho / B
+
+def H10mag(H10, g):
+    """Estimate total coma apparent magnitude using HY formalism.
+
+    m = H10 + 10 * log10(rh) + 5 log10(delta)
+
+    Parameters
+    ----------
+    H10 : float
+      Absolute magnitude.
+    g : Geom or dict of Quantities
+      Observing geometry: rh, delta.
+
+    """
+
+    rh = g['rh'].to(u.au).value
+    delta = g['delta'].to(u.au).value
+    return H10 + 10 * np.log10(rh) + 5 * np.log10(delta)
+
+def HYmag(HY, Y, g):
+    """Estimate total coma apparent magnitude using H10 formalism.
+
+    m = HY + Y * log10(rh) + 5 log10(delta)
+
+    Parameters
+    ----------
+    HY : float
+      Absolute magnitude.
+    Y : float
+      Magnitude rh slope.
+    g : Geom or dict of Quantities
+      Observing geometry: rh, delta.
+
+    """
+
+    rh = g['rh'].to(u.au).value
+    delta = g['delta'].to(u.au).value
+    return HY + Y * np.log10(rh) + 5 * np.log10(delta)
 
 def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
     """Convert JPL/HORIZONS apparent magnitude, m, to Afrho.
