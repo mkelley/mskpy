@@ -8,7 +8,8 @@ hb --- Hale-Bopp filter set photometric calibration
 
    cal_oh
    continuum_color
-   convert_color
+   continuum_colors
+   estimate_continuum
    ext_aerosol_bc
    ext_aerosol_oh
    ext_total_oh
@@ -16,7 +17,6 @@ hb --- Hale-Bopp filter set photometric calibration
    ext_rayleigh_oh
    flux_gas
    flux_oh
-   fluxd_continuum
    Rm2S
 
    todo: Need more uncertainty propagations.
@@ -397,6 +397,15 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
     All filters must be in present in `hb.cw`, `hb.F_0`, and
     `hb.Msun`.
 
+    Note that this will return a continuum estimate for all filters in
+    `m`.  Correlated errors are not considered and the uncertainties
+    will be unecessarily high for some filters.  For example, the
+    program can use BC and GC to compute a color, then extrapolate BC
+    to GC using that color.  The result will be an uncerainty on GC's
+    flux density that includes BC's uncertainty.  If you want a better
+    uncertainty estimate for GCor any other filter closer to GC than
+    BC in this case, use GC as the base filter.
+
     Parameters
     ----------
     base_filter : string
@@ -431,36 +440,56 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
     if color is None:
         if len(m) == 1:
             color = 0 * u.mag / u.Unit('0.1 um')
+            color_unc = 0 * u.mag / u.Unit('0.1 um')
         else:
             # compute colors with respect to the basis filter
-            color = dict()
+            color = {}
+            color_unc = {}
+            fxx = dict([(f, 10**(-0.4 * m[f])) for f in m])
             for f in m:
                 if f == base_filter:
                     continue
 
                 dw = (cw[f] - cw[base_filter]).to('0.1 um')
                 dm = m[base_filter] - m[f] - (Msun[base_filter] - Msun[f])
-                color[f] = dm / dw
+                color[f] = dm / dw * u.mag
+                color_unc[f] = np.sqrt(
+                    unc[base_filter]**2 * fxx[base_filter]**2
+                    + unc[f]**2 * fxx[f]**2) / fxx[base_filter] * color[f].unit
+    else:
+        assert color.unit.is_equivalent(u.mag / (0.1 * u.um))
+        color = dict.fromkeys(m, color)
+        color_unc = dict.fromkeys(m, 0 * color.unit)
 
     # Farnham et al. recommends UC-BC for all filters, except BC-GC
     # for C2 and GC-RC for H2O+.  Here, we are always going to use the
     # basis filter.  Select the other filter based on Δλ to each
     # filter in question.
     fluxd = OrderedDict()
-    w0 = cw[base_filter]
-    for f, _ in sorted(cw.items(), key=itemgetter(1)):
-        fluxd[f] = F_0[f] * 10**(-0.4 * m[base_filter])
+    fluxd_unc = OrderedDict()
+    for f, _cw in sorted(cw.items(), key=itemgetter(1)):
+        mxx = m[base_filter]
+        mxx_unc2 = unc[base_filter]**2
         if f != base_filter:
+            mxx += Msun[f] - Msun[base_filter]
+
             # find Δλ to all filters used to compute the color
             dw = dict([(k, np.abs(cw[k] - cw[f])) for k in color.keys()])
             # find the nearest one
             k = sorted(dw.items(), key=itemgetter(1))[0][0]
+            # use it
+            dw = cw[base_filter] - cw[f]
+            c = (dw * color[k]).to(u.mag).value
+            mxx += c
 
-            Csun = Msun[f] - Msun[base_filter]
-            dw = (cw[base_filter] - cw[f]).to('0.1 um')
-            fluxd[f] *= 10**(-0.4 * (Csun + dw * color[k]))
+            dc = (dw * color_unc[k]).to(u.mag).value
+            mxx_unc2 = ((mxx_unc2 * 10**(-0.4 * mxx))**2
+                        + (dc * 10**(-0.4 * c))**2)
 
-    return fluxd, {}
+        fluxd[f] = F_0[f] * 10**(-0.4 * mxx)
+        fluxd_unc[f] = np.sqrt(mxx_unc2) * fluxd[f] / 1.0857
+
+    return fluxd, fluxd_unc
   
 def ext_aerosol_bc(E_bc, h):
 
@@ -647,53 +676,7 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
             + ext_ozone_oh(z_true, toz, c))
 
-def fluxd_continuum(filt, m, m_unc, Rm, Rm_unc):
-    """Extrapolate continuum to other filters.
-
-    Table VI, Eqs. 34-40 and 42 of Farhnam et al. 2000.
-
-    Needs work.
-
-    Parameters
-    ----------
-    filt : string
-      The continuum filter.
-    m, m_unc : float
-      Observed magnitude and uncertainty at `filt`.
-    Rm, Rm_unc : float or Quantity
-      Observed color, in units of magnitudes per 1000 Å, and
-      uncertainty, measured with respect to the central wavelength of
-      `filt`.
-
-    Returns
-    -------
-    fc, fc_unc : dict of Quantity
-      Continuum flux density and uncertainty for all other configured
-      filters.
-
-    """
-
-    Rm = u.Quantity(Rm, '10 mag / um').value
-    Rm_unc = u.Quantity(Rm_unc, '10 mag / um').value
-
-    filt = filt.upper()
-    filters = F_0.keys()
-    assert filt in filters, 'Unknown filter: {}'.format(filt)
-    
-    si = dict()  # solar index with respect to filt
-    for f in filters:
-        si[f] = MmBC_sun[f] - MmBC_sun[filt]
-
-    fc = {}
-    fc_unc = {}
-    for f in filters:
-        dw = 10 * (cw[filt] - cw[f]).to('um').value  # units of 0.1 μm
-        fc[f] = F_0[filt] * 10**(-0.4 * (m + si[f] + dw * Rm))
-        fc_unc[f] = fc[f] * np.sqrt(m_unc**2 + (dw * Rm_unc)**2) / 1.0857
-    
-    return fc, fc_unc
-
-def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
+def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
     """Flux from OH.
 
     Appendix A and D of Farnham et al. 2000.
@@ -702,11 +685,9 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     ----------
     oh, oh_unc : float
       OH instrumental magnitude and uncertainty.
-    bc, bc_unc : float
-      BC instrumental magnitude and uncertainty.
-    Rm, Rm_unc : float or Quantity
-      Continuum color in units of magnitudes per 0.1 um, and
-      uncertainty.
+    m, unc : dictionary
+      Apparent magnitudes for continuum filters.  'BC' must be one of
+      the filters.
     zp : float
       OH magnitude zero point.
     toz : float
@@ -714,9 +695,14 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
     z_true : Angle or Quantity
       True zenith angle.
     E_bc : float
-      BC airmass extinction. [mag/airmass]
+      Extinction per airmass at BC. [mag/airmass]
     h : Quantity
       The observer's elevation.
+    base_filter : string
+      The name of the basis filter to use for extrapolating the
+      continuum.  Must be present in `m` and `unc`.
+    color : Quantity
+      Use this color at BC, units of mag/0.1 μm.
 
     Returns
     -------
@@ -742,10 +728,14 @@ def flux_oh(oh, oh_unc, bc, bc_unc, Rm, Rm_unc, zp, toz, z_true, E_bc, h):
 
     """
 
+    assert 'BC' in m and 'BC' in unc, 'BC apparent magnitude is required'
+
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
-    fc, fc_unc = fluxd_continuum('BC', bc, bc_unc, Rm, Rm_unc)
+    fluxd = estimate_continuum('BC', m, unc=unc, color=color)
+    fc = fluxd['OH']
+    fc_unc = fluxd['OH']
 
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     f_unc = oh_unc * f / 1.0857  # first estimate
