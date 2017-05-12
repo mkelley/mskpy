@@ -31,7 +31,7 @@ class TestHB():
 
     def test_continuum_color(self):
         color = hb.continuum_color('UC', 13.126, 0, 'BC', 12.014, 0)[0]
-        assert np.isclose(color.to('10 % / um').value, 0.010, atol=0.001)
+        assert np.isclose(color.to('10 mag / um').value, 0.010, atol=0.001)
 
     def test_estimate_continuum_short_short_to_long(self):
         m = dict(UC=13.126, BC=12.014)

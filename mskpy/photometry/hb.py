@@ -41,7 +41,6 @@ __all__ = [
     'ext_rayleigh_oh',
     'flux_gas',
     'flux_oh',
-    'fluxd_continuum',
     'Rm2S',
     'S2Rm',
 ]
@@ -51,7 +50,7 @@ filters = set(['OH', 'NH', 'CN', 'C3', 'CO+', 'C2', 'H2O+', 'UC',
                'BC', 'GC', 'RC'])
 
 # Including V, R, etc.
-all_filters = filters | set(['R', 'V', 'SDSS-R', 'SDSSR'])
+all_filters = filters | set(['R', 'V', 'SDSS-R', 'SDSSr'])
 
 cw = {  # center wavelengths
       'OH': u.Quantity(0.3097, 'um'),
@@ -68,7 +67,7 @@ cw = {  # center wavelengths
        'R': u.Quantity(0.641,  'um'),  # Bessell 1998
        'V': u.Quantity(0.545,  'um'),  # Bessell 1998
   'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
-   'SDSSR': u.Quantity(0.6222, 'um'),
+   'SDSSr': u.Quantity(0.6222, 'um'),
 }
 
 cw_50 = {  # 50% power width
@@ -101,7 +100,7 @@ F_0 = {  # Zero magnitude flux density
        'R': u.Quantity( 2.177e-8, 'W/(m2 um)'), # Bessell 1998
        'V': u.Quantity( 3.631e-8, 'W/(m2 um)'), # Bessell 1998
   'SDSS-R': u.Quantity( 2.812e-8, 'W/(m2 um)'), # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
-   'SDSSR': u.Quantity(2.812e-8, 'W/(m2 um)'),
+   'SDSSr': u.Quantity(2.812e-8, 'W/(m2 um)'),
 }
 
 MmBC_sun = {  # M - BC for the Sun
@@ -119,7 +118,7 @@ MmBC_sun = {  # M - BC for the Sun
        'V': -0.53,  # From solar mags, below
        'R': -0.90,  # From solar mags, below
   'SDSS-R': -0.70,  # From solar mags, below
-   'SDSSR': -0.70,
+   'SDSSr': -0.70,
 }
 
 gamma_XX_XX = {
@@ -163,7 +162,7 @@ Msun = {
      'V': -26.76,  # Bessell 1998
      'R': -27.13,  # Bessell 1998, (V-R)sun=0.370 (Colina et al. 1996)
 'SDSS-R': -26.93,  # R to r' via Smith et al. 2002 + Bessel 1998
- 'SDSSR': -26.93,
+ 'SDSSr': -26.93,
 }
 
 S0 = {  # Solar flux density at 1 AU, F_0 * 10**(-0.4 * Msun)
@@ -181,7 +180,7 @@ S0 = {  # Solar flux density at 1 AU, F_0 * 10**(-0.4 * Msun)
      'V': u.Quantity(1836.4, 'W/(m2 um)'),
      'R': u.Quantity(1548.3, 'W/(m2 um)'),
 'SDSS-R': u.Quantity(1663.5, 'W/(m2 um)'),
- 'SDSSR': u.Quantity(1663.5, 'W/(m2 um)')
+ 'SDSSr': u.Quantity(1663.5, 'W/(m2 um)')
 }
 
 def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
@@ -250,44 +249,32 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
 
 def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc):
     """Comet continuum color.
+
+    `Rm` is the continuum color considering the reflectance at `w0`
+    and `w1`.  It is typically expressed in units of magnitudes per
+    0.1 μm (or 1000 Å).  It is used by Farnham et al. (2000) to
+    estimate continuum flux densities.
+
+    Distinguishing between the central filter and the other filter is
+    not important, except for computing the uncertainty.
     
-    Color is with respect to the mean flux between the two filters,
-    assuming the reflectance spectrum is linear with wavelength.
-    Eq. 1 of A'Hearn et al. (1984, AJ 89, 579):
-
-              R(lambda1) - R(lambda0)  2    α - 1  2
-      slope = ----------------------- --- = ----- ---
-              R(lambda1) + R(lambda0) Δλ    α + 1 Δλ
-
-    where
-
-      α = 10**(0.4 * (Δm - C_sun))
-
-    and Δm and C_sun are color indices based on the two filters in
-    question, and λ is measured in units of 0.1 μm.  This is
-    equivalent to Eqs. 1 and 3 of Jewitt and Meech (1986, ApJ 310,
-    937).
-
-
     Parameters
     ----------
     w0 : string
-      The shorter wavelength filter name.
+      The base filter name.  Must be present in `hb.cw`.
     m0 : float
-      The apparant magnitude through the shorter wavelength filter.
+      The apparant magnitude at `w0`.
     m0_unc : float
       The uncertainty in `m0`.
     w1, m1, m1_unc : various
-      The same as above, but for the longer wavelength filter.
+      The same as above, but for the other filter.
 
     Returns
     -------
-    R, R_unc : Quantity
-      The color in percent per 0.1 μm, and uncertainty.
+    Rm, Rm_unc : Quantity
+      The color in magnitudes per 0.1 μm, and uncertainty.
 
     """
-
-    from ..calib import solar_flux
 
     assert isinstance(w0, str)
     w0 = w0.upper()
@@ -295,18 +282,15 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc):
     assert isinstance(w1, str)
     w1 = w1.upper()
 
-    assert cw[w0] < cw[w1], 'w0 must be the shorter wavelength bandpass'
+    f0 = 10**(-0.4 * m0)
+    f1 = 10**(-0.4 * m1)
 
-    dw = (cw[w1] - cw[w0]).to(0.1 * u.um)
-    dm = m0 - m1 - (Msun[w0] - Msun[w1])
-    alpha = 10**(0.4 * dm)
-    
-    R = (alpha - 1) / (alpha + 1) * 2 / dw * u.percent
-    dm_unc = np.sqrt(m0_unc**2 + m1_unc**2)
-    # R_unc = R * 2 * 0.4 * np.log(10) * alpha / (alpha + 1) / (alpha - 1)
-    R_unc = R * 1.8421 * alpha / (alpha**2 - 1)
+    dw = (cw[w1] - cw[w0]).to('0.1 um')
+    dm = (m0 - m1 - (Msun[w0] - Msun[w1])) * u.mag
+    Rm = dm / dw
+    Rm_unc = np.sqrt(m0_unc**2 * f0**2 + m1_unc**2 * f1**2) / f0 * Rm.unit
 
-    return R, R_unc
+    return Rm, Rm_unc
 
 def continuum_colors(m, unc=None):
     """Convert observed HB magntiudes into continnum colors.
@@ -323,9 +307,9 @@ def continuum_colors(m, unc=None):
 
     Returns
     -------
-    color : dictionary
-      Reflectance colors in units of magnitudes per 0.1 μm.
-    color_unc : dictionary, optional
+    Rm : dictionary
+      Continuum colors in units of magnitudes per 0.1 μm.
+    Rm_unc : dictionary, optional
       Uncertainties on `color`, if `unc` was provided.
 
     """
@@ -338,19 +322,19 @@ def continuum_colors(m, unc=None):
     
     continuum_filters = [f for f in m if f in ['UC', 'BC', 'GC', 'RC']]
     continuum_filters.sort(key=cw.get)
-    color = OrderedDict()
-    color_unc = OrderedDict()
+    Rm = OrderedDict()
+    Rm_unc = OrderedDict()
     for i in range(len(continuum_filters) - 1):
         left = continuum_filters[i]
         right = continuum_filters[i + 1]
         c = continuum_color(left, m[left], unc[left],
                             right, m[right], unc[right])
-        color['-'.join((left, right))] = c[0]
-        color_unc['-'.join((left, right))] = c[1]
+        Rm['-'.join((left, right))] = c[0]
+        Rm_unc['-'.join((left, right))] = c[1]
 
-    return color, color_unc
+    return Rm, Rm_unc
 
-def estimate_continuum(base_filter, m, unc=None, color=None):
+def estimate_continuum(base_filter, m, unc=None, Rm=None, Rm_unc=None):
     """Continuum flux density, based on the measured continuum.
 
     All filters must be in present in `hb.cw`, `hb.F_0`, and
@@ -362,8 +346,9 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
     program can use BC and GC to compute a color, then extrapolate BC
     to GC using that color.  The result will be an uncerainty on GC's
     flux density that includes BC's uncertainty.  If you want a better
-    uncertainty estimate for GCor any other filter closer to GC than
-    BC in this case, use GC as the base filter.
+    uncertainty estimate for GC or any other filter closer to GC than
+    BC in this case, use GC as the base filter or compute the flux
+    density directly with `hb.F_0`.
 
     Parameters
     ----------
@@ -374,10 +359,12 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
       pairs.  Any additional filters are ignored.
     unc : dictionary, optional
       Same as `m`, but for uncertainties.
-    color : Quantity, optional
+    Rm : Quantity, optional
       Assume this spectral gradient centered at the basis filter.  If
       `None` and only one filter is provided, a spectral color of 0
       mag/0.1 μm will be used.
+    Rm_unc : Quantity, optional
+      Uncertainty on `Rm`.
 
     Returns
     -------
@@ -390,20 +377,18 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
     
     from collections import OrderedDict
     from operator import itemgetter
-    import logging
 
     if unc is None:
         unc = dict.fromkeys(m, 0)
-        return estimate_continuum(base_filter, m, unc=unc, color=color)[0]
+        return estimate_continuum(base_filter, m, unc=unc, Rm=Rm)[0]
 
-    if color is None:
+    if Rm is None:
         if len(m) == 1:
-            color = 0 * u.mag / u.Unit('0.1 um')
-            color_unc = 0 * u.mag / u.Unit('0.1 um')
+            Rm = 0 * u.mag / u.Unit('0.1 um')
+            Rm_unc = 0 * u.mag / u.Unit('0.1 um')
         else:
-            # compute colors with respect to the basis filter
-            color = {}
-            color_unc = {}
+            Rm = {}
+            Rm_unc = {}
             fxx = dict([(f, 10**(-0.4 * m[f])) for f in m])
             for f in m:
                 if f == base_filter:
@@ -411,15 +396,20 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
 
                 dw = (cw[f] - cw[base_filter]).to('0.1 um')
                 dm = m[base_filter] - m[f] - (Msun[base_filter] - Msun[f])
-                color[f] = dm / dw * u.mag
-                color_unc[f] = np.sqrt(
+                Rm[f] = dm / dw * u.mag
+                Rm_unc[f] = np.sqrt(
                     unc[base_filter]**2 * fxx[base_filter]**2
-                    + unc[f]**2 * fxx[f]**2) / fxx[base_filter] * color[f].unit
+                    + unc[f]**2 * fxx[f]**2) / fxx[base_filter] * Rm[f].unit
     else:
-        assert color.unit.is_equivalent(u.mag / (0.1 * u.um))
-        color = dict.fromkeys(m, color)
-        color_unc = dict.fromkeys(m, 0 * color.unit)
+        assert Rm.unit.is_equivalent(u.mag / (0.1 * u.um))
+        Rm = dict.fromkeys(m, Rm)
 
+        if Rm_unc is None:
+            Rm_unc = dict.fromkeys(m, 0 * Rm.unit)
+        else:
+            assert Rm_unc.unit.is_equivalent(u.mag / (0.1 * u.um))
+            Rm_unc = dict.fromkeys(m, Rm_unc)
+        
     # Farnham et al. recommends UC-BC for all filters, except BC-GC
     # for C2 and GC-RC for H2O+.  Here, we are always going to use the
     # basis filter.  Select the other filter based on Δλ to each
@@ -433,15 +423,15 @@ def estimate_continuum(base_filter, m, unc=None, color=None):
             mxx += Msun[f] - Msun[base_filter]
 
             # find Δλ to all filters used to compute the color
-            dw = dict([(k, np.abs(cw[k] - cw[f])) for k in color.keys()])
+            dw = dict([(k, np.abs(cw[k] - cw[f])) for k in Rm.keys()])
             # find the nearest one
             k = sorted(dw.items(), key=itemgetter(1))[0][0]
             # use it
             dw = cw[base_filter] - cw[f]
-            c = (dw * color[k]).to(u.mag).value
+            c = (dw * Rm[k]).to(u.mag).value
             mxx += c
 
-            dc = (dw * color_unc[k]).to(u.mag).value
+            dc = (dw * Rm_unc[k]).to(u.mag).value
             mxx_unc2 = ((mxx_unc2 * 10**(-0.4 * mxx))**2
                         + (dc * 10**(-0.4 * c))**2)
 
@@ -635,7 +625,7 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_aerosol_oh(E_bc, h) * airmass_app(z_true, h)
             + ext_ozone_oh(z_true, toz, c))
 
-def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
+def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, Rm=None, Rm_unc=None):
     """Flux from OH.
 
     Appendix A and D of Farnham et al. 2000.
@@ -659,11 +649,11 @@ def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
       Extinction per airmass at BC. [mag/airmass]
     h : Quantity
       The observer's elevation.
-    base_filter : string
-      The name of the basis filter to use for extrapolating the
-      continuum.  Must be present in `m` and `unc`.
-    color : Quantity
-      Use this color at BC, units of mag/0.1 μm.
+    Rm : Quantity, optional
+      Instead of computing the spectral graident, use this value
+      (estimated at BC) [mag/0.1 μm].
+    Rm_unc : Quantity, optional
+      Unceratinty on `Rm`.
 
     Returns
     -------
@@ -694,7 +684,7 @@ def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
-    fc, fc_unc = estimate_continuum('BC', m, unc=unc, color=color)
+    fc, fc_unc = estimate_continuum('BC', m, unc=unc, Rm=Rm, Rm_unc=Rm_unc)
 
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     f_unc = oh_unc * f / 1.0857  # first estimate
@@ -768,10 +758,26 @@ def flux_gas(f, f_unc, fc, fc_unc, filt):
 def Rm2S(w0, w1, Rm, Rm_unc=None):
     """Convert continuum color, `Rm`, to spectral slope, `S`.
 
-    `Rm` defined by Farnham et al. 2000, `S` defined, e.g., by Jewitt
-    and Meech 1986.
+    `Rm` is the continuum color considering the magnitudes at `w0` and
+    `w1`.  It is typically expressed in units of magnitudes per 0.1 μm
+    (or 1000 Å).
 
-      S = (f2 - f1) * 2 / (f2 + f1) / Δλ
+    Spectral slope is with respect to the mean flux between the two
+    filters, assuming the reflectance spectrum is linear with
+    wavelength.  Eq. 1 of A'Hearn et al. (1984, AJ 89, 579):
+
+              R(λ1) - R(λ0)  2    α - 1  2
+      slope = ------------- --- = ----- ---
+              R(λ1) + R(λ0) Δλ    α + 1 Δλ
+
+    where R(λ) is the reflectivity, and
+
+      α = 10**(0.4 * (Rm Δλ - C_sun))
+
+    where Δm = Rm Δλ - C_sun is the color index based on the two
+    filters in question.  Δλ is typically measured in units of 0.1 μm
+    (1000 Å).  This is equivalent to Eqs. 1 and 3 of Jewitt and Meech
+    (1986, ApJ 310, 937).
 
     Parameters
     ----------
