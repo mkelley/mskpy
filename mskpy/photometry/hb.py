@@ -18,6 +18,7 @@ hb --- Hale-Bopp filter set photometric calibration
    flux_gas
    flux_oh
    Rm2S
+   S2Rm
 
    todo: Need more uncertainty propagations.
 
@@ -41,7 +42,8 @@ __all__ = [
     'flux_gas',
     'flux_oh',
     'fluxd_continuum',
-    'Rm2S'
+    'Rm2S',
+    'S2Rm',
 ]
 
 # Table I of Farnham et al. 2000
@@ -245,49 +247,6 @@ def cal_oh(oh, oh_unc, OH, z_true, b, c, E_bc, h, guess=(20, 0.15),
         return fit, cov
     else:
         return fit, err
-
-def Rm2S(w0, w1, Rm, Rm_unc=None):
-    """Convert continuum color, `Rm`, to spectral slope, `S`.
-
-    `Rm` defined by Farnham et al. 2000, `S` defined, e.g., by Jewitt
-    and Meech 1986.
-
-      S = (f2 - f1) * 2 / (f2 + f1) / Δλ
-
-    Parameters
-    ----------
-    w0, w1 : string or Quantity
-      The wavelengths used to determine `Rm`.
-    Rm : Quantity
-      The color in mangitudes per 0.1 um, and uncertainty.
-    Rm_unc : Quantity or float, optional
-      `Rm` uncertainty.
-
-    Returns
-    -------
-    S : Quantity
-      Spectral slope.
-    S_unc : Quantity, optional
-      Uncertainty on `S`.
-
-    """
-
-    assert Rm.decompose().unit == u.Unit("dex /m")
-
-    if isinstance(w0, str):
-        w0 = cw[w0.upper()]
-    if isinstance(w1, str):
-        w1 = cw[w1.upper()]
-
-    dw = (w1 - w0).to(0.1 * u.um)
-    r = 10**(0.4 * (Rm * dw).to(u.mag).value)
-    S = 2 * (r - 1) / (r + 1) / dw * 100 * u.percent
-
-    if Rm_unc is not None:
-        S_unc = S * Rm_unc / Rm
-        return S, S_unc
-
-    return S
 
 def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc):
     """Comet continuum color.
@@ -681,6 +640,8 @@ def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
 
     Appendix A and D of Farnham et al. 2000.
 
+    Uncertainties can be improved.
+
     Parameters
     ----------
     oh, oh_unc : float
@@ -733,9 +694,7 @@ def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, color=None):
     E_0 = ext_total_oh(toz, z_true, 'OH', 'OH', E_bc, h)
     E_25 = ext_total_oh(toz, z_true, '25%', '25%', E_bc, h)
     E_100 = ext_total_oh(toz, z_true, 'G', 'G', E_bc, h)
-    fluxd = estimate_continuum('BC', m, unc=unc, color=color)
-    fc = fluxd['OH']
-    fc_unc = fluxd['OH']
+    fc, fc_unc = estimate_continuum('BC', m, unc=unc, color=color)
 
     f = 10**(-0.4 * (oh + zp - E_0)) * F_0['OH']
     f_unc = oh_unc * f / 1.0857  # first estimate
@@ -805,6 +764,110 @@ def flux_gas(f, f_unc, fc, fc_unc, filt):
     fgas_unc = np.sqrt(f_unc**2 + fc_unc**2) / gamma_XX_XX[filt]
 
     return fgas.decompose([u.W, u.m]), fgas_unc.decompose([u.W, u.m])
+
+def Rm2S(w0, w1, Rm, Rm_unc=None):
+    """Convert continuum color, `Rm`, to spectral slope, `S`.
+
+    `Rm` defined by Farnham et al. 2000, `S` defined, e.g., by Jewitt
+    and Meech 1986.
+
+      S = (f2 - f1) * 2 / (f2 + f1) / Δλ
+
+    Parameters
+    ----------
+    w0, w1 : string or Quantity
+      The wavelengths used to determine `Rm`.
+    Rm : Quantity
+      The color in mangitudes per 0.1 um, and uncertainty.
+    Rm_unc : Quantity or float, optional
+      `Rm` uncertainty.
+
+    Returns
+    -------
+    S : Quantity
+      Spectral slope.
+    S_unc : Quantity, optional
+      Uncertainty on `S`.
+
+    """
+
+    assert Rm.decompose().unit == u.Unit("dex /m")
+
+    if isinstance(w0, str):
+        w0 = cw[w0.upper()]
+    if isinstance(w1, str):
+        w1 = cw[w1.upper()]
+
+    dw = (w1 - w0).to(0.1 * u.um)
+    r = 10**(0.4 * (Rm * dw).to(u.mag).value)
+    S = 2 * (r - 1) / (r + 1) / dw * 100 * u.percent
+
+    if Rm_unc is not None:
+        S_unc = S * Rm_unc / Rm
+        return S, S_unc
+
+    return S
+
+def S2Rm(w0, w1, S, S_unc=None):
+    """Convert spectral slope `S` to continuum color, `Rm`.
+
+    `Rm` defined by Farnham et al. 2000, `S` is defined by A'Hearn et
+    al. (1984, AJ 89, 579):
+
+          R(lambda1) - R(lambda0)  2    α - 1  2
+      S = ----------------------- --- = ----- ---
+          R(lambda1) + R(lambda0) Δλ    α + 1 Δλ
+
+    where
+
+      α = 10**(0.4 * Rm * Δλ)
+
+    Solution:
+
+           2.5         β + 1
+      Rm = --- * log10(-----)
+           Δλ          β - 1
+
+    for:
+
+           2
+      β = ----
+          S Δλ
+
+    Parameters
+    ----------
+    w0, w1 : string or Quantity
+      The wavelengths used to determine `Rm`.
+    S : Quantity
+      Spectral slope in percent per 0.1 μm.
+    S_unc : Quantity, optional
+      Uncertainty on `S`.
+
+    Returns
+    -------
+    Rm : Quantity
+      The color in mangitudes per 0.1 μm, and uncertainty.
+    Rm_unc : Quantity or float, optional
+      `Rm` uncertainty.
+
+    """
+
+    assert S.unit.is_equivalent("%/um")
+
+    if isinstance(w0, str):
+        w0 = cw[w0.upper()]
+    if isinstance(w1, str):
+        w1 = cw[w1.upper()]
+
+    dw = w1 - w0
+    beta = 2 / (S * 100 * u.percent) / dw
+    Rm = 2.5 / dw * np.log10((beta + 1) / (beta - 1)) * u.mag
+    
+    if S_unc is not None:
+        Rm_unc = Rm * S_unc / S
+        return Rm, Rm_unc
+
+    return Rm
 
 # update module docstring
 from ..util import autodoc

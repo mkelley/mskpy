@@ -69,4 +69,19 @@ class TestHB():
         assert np.isclose(fluxd['UC'].to('erg/(s cm2 AA)').value, test,
                           atol=1e-16)
 
+    def test_Rm2S(self):
+        Rm = 0.3 * u.mag / (5240 * u.AA - 3675 * u.AA)
+        S = hb.Rm2S(3675 * u.AA, 5240 * u.AA, Rm)
+
+        alpha = 10**(0.4 * 0.3)
+        test = (alpha - 1) / (alpha + 1) * 2 / (5.240 - 3.675) * 100
         
+        assert np.isclose(S.to('10 % / um').value, test)
+
+    def test_S2Rm(self):
+        alpha = 10**(0.4 * 0.3)
+        S = (alpha - 1) / (alpha + 1) * 2 / (5.240 - 3.675) * 100
+        Rm = hb.S2Rm(3675 * u.AA, 5240 * u.AA, S * u.Unit('10 % / um'))
+
+        test = 0.3 / (5240 * u.AA - 3675 * u.AA).to('0.1 um').value
+        assert np.isclose(Rm.to('10 mag / um').value, test)
