@@ -109,7 +109,10 @@ else:
     target = ephem.getspiceobj(' '.join(args.target))
 
 try:
-    observer = eval('ephem.' + args.observer.capitalize())
+    if args.observer == 'L2':
+        observer = ephem.Earth_L2
+    else:
+        observer = eval('ephem.' + args.observer.capitalize())
 except AttributeError:
     observer = ephem.getspiceobj(' '.join(args.observer))
 
