@@ -320,7 +320,7 @@ def continuum_colors(m, unc=None):
         unc = dict.fromkeys(m, 0)
         return continuum_colors(m, unc=unc)[0]
     
-    continuum_filters = [f for f in m if f in ['UC', 'BC', 'GC', 'RC']]
+    continuum_filters = m.keys()#[f for f in m if f in ['UC', 'BC', 'GC', 'RC']]
     continuum_filters.sort(key=cw.get)
     Rm = OrderedDict()
     Rm_unc = OrderedDict()
