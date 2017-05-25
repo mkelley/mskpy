@@ -292,7 +292,7 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     yx_N = (np.ones(2, int) * N - 1.0) / 2.0 + yx_f
 
     # subsample the NxN region, where is the center in that?
-    shape_s = np.ones(2, int) * N * subsample
+    shape_s = np.ones(2, int) * int(N) * int(subsample)
     yx_s = subsample * (yx_N + 0.5) - 0.5    
     
     # generate the subsampled center
