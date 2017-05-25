@@ -836,8 +836,8 @@ def imstat(im, **kwargs):
     stats : dict
       Statistics commonly used in astronomical interpretations of
       images: min, max, mean, median, mode, stdev, sigclip mean,
-      sigclip median, sigclip stdev (3-sigma clipping).  The mode is
-      estimated assuming a unimodal data set that isn't too
+      sigclip median, sigclip stdev (3-sigma clipping), sum.  The mode
+      is estimated assuming a unimodal data set that isn't too
       asymmetric: mode = 3 * median - 2 * mean, where median and mean
       are the sigma-clipped estimates.
 
@@ -857,7 +857,8 @@ def imstat(im, **kwargs):
                 stdev = np.nanstd(im.ravel()),
                 scmean = scmean,
                 scmedian = scmedian,
-                scstdev = scstdev)
+                scstdev = scstdev,
+                sum = np.nansum(im))
 
 def linecut(im, yx, width, length, pa, subsample=4):
     """Photometry along a line.
