@@ -141,7 +141,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
                             1 / 60, 1 / 60, edgecolors='w', alpha=alpha)
         t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
         d = util.date2time(jd[step])
-        fig.save('{}-{}-{}.png'.format(t, fn, d.isot[:16].replace(':', '')),
+        fig.save('{}-{}-{}.png'.format(t, fn, d.isot[:16].replace(':', '').replace('T', '_')),
                  dpi=300)
 
         step = np.flatnonzero(i)[-1] + 1
