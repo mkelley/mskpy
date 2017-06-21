@@ -61,27 +61,17 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
 
     # dates
     start, stop = util.date2time(dates)
+
     jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
-    jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
-
-    ra, dec = [], []
     q = callhorizons.query(target)
-    for i in range(len(jd)):
-        q.set_discreteepochs([jd[i]])
-        q.get_ephemerides(observer)
-        ra.append(q['RA'])
-        dec.append(q['DEC'])
-
-    eph = coords.SkyCoord(ra, dec, unit='deg')
+    q.set_discreteepochs(jd)
+    q.get_ephemerides(observer)
+    eph = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
     
-    ra, dec = [], []
-    for i in range(len(jd_labels)):
-        q.set_discreteepochs([jd_labels[i]])
-        q.get_ephemerides(observer)
-        ra.append(q['RA'])
-        dec.append(q['DEC'])
-
-    labels = coords.SkyCoord(ra, dec, unit='deg')
+    jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
+    q.set_discreteepochs(jd_labels)
+    q.get_ephemerides(observer)
+    labels = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
     
     step = 0
     while step < len(eph):
