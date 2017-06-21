@@ -14,7 +14,7 @@ mskpy.observing.finding`.
 import numpy as np
 
 __all__ = [
-    'finding_chart',
+    'finding_charts',
 ]
 
 def finding_charts(target, observer, dates, step=1, lstep=6,
@@ -76,10 +76,10 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     step = 0
     while step < len(eph):
         print('This step: ', util.date2time(jd[step]).iso,
-              eph[step][0].to_string('hmsdms', sep=':', precision=0))
+              eph[step].to_string('hmsdms', sep=':', precision=0))
 
         fn = '{}'.format(
-            eph[step][0].to_string('hmsdms', sep='', precision=0).replace(' ', ''))
+            eph[step].to_string('hmsdms', sep='', precision=0).replace(' ', ''))
 
         if os.path.exists('sky-{}.fits.gz'.format(fn)):
             print('reading from file')
@@ -133,11 +133,11 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
 
         for k in np.flatnonzero(j):
             d = util.date2time(jd_labels[k])
-            fig.add_label(labels.ra[k].degree[0], labels.dec[k].degree[0],
+            fig.add_label(labels.ra[k].degree, labels.dec[k].degree,
                           d.datetime.strftime('%H:%M'), color='w',
                           alpha=alpha, size='small')
 
-        fig.show_rectangles(eph[step].ra.degree[0], eph[step].dec.degree[0],
+        fig.show_rectangles(eph[step].ra.degree, eph[step].dec.degree,
                             1 / 60, 1 / 60, edgecolors='w', alpha=alpha)
         t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
         d = util.date2time(jd[step])
@@ -160,21 +160,10 @@ if __name__ == "__main__":
     parser.add_argument('--alpha', default=0.5, type=float, help='Amount of transparency for overlays.')
 
     args = parser.parse_args()
+    target = ' '.join(args.target)
+    assert len(target.strip()) > 0
 
-    if (len(args.target) == 1
-        and args.target[0].isdigit()
-        and len(args.target[0]) < 6):
-        # asteroid designation
-        target = ephem.getspiceobj(int(args.target[0]) + 2000000)
-    else:
-        target = ephem.getspiceobj(' '.join(args.target))
-
-    try:
-        observer = eval('ephem.' + args.observer.capitalize())
-    except AttributeError:
-        observer = ephem.getspiceobj(' '.join(args.observer))
-
-    finding_charts(target, observer, [args.start, args.end],
+    finding_charts(target, args.observer, [args.start, args.end],
                    step=args.step, lstep=args.lstep, alpha=args.alpha)
 
 # update module docstring
