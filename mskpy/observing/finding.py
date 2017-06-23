@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 def finding_charts(target, observer, dates, step=1, lstep=6,
-                  alpha=0.5):
+                   alpha=0.5):
     """Generate finding charts for a moving target.
 
     The downloaded images are saved as gzipped FITS with a name based
@@ -141,7 +141,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
                             1 / 60, 1 / 60, edgecolors='w', alpha=alpha)
         t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
         d = util.date2time(jd[step])
-        fig.save('{}-{}-{}.png'.format(t, fn, d.isot[:16].replace(':', '').replace('T', '_')),
+        d = d.isot[:16].replace('-', '').replace(':', '').replace('T', '_')
+        fig.save('{}-{}-{}.png'.format(t, d, fn),
                  dpi=300)
 
         step = np.flatnonzero(i)[-1] + 1
