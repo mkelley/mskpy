@@ -1623,8 +1623,12 @@ def irs_summary(files):
     for f in files:
         spec, h, module = spice_read(f)
         i = between(spec['wavelength'], ranges[module])
-        tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
-                     h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+        try:
+            tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
+                         h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+        except Exception as e:
+            print('Error processing {}'.format(f))
+            raise e
 
     tab.sort('date')
     tab.pprint(max_lines=-1, max_width=-1)
@@ -1640,6 +1644,7 @@ def main():
     import matplotlib.pyplot as plt
     from astropy.io import ascii
     from ..graphics import nicelegend
+    from mskpy import hms2dh
 
     parser = argparse.ArgumentParser(description='Reduce Spitzer/IRS comet data.')
     parser.add_argument('config', help='Configuration file name.')
@@ -1658,7 +1663,15 @@ def main():
         
         files = glob(config['files'])
         rx = IRSCombine(files, **config.get('IRSCombine', {}))
-        pfx = config.get('prefix').format(g=rx.geom)
+
+        if np.dot(rx.geom.rt, rx.geom.vt) < 0:
+            pre_post = 'pre'
+        else:
+            pre_post = 'post'
+        dh = '{:.2f}'.format(hms2dh(rx.geom.date.iso[11:]) / 24)[1:]
+        date = rx.geom.date.iso[:10].replace('-', '') + dh
+        rh = "{pre_post}{g[rh].value:.3f}".format(pre_post=pre_post, g=rx.geom)
+        pfx = config.get('prefix').format(g=rx.geom, rh=rh, date=date)
 
         tab = irs_summary(files)
         tab.write(pfx + '-summary.csv', format="ascii.ecsv", overwrite=True)
