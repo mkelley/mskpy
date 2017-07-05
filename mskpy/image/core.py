@@ -135,7 +135,7 @@ def rebin(a, factor, flux=False, trim=False):
         for i in range(-factor - 1):
             b += a[(i + 1)::-factor]
         if not flux:
-            b /= float(-factor)
+            b = b / -factor
         return b
 
     def magni(a, factor):
@@ -145,7 +145,7 @@ def rebin(a, factor, flux=False, trim=False):
         for i in range(factor):
             b[i::factor] = a
         if flux:
-            b /= float(factor)
+            b = b / factor
         return b
 
     if factor == 1:
