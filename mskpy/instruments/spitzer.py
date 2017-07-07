@@ -1095,6 +1095,8 @@ class IRSCombine:
         fluxd = model.fluxd(self.geom, wave, unit=u.Jy)
 
         self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
+        self.nucleus['wave'].meta['unit'] = 'um'
+        self.nucleus['fluxd'].meta['unit'] = 'Jy'
         self.nucleus.meta['R'] = R
         self.nucleus.meta['Ap'] = Ap
         for k, v in kwargs.items():
@@ -1260,6 +1262,10 @@ class IRSCombine:
         tab = Table((wave, fluxd, err, orders, scales, nucleus),
                     names=['wave', 'fluxd', 'err', 'order',
                            'scales', 'nucleus'])
+        tab['wave'].meta['unit'] = 'um'
+        tab['fluxd'].meta['unit'] = 'Jy'
+        tab['err'].meta['unit'] = 'Jy'
+        tab['nucleus'].meta['unit'] = 'Jy'
         for k in ['wave', 'fluxd', 'err', 'nucleus', 'scales']:
             tab[k].format = "{:#.5g}"
 
