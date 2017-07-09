@@ -32,19 +32,23 @@ for fn in args.file:
 
         print("\n\n{}\n".format(fn))
 
-        wcs = WCS(hdu[0].header)
+        try:
+            wcs = WCS(hdu[0].header)
+        except ValueError as e:
+            wcs = None
+        
         obj = hdu[0].header['OBJECT']
         
         if kx in hdu[0].header and ky in hdu[0].header:
             cyx = hdu[0].header[ky], hdu[0].header[kx]
-            ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
-            ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('crosshair {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('pan to {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
             print("Object already centered, crosshair updated to: y, x = {}.".format(cyx))
         else:
-            if obj in objects and args.use_wcs:
+            if obj in objects and args.use_wcs and wcs is not None:
                 cyx = wcs.wcs_world2pix(objects[obj], 0)[0][::-1]
-                ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
-                ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+                ds9.set('crosshair {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
+                ds9.set('pan to {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
                 print("Object not centered, but I have guessed its location: y, x = {}.".format(cyx))
             
         print("Mark object center with crosshair.")
@@ -70,7 +74,8 @@ for fn in args.file:
 
         recenter = True
         while recenter:
-            guess = np.array(ds9.get('crosshair').split(), float)[::-1] - 1
+            guess = np.array(ds9.get('crosshair image').split(), float)
+            guess = guess[::-1] - 1  # DS9 xy to Python yx
             print('Box = {}'.format(box))
             try:
                 cyx = gcentroid(hdu[0].data, guess, box=box)
@@ -79,8 +84,8 @@ for fn in args.file:
                 cyx = 0, 0
 
             ds9.set('frame 1')
-            ds9.set('crosshair {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
-            ds9.set('pan to {} {} physical'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('crosshair {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
+            ds9.set('pan to {} {} image'.format(cyx[1] + 1, cyx[0] + 1))
 
             print("""  guess y, x = {}
   center y, x = {}
@@ -117,6 +122,7 @@ for fn in args.file:
         if inp == 'q':
             break
 
-        objects[obj] = wcs.wcs_pix2world([cyx[::-1]], 0)
+        if wcs is not None:
+            objects[obj] = wcs.wcs_pix2world([cyx[::-1]], 0)
 
 del ds9

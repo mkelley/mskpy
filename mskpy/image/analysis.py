@@ -706,7 +706,7 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
 
     return abs(fit[2]) * 2.35
 
-def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
+def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
 
     The best-fit should be bounded within `box`.
@@ -724,6 +724,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
       default is to use the whole image.
     niter : int, optional
       When box is not None, iterate niter times.
+    dim : int, optional
+      Set to 1 to fit two 1D Gaussians, or 2 to fit a 2D Gaussian.
     shrink : bool, optional
       When iterating, decrease the box size by sqrt(2) each time.
     silent : bool, optional
@@ -737,8 +739,13 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     """
 
-    from scipy.optimize import minimize
-    from ..util import gaussian
+    from photutils.centroids import centroid_1dg, centroid_2dg
+
+    assert dim in [1, 2], '`dim` must be one of [1, 2]'
+    if dim == 1:
+        centroid_func = centroid_1dg
+    else:
+        centroid_func = centroid_2dg
 
     if yx is None:
         yx = np.array(np.unravel_index(np.nanargmax(im), im.shape), float)
@@ -753,48 +760,21 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     else:
         box = np.array(box)
 
-    halfbox = np.round(box / 2).astype(int)
+    halfbox = box // 2
 
-    cyx = np.array(yx)  # return variable
+    yr = [max(iyx[0] - halfbox[0], 0),
+          min(iyx[0] + halfbox[0] + 1, im.shape[0] - 1)]
+    xr = [max(iyx[1] - halfbox[1], 0),
+          min(iyx[1] + halfbox[1] + 1, im.shape[1] - 1)]
+    ap = (slice(*yr), slice(*xr))
 
-    def gfit(p, x, f):
-        amplitude, mu, sigma = p
-        i = np.isfinite(f)
-        return np.sum((amplitude * gaussian(x, mu, sigma) - f)[i]**2)
-    
-    if halfbox[0] > 0:
-        yr = [max(iyx[0] - halfbox[0], 0),
-              min(iyx[0] + halfbox[0] + 1, im.shape[0] - 1)]
-        xr = [max(iyx[1] - halfbox[1], 0),
-              min(iyx[1] + halfbox[1] + 1, im.shape[1] - 1)]
-        ap = (slice(*yr), slice(*xr))
-        y = np.arange(*yr, dtype=float)
-        f = np.sum(im[ap], 1)
-        scale = np.nanmax(f)
-        fit = minimize(gfit, (1.0, yx[0], 2.5), args=(y, f / scale),
-                       method='L-BFGS-B',
-                       bounds=((0, None), yr, (0, box[0])))
-        if not fit['success']:
-            raise UnableToCenter("y-fit results = \n{}".format(str(fit)))
-        cyx[0] = fit['x'][1]
+    try:
+        cyx = centroid_func(im[ap])[::-1]
+    except ValueError as e:
+        raise UnableToCenter(str(e))
 
-    if halfbox[1] > 0:
-        #yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
-        #xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
-        yr = [max(iyx[0] - halfbox[1], 0),
-              min(iyx[0] + halfbox[1] + 1, im.shape[0] - 1)]
-        xr = [max(iyx[1] - halfbox[0], 0),
-              min(iyx[1] + halfbox[0] + 1, im.shape[1] - 1)]
-        ap = (slice(*yr), slice(*xr))
-        x = np.arange(*xr)
-        f = np.sum(im[ap], 0)
-        scale = np.nanmax(f)
-        fit = minimize(gfit, (1.0, yx[1], 2.5), args=(x, f / scale),
-                       method='L-BFGS-B',
-                       bounds=((0, None), xr, (0, box[1])))
-        if not fit['success']:
-            raise UnableToCenter("x-fit results = \n{}".format(str(fit)))
-        cyx[1] = fit['x'][1]
+    # convert from aperture coords to image coords
+    cyx = cyx + np.r_[yr[0], xr[0]]
 
     if niter > 1:
         if shrink:
@@ -810,8 +790,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
                 print(" - Box size too small -")
             return cyx
 
-        return gcentroid(im, yx=cyx, box=box, niter=niter-1, shrink=shrink,
-                         silent=silent)
+        return gcentroid(im, yx=cyx, box=box, niter=niter-1, dim=dim,
+                         shrink=shrink, silent=silent)
     else:
         if not silent:
             print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
