@@ -855,7 +855,7 @@ def linefit(x, y, err, guess, covar=False):
     else:
         return fit, err
 
-def planckfit(wave, fluxd, err, guess, covar=False):
+def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
     """A quick scaled Planck fitting function.
 
     The scale factor includes a factor of pi for the conversion from
@@ -872,6 +872,8 @@ def planckfit(wave, fluxd, err, guess, covar=False):
     covar : bool, optional
       Set to `True` to return the covariance matrix rather than the
       error.
+    **kwargs
+      `scipy.optimize.leastsq` keyword arguments.
 
     Returns
     -------
@@ -892,11 +894,24 @@ def planckfit(wave, fluxd, err, guess, covar=False):
         chi = (fluxd - model) / err
         return chi.decompose().value
 
+    def dchi(p, wave, fluxd, err):
+        import astropy.units as u
+        scale, T = p
+        d = np.empty((2, len(wave)))
+
+        model = planck(wave, T, unit=fluxd.unit / u.sr) * u.sr
+        d[0] = (model / err).decompose().value
+        
+        model = scale * planck(wave, T, unit=fluxd.unit / u.sr, deriv='T') * u.sr
+        d[1] = (model / err).decompose().value
+        return d
+
     if err is None:
-        err = np.ones(len(y)) * fluxd.unit
+        err = np.ones_like(fluxd)
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
-                     epsfcn=1e-3)
+#                     Dfun=dchi, col_deriv=True,
+                     epsfcn=epsfcn, **kwargs)
     print(output[-2])
     fit = output[0]
     cov = output[1]
