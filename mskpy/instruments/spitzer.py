@@ -585,7 +585,10 @@ class IRSCombine:
                     fluxd[i, j] /= n[j]
                     err2[i, j] /= n[j]
 
-                    j = spec['bit-flag'][k] > 0
+                    try:
+                        j = spec['bit-flag'][k] > 0
+                    except KeyError:
+                        j = spec['bit_flag'][k] > 0
                     fluxd[i, j] = np.nan
                     err2[i, j] = np.nan
 
