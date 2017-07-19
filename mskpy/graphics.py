@@ -271,9 +271,9 @@ def nicelegend(*args, **kwargs):
     return plt.legend(*args, **kwargs)
 
 
-def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
+def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
              mew=1.25, lw=2.0, ms=7.0, **kwargs):
-    """Pretty up a plot for publication.
+    """Clean up a plot for publication (matplotlib 1.x).
 
     Parameters
     ----------
@@ -294,13 +294,14 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
     
     if ax is None:
         for ax in plt.gcf().get_axes():
-            niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs, **kwargs)
+            niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs,
+                     mew=mew, lw=lw, ms=ms, **kwargs)
 
-    # for the axes
+    # axis ticks
     plt.setp(ax.get_ymajorticklabels(), fontsize=axfs)
     plt.setp(ax.get_xmajorticklabels(), fontsize=axfs)
 
-    # axis labes
+    # axis labels
     labels = (ax.xaxis.get_label(), ax.yaxis.get_label())
     plt.setp(labels, fontsize=lfs)
 
@@ -329,6 +330,81 @@ def niceplot(ax=None, axfs='12', lfs='14', tightlayout=True,
     plt.setp(ax.patch, lw=2.0)
 
     if hasattr(plt, "tight_layout") and tightlayout:
+        plt.sca(ax)
+        plt.tight_layout()
+
+def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
+             set_axis_formatter=True, **kwargs):
+    """Clean up a plot for publication.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.AxesSubplot, optional
+      An axis to niceify.  Default is all axes in the current figure.
+    tick_fs : string, float, or int, optional
+      Axis major tick label font size.  Minor ticks will be 1/sqrt(2)
+      smaller.
+    label_fs : string, float, or int, optional
+      Axis label font size.
+    tight_layout : bool, optional
+      Run `plt.tight_layout`.
+    **kwargs
+      Any line or marker property keyword.
+
+    """
+
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    
+    if ax is None:
+        for ax in plt.gcf().get_axes():
+            niceplot(ax, tight_layout=tight_layout, tick_fs=tick_fs,
+                     label_fs=label_fs, **kwargs)
+
+    # axis ticks
+    if isinstance(tick_fs, str):
+        if tick_fs.isdecimal():
+            minortick_fs = float(tick_fs) / np.sqrt(2)
+        else:
+            sizes = ['xx-small', 'x-small', 'small', 'medium', 'large',
+                     'x-large', 'xx-large']
+            assert(tick_fs.lower() in sizes), 'Unknown tick font size name'
+            minortick_fs = sizes[max(0, sizes.index(tick_fs) - 1)]
+    else:
+        minortick_fs = tick_fs / np.sqrt(2)
+            
+    ax.tick_params(axis='both', which='major', labelsize=tick_fs)
+    ax.tick_params(axis='both', which='minor', labelsize=minortick_fs)
+
+    # axis labels
+    labels = (ax.xaxis.get_label(), ax.yaxis.get_label())
+    plt.setp(labels, fontsize=label_fs)
+
+    # for plot markers, ticks
+    lines = ax.get_lines()
+#    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+#    if mew is not None:
+#        plt.setp(lines, mew=mew)
+#
+#    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+#    if ms is not None:
+#        plt.setp(lines, ms=ms)
+#
+#    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+#    if lw is not None:
+#        plt.setp(lines, lw=lw)
+
+    if len(kwargs) > 0:
+        plt.setp(lines, **kwargs)
+
+    #lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
+    #    ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
+    #plt.setp(lines, mew=1.25)
+
+    # the frame
+    #plt.setp(ax.patch, lw=2.0)
+
+    if tight_layout:
         plt.sca(ax)
         plt.tight_layout()
 
