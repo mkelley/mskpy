@@ -2184,7 +2184,7 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
     ----------
     wave : array or Quantity
       The wavelength(s) to evaluate the Planck function. [micron]
-    T : float or array
+    T : float, array, or Quantity
       The temperature(s) of the Planck function. [Kelvin]
     unit : astropy Unit
       The output units.  Do not include K for derivatives.  If `None`,
@@ -2227,14 +2227,14 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
 
     c1 = 3.9728913665386057e-25  # J m
     c2 = 0.0143877695998  # K m
-    a = np.exp(c2 / wave / T)
+    a = np.exp(c2 / wave / u.Quantity(T, 'K').value)
     B = c1 / (wave**3 * (a - 1.0))
     if unit is not None:
         B = B * u.Unit('W/(m2 Hz sr)')
         B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
     if deriv in ['T', 't']:
-        B = B * c2 / T**2 / wave * a / (a - 1.0) / u.K
+        B = B * c2 / T.to('K').value**2 / wave * a / (a - 1.0) / u.K
 
     # restore seterr
     np.seterr(**oldseterr)
