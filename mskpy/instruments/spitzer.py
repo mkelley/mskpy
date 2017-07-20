@@ -1012,8 +1012,8 @@ class IRSCombine:
             self._scale_order_wave[k1] = wm
             self.order_scales[k1] = (m2 * wm + b2) / (m1 * wm + b1)
 
-        # second pass: scale everything to shortest wavelength order,
-        # then next shortest, and so on
+        # second pass: incorporate scale factors into the shortest
+        # wavelength order, then next shortest, and so on
         for i, k in enumerate(orders):
             for j in range(i + 1, len(orders)):
                 self.order_scales[k] *= self.order_scales[orders[j]]
@@ -1022,12 +1022,13 @@ class IRSCombine:
         # actually apply the scale factors to the data
         spectra = self.spectra
         self.order_scaled = dict()
+        fixed_scale = self.order_scales[fixed]
         for k in orders:
             self.order_scaled[k] = dict()
             for kk, vv in spectra[k].items():
                 self.order_scaled[k][kk] = vv.copy()
 
-            self.order_scales[k] /= self.order_scales[fixed]
+            self.order_scales[k] /= fixed_scale
             self.order_scaled[k]['fluxd'] *= self.order_scales[k]
 
             self.meta['scale_orders'].append('{} scaled by {}'.format(
@@ -1742,6 +1743,14 @@ def main():
         plt.savefig(pfx + '-coadded.png')
 
         fig = plt.figure(3)
+        plt.clf()
+        plt.minorticks_on()
+        rx.plot_order_scaling()
+        plt.setp(plt.gca(), **opts)
+        plt.draw()
+        plt.savefig(pfx + '-scaling.png')
+
+        fig = plt.figure(4)
         plt.clf()
         plt.minorticks_on()
         rx.plot()
