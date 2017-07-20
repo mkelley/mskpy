@@ -829,7 +829,8 @@ def linefit(x, y, err, guess, covar=False):
       `(m, b)` the best-fit slope, `m`, and y-axis intercept `b`.
     err or cov : tuple (double, double) or ndarray
       Errors on the fit or the covariance matrix of the fit (see
-      `covar` keyword).
+      `covar` keyword).  `None` if the scipy's `leastsq` did not
+      return a covariance matrix.
 
     """
 
@@ -848,7 +849,10 @@ def linefit(x, y, err, guess, covar=False):
                      epsfcn=1e-3)
     fit = output[0]
     cov = output[1]
-    err = np.sqrt(np.diag(cov))
+    try:
+        err = np.sqrt(np.diag(cov))
+    except ValueError:
+        err = None
 
     if covar:
         return fit, cov
