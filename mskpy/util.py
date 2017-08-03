@@ -43,6 +43,7 @@ util --- Short and sweet functions, generic algorithms
 
    Spherical/Celestial/vectorial geometry
    --------------------------------------
+   delta_at_rh
    ec2eq
    lb2xyz
    projected_vector_angle
@@ -138,6 +139,7 @@ __all__ = [
     'takefrom',
     'whist',
 
+    'delta_at_rh',
     'ec2eq',
     'lb2xyz',
     'projected_vector_angle',
@@ -163,7 +165,7 @@ __all__ = [
     'deresolve',
     'phase_integral',
     'planck',
-#    'redden',
+    #    'redden',
     'polcurve',
     'savitzky_golay',
 
@@ -353,8 +355,8 @@ def deriv(y, x=None):
                y[2] *           x01[1]  / (x02[1] * x12[1]))
 
     dydx[-1] = (-y[-3] *            x12[-2]  / (x01[-2] * x02[-2]) +
-                 y[-2] *            x02[-2]  / (x01[-2] * x12[-2]) -
-                 y[-1] * (x02[-2] + x12[-2]) / (x02[-2] * x12[-2]))
+                y[-2] *            x02[-2]  / (x01[-2] * x12[-2]) -
+                y[-1] * (x02[-2] + x12[-2]) / (x02[-2] * x12[-2]))
 
     return dydx
 
@@ -500,9 +502,9 @@ def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
         wcs.wcs.cdelt = cdelt / 3600.0
     else:
         wcs.wcs.cdelt = np.array([-1, 1]) * cdelt / 3600.0
-    par = np.radians(pa)
-    wcs.wcs.pc = np.array([[-np.cos(par), -np.sin(par)],
-                            [-np.sin(par),  np.cos(par)]])
+        par = np.radians(pa)
+        wcs.wcs.pc = np.array([[-np.cos(par), -np.sin(par)],
+                               [-np.sin(par),  np.cos(par)]])
     return wcs
 
 def fitslog(keywords, files=None, path='.', format=None, csv=True):
@@ -585,14 +587,14 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
             f.replace('.fits', '').replace('.fit', '').split('/')[-1], s)
         if csv:
             log += ','
-        log += ' '
-        h = fits.getheader(f)
-        values = ()
+            log += ' '
+            h = fits.getheader(f)
+            values = ()
         for k in keywords:
             values += (h[k], )
-        log += format.format(*values)
-        log += "\n"
-    
+            log += format.format(*values)
+            log += "\n"
+            
     return log
 
 def getrot(h):
@@ -672,9 +674,9 @@ def getrot(h):
             cdelt[1] = cd[1, 1]
     else:
         rot1 = np.arctan2(sgn * np.radians(cd[0, 1]),
-                             sgn * np.radians(cd[0, 0]))
+                          sgn * np.radians(cd[0, 0]))
         rot2 = np.arctan2(np.radians(-cd[1, 0]),
-                             np.radians(cd[1, 1]))
+                          np.radians(cd[1, 1]))
 
         if not cdeltDefined:
             cdelt[0] = sgn * np.sqrt(cd[0, 0]**2 + cd[0, 1]**2)
@@ -914,7 +916,7 @@ def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
         err = np.ones_like(fluxd)
 
     output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
-#                     Dfun=dchi, col_deriv=True,
+                     #                     Dfun=dchi, col_deriv=True,
                      epsfcn=epsfcn, **kwargs)
     print(output[-2])
     fit = output[0]
@@ -1059,7 +1061,7 @@ def leading_num_key(s):
         if not s[i].isdigit():
             break
         pfx += s[i]
-    sfx = s[i:]
+        sfx = s[i:]
 
     if len(pfx) > 0:
         pfx = int(pfx)
@@ -1153,7 +1155,7 @@ def takefrom(arrays, indices):
         newa = np.array(a)[indices]
         if not isinstance(newa, type(a)):
             newa = type(a)(newa)
-        r += (newa,)
+            r += (newa,)
     return r
 
 def whist(x, y, w, errors=True, **keywords):
@@ -1211,6 +1213,43 @@ def whist(x, y, w, errors=True, **keywords):
         err = None
 
     return m, err, n, edges
+
+def delta_at_rh(rh, selong):
+    """Earth-target distance and phase angle at heliocentric distance and solar elongation.
+
+    Parameters
+    ----------
+    rh : Quantity or float
+      Heliocentric distance.
+    selong : Quantity, Angle, or float
+      Solar elongation.  If a float, it must be in radians.
+
+    Returns
+    -------
+    delta : Quantity or array
+    phase : Quantity or array
+
+    """
+
+    import astropy.units as u
+
+    if isinstance(rh, u.Quantity):
+        _rh = rh.value
+        distance_unit = rh.unit
+    else:
+        _rh = rh
+        distance_unit = 1
+    
+    if isinstance(selong, u.Quantity):
+        angle_unit = selong.unit
+    else:
+        angle_unit = 1
+    
+    cth = np.cos(u.Quantity(selong, u.rad).value)
+    delta = (cth + np.sqrt(cth**2 + _rh**2))
+    phi = np.arccos((delta**2 + _rh**2 - 1) / 2 / delta / _rh)
+    
+    return delta * distance_unit, phi * angle_unit
 
 def ec2eq(lam, bet):
     """Ecliptic coordinates to equatorial (J2000.0) coordinates.
