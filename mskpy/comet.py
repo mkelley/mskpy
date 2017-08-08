@@ -25,6 +25,7 @@ comet --- Comets!
    m2afrho
    M2afrho1
    m2qh2o
+   parse_name
    Q2flux
    silicate_feature
 
@@ -798,6 +799,50 @@ def m2qh2o(m_H):
     """
     return 10**(30.675 - 0.2453 * m_H)
 
+def parse_name(name):
+    """Comet desgination from the full name.
+
+    Parameters
+    ----------
+    name : string
+      For example, "252P/LINEAR 12" or "P/2016 BA14 (Pan-STARRS)".
+
+    Returns
+    -------
+    desg : string
+      For example, "252P" or "P/2016 BA14".
+
+    Examples
+    --------
+    name                            designation
+    1P/Halley                       1P
+    3D/Biela                        3D
+    9P/Tempel 1                     9P
+    73P/Schwassmann Wachmann 3 C    73P         # Note the missing "C"!
+    73P-C/Schwassmann Wachmann 3 C  73P-C
+    73P-BB                          73P-BB
+    322P                            322P
+    X/1106 C1                       X/1106 C1
+    P/1994 N2 (McNaught-Hartley)    P/1994 N2
+    P/2001 YX127 (LINEAR)           P/2001 YX127
+    C/-146 P1                       C/-146 P1  
+    C/2001 A2-A (LINEAR)            C/2001 A2-A
+    C/2013 US10                     C/2013 US10
+    C/2015 V2 (Johnson)             C/2015 V2
+
+    """
+
+    import re
+
+    pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
+           '|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?))')
+
+    m = re.findall(pat, name.strip())
+    if len(m) == 0:
+        raise NotACometDesignation(name)
+    else:
+        return m[0][0]
+    
 def Q2flux(Q, wave, geom, g, rap, v):
     """Convert Q to line emission.
 

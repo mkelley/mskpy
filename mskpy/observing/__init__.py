@@ -63,7 +63,7 @@ class Observer(object):
     ----------
     lon, lat : astropy Angle or Quantity
       The longitude and (East) latitude of the observer.
-    tz : float
+    tz : float or int
       The time zone of the observer.
     date : string, float, astropy Time, datetime, or array
       The current date (civil time), passed to `util.date2time`.  If
@@ -110,7 +110,7 @@ class Observer(object):
         """Observation date"""
         from .. import util
         self._date = util.date2time(d)
-        if isinstance(self.tz, float):
+        if isinstance(self.tz, (float, int)):
             self._date += self.tz * u.hr
         else:
             self._date += util.tz2utc(self.date, self.tz).total_seconds() * u.s
@@ -241,7 +241,7 @@ class Observer(object):
         ds9.set('dsssao close')
         ds9.set('cmap b')
         ds9.set('align')
-        
+
         # FOV
         if fov is not None:
             if fov.size == 1:
@@ -610,7 +610,7 @@ def plot_transit_time(target, g_sun, observer=None, ax=None, **kwargs):
 
     if ax is None:
         ax = plt.gca()
-    
+
     g = observer.observe(target, g_sun.date)
     tt = (g.ra - g_sun.ra - 12 * u.hourangle).wrap_at(180 * u.deg).hourangle
 

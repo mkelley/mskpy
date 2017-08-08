@@ -21,10 +21,11 @@ image.analysis --- Analyze (astronomical) images.
    linecut
    polyfit2d
    radprof
+   spextract
    trace
 
 .. todo:: Re-write anphot to generate pixel weights via rarray, rather
-   than sub-sampling the images.  Update apphot and azavg, if needed.
+   than sub-sampling the images?  Update apphot and azavg, if needed.
 
 .. todo:: Re-write linecut to generate pixel weights via xarray?
 
@@ -48,14 +49,22 @@ __all__ = [
     'linecut',
     'polyfit2d',
     'radprof',
+    'spextract',
     'trace'
 ]
 
 class UnableToCenter(Exception):
     pass
 
+class LostTraceWarning(Warning):
+    pass
+
+class UnableToTrace(Exception):
+    pass
+
 class NoSourcesFound(Exception):
     pass
+
 
 def anphot(im, yx, rap, subsample=4, squeeze=True):
     """Simple annular aperture photometry.
@@ -697,7 +706,7 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
 
     return abs(fit[2]) * 2.35
 
-def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
+def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
 
     The best-fit should be bounded within `box`.
@@ -715,6 +724,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
       default is to use the whole image.
     niter : int, optional
       When box is not None, iterate niter times.
+    dim : int, optional
+      Set to 1 to fit two 1D Gaussians, or 2 to fit a 2D Gaussian.
     shrink : bool, optional
       When iterating, decrease the box size by sqrt(2) each time.
     silent : bool, optional
@@ -728,8 +739,13 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
     """
 
-    from scipy.optimize import minimize
-    from ..util import gaussian
+    from photutils.centroids import centroid_1dg, centroid_2dg
+
+    assert dim in [1, 2], '`dim` must be one of [1, 2]'
+    if dim == 1:
+        centroid_func = centroid_1dg
+    else:
+        centroid_func = centroid_2dg
 
     if yx is None:
         yx = np.array(np.unravel_index(np.nanargmax(im), im.shape), float)
@@ -744,48 +760,21 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     else:
         box = np.array(box)
 
-    halfbox = np.round(box / 2).astype(int)
+    halfbox = box // 2
 
-    cyx = np.array(yx)  # return variable
+    yr = [max(iyx[0] - halfbox[0], 0),
+          min(iyx[0] + halfbox[0] + 1, im.shape[0] - 1)]
+    xr = [max(iyx[1] - halfbox[1], 0),
+          min(iyx[1] + halfbox[1] + 1, im.shape[1] - 1)]
+    ap = (slice(*yr), slice(*xr))
 
-    def gfit(p, x, f):
-        amplitude, mu, sigma = p
-        i = np.isfinite(f)
-        return np.sum((amplitude * gaussian(x, mu, sigma) - f)[i]**2)
-    
-    if halfbox[0] > 0:
-        yr = [max(iyx[0] - halfbox[0], 0),
-              min(iyx[0] + halfbox[0] + 1, im.shape[0] - 1)]
-        xr = [max(iyx[1] - halfbox[1], 0),
-              min(iyx[1] + halfbox[1] + 1, im.shape[1] - 1)]
-        ap = (slice(*yr), slice(*xr))
-        y = np.arange(*yr, dtype=float)
-        f = np.sum(im[ap], 1)
-        scale = np.nanmax(f)
-        fit = minimize(gfit, (1.0, yx[0], 2.5), args=(y, f / scale),
-                       method='L-BFGS-B',
-                       bounds=((0, None), yr, (0, box[0])))
-        if not fit['success']:
-            raise UnableToCenter("y-fit results = \n{}".format(str(fit)))
-        cyx[0] = fit['x'][1]
+    try:
+        cyx = centroid_func(im[ap])[::-1]
+    except ValueError as e:
+        raise UnableToCenter(str(e))
 
-    if halfbox[1] > 0:
-        #yr = [iyx[0] - halfbox[1], iyx[0] + halfbox[1] + 1]
-        #xr = [iyx[1] - halfbox[0], iyx[1] + halfbox[0] + 1]
-        yr = [max(iyx[0] - halfbox[1], 0),
-              min(iyx[0] + halfbox[1] + 1, im.shape[0] - 1)]
-        xr = [max(iyx[1] - halfbox[0], 0),
-              min(iyx[1] + halfbox[0] + 1, im.shape[1] - 1)]
-        ap = (slice(*yr), slice(*xr))
-        x = np.arange(*xr)
-        f = np.sum(im[ap], 0)
-        scale = np.nanmax(f)
-        fit = minimize(gfit, (1.0, yx[1], 2.5), args=(x, f / scale),
-                       method='L-BFGS-B',
-                       bounds=((0, None), xr, (0, box[1])))
-        if not fit['success']:
-            raise UnableToCenter("x-fit results = \n{}".format(str(fit)))
-        cyx[1] = fit['x'][1]
+    # convert from aperture coords to image coords
+    cyx = cyx + np.r_[yr[0], xr[0]]
 
     if niter > 1:
         if shrink:
@@ -801,8 +790,8 @@ def gcentroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
                 print(" - Box size too small -")
             return cyx
 
-        return gcentroid(im, yx=cyx, box=box, niter=niter-1, shrink=shrink,
-                         silent=silent)
+        return gcentroid(im, yx=cyx, box=box, niter=niter-1, dim=dim,
+                         shrink=shrink, silent=silent)
     else:
         if not silent:
             print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
@@ -827,15 +816,14 @@ def imstat(im, **kwargs):
     stats : dict
       Statistics commonly used in astronomical interpretations of
       images: min, max, mean, median, mode, stdev, sigclip mean,
-      sigclip median, sigclip stdev (3-sigma clipping).  The mode is
-      estimated assuming a unimodal data set that isn't too
+      sigclip median, sigclip stdev (3-sigma clipping), sum.  The mode
+      is estimated assuming a unimodal data set that isn't too
       asymmetric: mode = 3 * median - 2 * mean, where median and mean
       are the sigma-clipped estimates.
 
     """
 
     from .. import util
-    import scipy.stats
 
     mc = util.meanclip(im, full_output=True, **kwargs)
     scmean, scstdev = mc[:2]
@@ -843,13 +831,14 @@ def imstat(im, **kwargs):
 
     return dict(min = np.nanmin(im),
                 max = np.nanmax(im),
-                mean = scipy.stats.nanmean(im.ravel()),
+                mean = np.nanmean(im.ravel()),
                 median = util.nanmedian(im),
                 mode = 3.0 * scmedian - 2.0 * scmean,
-                stdev = scipy.stats.nanstd(im.ravel()),
+                stdev = np.nanstd(im.ravel()),
                 scmean = scmean,
                 scmedian = scmedian,
-                scstdev = scstdev)
+                scstdev = scstdev,
+                sum = np.nansum(im))
 
 def linecut(im, yx, width, length, pa, subsample=4):
     """Photometry along a line.
@@ -884,7 +873,7 @@ def linecut(im, yx, width, length, pa, subsample=4):
       The number of pixels per bin.
     f : ndarray
       The line cut photometry.
-      
+
     """
 
     from ..util import midstep
@@ -1075,52 +1064,229 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     return rc, f, n, rmean
 
-def trace(im, err, guess):
-    """Trace the peak pixels along the second axis of an image.
+def spextract(im, cen, rap, axis=0, trace=None, mean=False,
+              bgap=None, bgorder=0, subsample=5):
+    """Extract a spectrum, or similar, from an image.
+
+    To account for potential pixel aliasing and missing values, each
+    element is scaled to the same aperture size, defined as `2 * rap`.
 
     Parameters
     ----------
-    im : array
-      The image to trace.
-    err : array
-      The image uncertainties.  Set to None for unweighted fitting.
-    guess : array
-      The initial guesses for Gaussian fitting the y-value at x=0:
-      (mu, sigma, height, [m, b]) = position (mu), width (sigma),
-      height, and linear background m*x + b.
+    im : ndarray or MaskedArray
+      The 2D spectral image or similar.  If `im` is not a
+      `MaskedArray`, then a bad value mask will be created from all
+      non-finite elements.
+    cen : int, float or array thereof
+      The center(s) of the extraction.  The extraction will be along axis
+      `axis`.
+    rap : int or float
+      Aperture radius.
+    axis : int, optional
+      The axis of the extraction.
+    trace : array, optional
+      An array of polynomial coefficients to use to adjust the
+      aperture center based on axis index.  The first element is the
+      coefficient of the highest order.  `cen` will be added to the
+      last element.  If `cen` is an array, then `trace` may be an
+      array of polynomial sets for each `cen`.  The first axis
+      iterates over each set.
+    mean : bool, optional
+      Set to `True` to return the average value within the aperture,
+      rather than the sum.
+    bgap : array, optional
+      Inner and outer radii for a background aperture.  If defined,
+      the background will be removed, and the `nbg`, `mbg`, `bgvar`
+      arrays will be returned.
+    bgorder : int, optional
+      Fit the background with a `bgorder` polynomial.  Currently
+      limited to 0.
+    subsample : int, optional
+      The image is linearly subsampled to define the aperture edges.
+      Set to `None` for no subsampling.
 
     Returns
     -------
-    y : ndarray
-      Positions of the peak.
+    n : MaskedArray
+      The aperture size in pixels for each element in `spec`.
+    spec : MaskedArray
+      The extracted spectrum, background removed when `bgap` is
+      defined.
+    nbg : MaskedArray, optional
+      The background area in pixels for each element in `bg`.
+    mbg : MaskedArray, optional
+      The mean background spectrum.
+    bgvar : MaskedArray, optional
+      The background variance spectrum.
 
     """
 
-    from scipy.optimize import leastsq as lsq
-    from ..util import gaussian
+    from numpy.ma import MaskedArray
+    from . import yarray
+    
+    assert bgorder == 0, "bgorder must be 0"
 
-    def chi(p, x, y, err):
-        if len(p) > 3:
-            mu, sigma, height, m, b = p
+    if axis == 1:
+        return spectract(im.T, cen, rap, axis=0, trace=trace, mean=mean,
+                         bgap=bgap, bgorder=bgorder, subsample=subsample)
+
+    # parameter normalization
+    if not np.iterable(cen):
+        cen = [cen]
+    N_aper = len(cen)
+
+    if trace is not None:
+        trace = np.array(trace)
+        if trace.ndim != 2:
+            order = len(trace)
+            trace = np.tile(trace, N_aper).reshape((N_aper, order))
+    else:
+        trace = np.zeros(N_aper).reshape((N_aper, 1))
+
+    # setup arrays for results
+    n, spec = MaskedArray(np.zeros((2, N_aper, im.shape[1])))
+    if bgap is not None:
+        nbg, mbg, bgvar = MaskedArray(np.zeros((3, N_aper, im.shape[1])))
+
+    y = yarray((im.shape[0] * subsample, im.shape[1])) / subsample
+    x = np.arange(im.shape[1])
+
+    for i in range(N_aper):
+        p = trace[i].copy()
+        p[-1] += cen[i]
+        tr = np.polyval(p, x)
+
+        aper = _spextract_mask(y, tr, rap, subsample)
+        n[i] = np.sum(aper * ~im.mask, 0)
+        spec[i] = np.sum(aper * im, 0) / n[i]
+        if not mean:
+            spec[i] *= 2 * rap
+
+        if bgap is not None:
+            c = np.mean(bgap)
+            r = np.ptp(bgap)
+            w = (_spextract_mask(y, tr + c, r, subsample)
+                 + _spextract_mask(y, tr - c, r, subsample))
+            nbg[i] = np.sum(w, 0)
+            mbg[i] = np.sum(w * im, 0) / nbg[i]
+            bgvar[i] = (np.sum(w * im**2, 0) - mbg[i]) / nbg[i]
+            if mean:
+                spec[i] -= mbg[i]
+            else:
+                spec[i] -= 2 * rap * mbg[i]
+        
+    if bgap is None:
+        return n, spec
+    else:
+        return n, spec, nbg, mbg, bgvar
+
+def _spextract_mask(y, trace, rap, subsample):
+    """Create an photometry mask for `spextract`."""
+    aper = (y >= trace - rap) * (y < trace + rap)
+    aper = aper.reshape(y.shape[0] // subsample, subsample, y.shape[1])
+    aper = aper.sum(1) / subsample
+    return aper
+        
+def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
+          **imshow_kwargs):
+    """Trace the peak pixels along an axis of a 2D image.
+
+    Parameters
+    ----------
+    im : ndarray or MaskedArray
+      The image to trace.  If a `MaskedArray`, masked values will be
+      ignored.
+    err : ndaarray
+      The image uncertainties.  Set to None for unweighted fitting.
+    guess : array
+      The initial guesses for Gaussian fitting.  Fitting begins at the
+      lowest index that is not masked.  Subsequent fits use the
+      previous fit as a guess: (height, mu, sigma, [m, b]) = height,
+      position (mu), width (sigma), and linear background m*x + b.
+    rap : int, optional
+      The size of the aperture (radius) to use around the peak guess.
+    axis : int, optional
+      The axis along which to measure the peaks.
+    polyfit : bool, optional
+      Set to `True` to fit the resulting array with a polynomial.  The
+      polynomial coefficients will be added to the output and are
+      suitable for the `np.polyval` function.  After an initial fit,
+      the residuals will be inspected and outliers rejected before
+      performing an additional fit.
+    order : bool, optional
+      The degree of the polynomial fit.
+    plot : bool, optional
+      Set to `True` to plot the result.
+    **imshow_kwargs
+      Any `matplotlib.imshow` keyword arguments for the plot.
+
+    Returns
+    -------
+    peaks : ndarray
+      Positions of the peaks.
+    p : ndarray, optional
+      Polynomial coefficients of the trace when the `fit` parameter is
+      enabled.
+
+    """
+
+    import warnings
+    from ..util import between, gaussfit, meanclip
+
+    if axis == 0:
+        if err is None:
+            _err = None
         else:
-            mu, sigma, height = p
-            m, b = 0, 0
-        model = gaussian(x, mu, sigma) * height + m * x + b
-        _chi = (y - model) / err
-        return _chi
+            err = err.T
+        return trace(im.T, _err, guess, axis=1, polyfit=polyfit, order=order)
 
-    y = np.zeros(im.shape[1])
-    x = np.arange(im.shape[0])
-    last = guess
+    # The remainder is coded for dispersion along axis 1.
+    if isinstance(im, np.ma.MaskedArray):
+        mask = im.mask
+        if im.mask.shape == ():
+            mask = np.zeros(im.shape, bool)
+            mask[:, :] = im.mask
+    else:
+        mask = np.zeros(im.shape, bool)
+
+    peaks = np.ma.MaskedArray(np.zeros(im.shape[1]),
+                              np.zeros(im.shape[1], bool))
+    x = np.arange(im.shape[1], dtype=float)
+
     if err is None:
         err = np.ones_like(im)
 
     for i in range(im.shape[1]):
-        fit, fiterr = lsq(chi, last, (x, im[:, i], err[:, i]))
-        y[i] = fit[0]
-        last = fit
+        c = int(round(guess[1]))
+        aper = (max(0, c - rap), min(c + rap, im.shape[0]))
+        j = slice(*aper)
+        if np.all(mask[j, i]):
+            peaks.mask[i] = True
+            continue
 
-    return y
+        fit = gaussfit(x[j], im[j, i], err[j, i], guess)[0]
+        if not between(fit[1], aper):
+            peaks.mask[i] = True
+            warnings.warn("Best-fit peak outside of aperture.",
+                          LostTraceWarning)
+            continue
+
+        peaks[i] = fit[1]
+        guess = fit
+
+    if np.all(peaks.mask):
+        raise UnableToTrace("No peaks found.")
+
+    if polyfit:
+        i = ~peaks.mask
+        y = np.arange(im.shape[1])
+        p = np.polyfit(y[i], peaks[i], order)
+        good = meanclip((peaks - np.polyval(p, y))[i], full_output=True)[2]
+
+        p = np.polyfit(y[i][good], peaks[i][good], order)
+        return peaks, p
+    else:
+        return peaks
 
 
 # update module docstring

@@ -371,7 +371,7 @@ class IRS(Instrument):
         """
         return self.mode.lightcurve(*args, **kwargs)
 
-class IRSCombine(object):
+class IRSCombine:
     """Combine extracted and calibrated IRS data into a single spectrum.
 
     Only SL and LL currently supported.
@@ -391,8 +391,8 @@ class IRSCombine(object):
       The combined spectra for each module.
     coma : dict
       The nucleus subtracted spectra for each module.
-    comments : dict
-      A list of processing comments by module.
+    meta : dict
+      A list of processing meta data.
     file_scales : dict
       A list of scale factors for each file.
     headers : dict
@@ -466,18 +466,18 @@ class IRSCombine(object):
         self.shape_corrected = None
         self.order_scaled = None
 
-        self.comments = OrderedDict()
-        self.comments['read_files'] = []
-        self.comments['scale_spectra'] = []
-        self.comments['coadd'] = []
-        self.comments['zap'] = []
-        self.comments['trim'] = []
-        self.comments['nucleus'] = []
-        self.comments['aploss_correct'] = []
-        self.comments['slitloss_correct'] = []
-        self.comments['shape_correct'] = []
-        self.comments['scale_orders'] = []
-        self.comments['scale_spectra'] = []
+        self.meta = OrderedDict()
+        self.meta['read_files'] = []
+        self.meta['scale_spectra'] = []
+        self.meta['coadd'] = []
+        self.meta['zap'] = []
+        self.meta['trim'] = []
+        self.meta['subtract_nucleus'] = []
+        self.meta['aploss_correct'] = []
+        self.meta['slitloss_correct'] = []
+        self.meta['shape_correct'] = []
+        self.meta['scale_orders'] = []
+        self.meta['scale_spectra'] = []
 
         self.read(files, **kwargs)
 
@@ -524,12 +524,12 @@ class IRSCombine(object):
             self.aploss_corrected[k]['fluxd'] *= alcf
             self.aploss_corrected[k]['err'] *= alcf
 
-        self.comments['aploss_correct'] = ['Aperture loss corrected.']
+        self.meta['aploss_correct'] = ['Aperture loss corrected.']
 
     def coadd(self, scales=dict(), sig=2.5):
         """Combine by module.
 
-        Scale factors derived by `self.scale_spectra()` are applied by
+        Scale factors derived by `scale_spectra()` are applied by
         default.
 
         Run `coadd()` even when there is only one spectrum per module.
@@ -559,7 +559,7 @@ class IRSCombine(object):
             _scales.update(scales)
         
         self.coadded = dict()
-        self.comments['coadd'] = []
+        self.meta['coadd'] = []
         for module, files in self.modules.items():
             for order in np.unique(self.raw[files[0]]['order']):
                 k = self.raw[files[0]]['order'] == order
@@ -585,7 +585,10 @@ class IRSCombine(object):
                     fluxd[i, j] /= n[j]
                     err2[i, j] /= n[j]
 
-                    j = spec['bit-flag'][k] > 0
+                    try:
+                        j = spec['bit-flag'][k] > 0
+                    except KeyError:
+                        j = spec['bit_flag'][k] > 0
                     fluxd[i, j] = np.nan
                     err2[i, j] = np.nan
 
@@ -609,11 +612,11 @@ class IRSCombine(object):
                     wave=w[i], fluxd=f[i], err=e[i])
 
                 if fluxd.shape[0] > 2:
-                    self.comments['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(fluxd.shape[0], module[:-1], order, sig))
+                    self.meta['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(fluxd.shape[0], module[:-1], order, sig))
                 elif fluxd.shape[0] == 2:
-                    self.comments['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[0], module[:-1], order))
+                    self.meta['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[0], module[:-1], order))
                 else:
-                    self.comments['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
+                    self.meta['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
 
     def plot(self, name='spectra', ax=None, errorbar=True,
              label=str.upper, unit=u.Jy, lambda_scale=False, **kwargs):
@@ -884,6 +887,7 @@ class IRSCombine(object):
                 self.modules[module] = []
                 
             self.modules[module].append(f)
+            self.meta['read_files'].append(f)
 
         print('IRSCombine read {} files.'.format(len(self.raw)))
 
@@ -913,7 +917,7 @@ class IRSCombine(object):
             n = len(files)
             k = module.upper() + ' exposures'
             self.header[k] = (n, 'Number of exposures')
-            itime = np.sum([float(self.headers[f]['RAMPTIME']) for f in files])
+            itime = sum([float(self.headers[f]['RAMPTIME']) for f in files])
             k = module.upper() + ' itime'
             self.header[k] = (itime, 'Total time collecting photons')
 
@@ -933,15 +937,16 @@ class IRSCombine(object):
         self.header['lambda'] = (c.heliocentrictrueecliptic.lon, 'Ecliptic longitude')
         self.header['beta'] = (c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
         
-        self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
-        self.header['files'] = self.raw.keys()
+        #self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
+        xyz = [float(headers[first]['SPTZR_' + x]) * u.km for x in 'XYZ']
+        self.header['R_Spitzer'] = dict([(k, v) for k, v in zip('xyz', xyz)])
 
     def delete_nucleus(self):
         """Delete the model nucleus."""
         self.nucleus = None
         self.coma = None
         self.aploss_corrected = None
-        self.comments['nucleus'] = []
+        self.meta['subtract_nucleus'] = []
         print('IRSCombine: Model nucleus removed.')
         
     def scale_orders(self, fixed, dlam=0.1):
@@ -1007,8 +1012,8 @@ class IRSCombine(object):
             self._scale_order_wave[k1] = wm
             self.order_scales[k1] = (m2 * wm + b2) / (m1 * wm + b1)
 
-        # second pass: scale everything to shortest wavelength order,
-        # then next shortest, and so on
+        # second pass: incorporate scale factors into the shortest
+        # wavelength order, then next shortest, and so on
         for i, k in enumerate(orders):
             for j in range(i + 1, len(orders)):
                 self.order_scales[k] *= self.order_scales[orders[j]]
@@ -1017,15 +1022,16 @@ class IRSCombine(object):
         # actually apply the scale factors to the data
         spectra = self.spectra
         self.order_scaled = dict()
+        fixed_scale = self.order_scales[fixed]
         for k in orders:
             self.order_scaled[k] = dict()
             for kk, vv in spectra[k].items():
                 self.order_scaled[k][kk] = vv.copy()
 
-            self.order_scales[k] /= self.order_scales[fixed]
+            self.order_scales[k] /= fixed_scale
             self.order_scaled[k]['fluxd'] *= self.order_scales[k]
 
-            self.comments['scale_orders'].append('{} scaled by {}'.format(
+            self.meta['scale_orders'].append('{} scaled by {}'.format(
                 k, self.order_scales[k]))
 
     def scale_spectra(self, sl1=(9, 11), sl2=(6, 7), ll1=(25, 30),
@@ -1045,6 +1051,7 @@ class IRSCombine(object):
 
         self.scales = dict()
 
+        self.meta['scale_spectra'] = {}
         for module, files in self.modules.items():
             bandfluxd = dict()
             for f in files:
@@ -1052,9 +1059,9 @@ class IRSCombine(object):
                 bandfluxd[f] = meanclip(self.raw[f]['flux_density'][i])
             mfluxd = np.nanmedian(list(bandfluxd.values()))
             for f in files:
-                self.scales[f] = mfluxd / bandfluxd[f]
+                self.scales[f] = float(mfluxd / bandfluxd[f])
 
-            self.comments['scale_spectra'] = ['{} scale factors: {}'.format(module, str(self.scales))]
+            self.meta['scale_spectra']['sl1'] = self.scales
 
         print('IRSCombine generated {} scale factors.'.format(len(self.scales)))
 
@@ -1092,14 +1099,14 @@ class IRSCombine(object):
         fluxd = model.fluxd(self.geom, wave, unit=u.Jy)
 
         self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
+        self.nucleus['wave'].meta['unit'] = 'um'
+        self.nucleus['fluxd'].meta['unit'] = 'Jy'
         self.nucleus.meta['R'] = R
         self.nucleus.meta['Ap'] = Ap
         for k, v in kwargs.items():
             self.nucleus.meta[k] = v
 
-        self.comments['subtract_nucleus'] = [
-            "Model nucleus: R={}, Ap={}, {}".format(R, Ap, str(kwargs))
-        ]
+        self.meta['subtract_nucleus'] = dict(R=str(R), Ap=Ap, **kwargs)
 
         model = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
         self.coma = dict()
@@ -1140,7 +1147,7 @@ class IRSCombine(object):
             self.slitloss_corrected[k]['fluxd'] *= slcf
             self.slitloss_corrected[k]['err'] *= slcf
 
-        self.comments['slitloss_correct'] = ['Slit loss corrected for point sources using IRS pipeline correction.']
+        self.meta['slitloss_correct'] = ['Slit loss corrected for point sources using IRS pipeline correction.']
 
     def shape_correct(self, correction):
         """Correct the shape of the coma spectra.
@@ -1178,7 +1185,7 @@ class IRSCombine(object):
             self.slitloss_corrected[k]['fluxd'] *= correction[k](w)
             self.slitloss_corrected[k]['err'] *= correction[k](w)
 
-        self.comments['shape_correct'] = ['Shape corrected with user provided data.']
+        self.meta['shape_correct'] = ['Shape corrected with user provided data.']
 
     def trim(self, **kwargs):
 
@@ -1200,25 +1207,25 @@ class IRSCombine(object):
         tr.update(kwargs)
         
         self.trimmed = self.coadded.copy()
-        self.comments['trim'] = []
+        self.meta['trim'] = {}
         for k in self.trimmed.keys():
             wrange = tr[k]
             i = between(self.trimmed[k]['wave'], wrange)
             for j in ('wave', 'fluxd', 'err'):
                 self.trimmed[k][j] = self.trimmed[k][j][i]
-            self.comments['trim'].append('{} spectra trimmed: {}'.format(k, str(wrange)))
+            self.meta['trim'][k] = wrange
 
-    def write(self, filename, params={}, comments=[]):
+    def write(self, filename, meta={}, overwrite=False):
         """Write the spectra to a single file.
 
         Parameters
         ----------
         filename : string
           The name of the file to which to save the data.
-        params : dictionary
-          Key-value pairs to include in the file header.
-        comments : list
-          A list of additional comments to write to the file.
+        meta : dict, optional
+          Additional meta data to write to the file.
+        overwrite : bool, optional
+          Overwrite existing files.
 
         """
 
@@ -1229,8 +1236,8 @@ class IRSCombine(object):
         assert self.coadded is not None, "Spectra must be processed at least through `coadd()`."
 
         header = self.header.copy()
-        header.update(params)
-        
+        header.update(meta)
+
         i = np.argsort([s['wave'].min() for s in self.spectra.values()])
         keys = np.array(list(self.spectra.keys()))[i]
 
@@ -1259,15 +1266,16 @@ class IRSCombine(object):
         tab = Table((wave, fluxd, err, orders, scales, nucleus),
                     names=['wave', 'fluxd', 'err', 'order',
                            'scales', 'nucleus'])
+        tab['wave'].meta['unit'] = 'um'
+        tab['fluxd'].meta['unit'] = 'Jy'
+        tab['err'].meta['unit'] = 'Jy'
+        tab['nucleus'].meta['unit'] = 'Jy'
         for k in ['wave', 'fluxd', 'err', 'nucleus', 'scales']:
             tab[k].format = "{:#.5g}"
 
-        _comments = list(comments) + ['']
-        for method, method_comments in self.comments.items():
-            for line in method_comments:
-                _comments.append('{}: {}'.format(method, line))
-                
-        write_table(filename, tab, header, comments=_comments)
+        tab.meta.update(self.meta)
+        tab.meta.update(header)
+        tab.write(filename, format='ascii.ecsv', overwrite=overwrite)
 
     def zap(self, **kwargs):
         """Remove data points from the coadded spectra.
@@ -1292,7 +1300,7 @@ class IRSCombine(object):
                 self.coadded[order]['fluxd'] = self.coadded[order]['fluxd'][j]
                 self.coadded[order]['err'] = self.coadded[order]['err'][j]
                 print('IRSCombine zapped {} from {}'.format(w, order))
-                self.comments['zap'].append('Zapped {} from {}'.format(
+                self.meta['zap'].append('Zapped {} from {}'.format(
                     w, order))
         
 
@@ -1625,13 +1633,134 @@ def irs_summary(files):
     for f in files:
         spec, h, module = spice_read(f)
         i = between(spec['wavelength'], ranges[module])
-        tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
-                     h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+        try:
+            tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
+                         h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+        except Exception as e:
+            print('Error processing {}'.format(f))
+            raise e
 
     tab.sort('date')
     tab.pprint(max_lines=-1, max_width=-1)
     return tab
+
+if __name__ == "__main__":
+    main()
+
+def main():
+    import argparse
+    from glob import glob
+    import json
+    import matplotlib.pyplot as plt
+    from astropy.io import ascii
+    from ..graphics import nicelegend
+    from mskpy import hms2dh
+
+    parser = argparse.ArgumentParser(description='Reduce Spitzer/IRS comet data.')
+    parser.add_argument('config', help='Configuration file name.')
+    parser.add_argument('-i', action='store_true', help='Show plots (interactive mode).')
+    parser.add_argument('--reduced-by', help='Name of a scientist.')
+    parser.add_argument('--summary', action='store_true', help='Only show the data summary.')
+
+    args = parser.parse_args()
+
+    with open(args.config, 'r') as inf:
+        config_sets = json.load(inf)['rx']
+
+    for config in config_sets:
+        if config.get('skip', False):
+            continue
         
+        files = glob(config['files'])
+        rx = IRSCombine(files, **config.get('IRSCombine', {}))
+
+        if np.dot(rx.geom.rt, rx.geom.vt) < 0:
+            pre_post = 'pre'
+        else:
+            pre_post = 'post'
+        dh = '{:.2f}'.format(hms2dh(rx.geom.date.iso[11:]) / 24)[1:]
+        date = rx.geom.date.iso[:10].replace('-', '') + dh
+        rh = "{pre_post}{g[rh].value:.3f}".format(pre_post=pre_post, g=rx.geom)
+        pfx = config.get('prefix').format(g=rx.geom, rh=rh, date=date)
+
+        tab = irs_summary(files)
+        tab.write(pfx + '-summary.csv', format="ascii.ecsv", overwrite=True)
+        if args.summary:
+            continue
+
+        irsc_opts = config.get('IRSCombine', {})
+        scale_orders_opts = config.get('scale_orders', {})
+
+        meta = {}
+        if args.reduced_by is not None:
+            meta['Reduced by'] = args.reduced_by
+
+        rx.scale_spectra(**config.get('scale_spectra', {}))
+        rx.coadd(**config.get('coadd', {}))
+
+        opts = config.get('zap', {})
+        if len(opts) > 0:
+            rx.zap(**opts)
+
+        rx.trim(**config.get('trim', {}))
+
+        opts = config.get('subtract_nucleus', {})
+        try:
+            R = u.Quantity(opts.pop('R'))
+            assert R > 0 * u.km
+            Ap = opts.pop('Ap')
+            rx.subtract_nucleus(R, Ap, **opts)
+        except (AssertionError, KeyError):
+            pass
+
+        opts = config.get('scale_orders', {})
+        if len(opts) > 0:
+            anchor = opts.pop('anchor')
+            rx.scale_orders(anchor, **opts)
+
+        rx.write(pfx + '.csv', meta=meta, overwrite=True)
+
+        opts = config.get('plot', {})
+
+        fig = plt.figure(1)
+        plt.clf()
+        plt.minorticks_on()
+        rx.plot('raw')
+        plt.setp(plt.gca(), **opts)
+        plt.draw()
+        plt.savefig(pfx + '-raw.png')
+
+        fig = plt.figure(2)
+        plt.clf()
+        plt.minorticks_on()
+        rx.plot('coadded')
+        if rx.nucleus is not None:
+            rx.plot('nucleus', ls='--', label='nucleus')
+
+        nicelegend(loc='lower right')
+        plt.setp(plt.gca(), **opts)
+        plt.draw()
+        plt.savefig(pfx + '-coadded.png')
+
+        fig = plt.figure(3)
+        plt.clf()
+        plt.minorticks_on()
+        rx.plot_order_scaling()
+        plt.setp(plt.gca(), **opts)
+        plt.draw()
+        plt.savefig(pfx + '-scaling.png')
+
+        fig = plt.figure(4)
+        plt.clf()
+        plt.minorticks_on()
+        rx.plot()
+        plt.setp(plt.gca(), **opts)
+        plt.draw()
+        plt.savefig(pfx + '.png')
+
+        if args.i:
+            plt.show()
+
 # update module docstring
 from ..util import autodoc
 autodoc(globals())

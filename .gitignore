@@ -38,3 +38,5 @@ nosetests.xml
 
 # other generated files
 MANIFEST
+
+.cache

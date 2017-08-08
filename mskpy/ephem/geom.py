@@ -594,12 +594,14 @@ class Geom(Mapping):
         ra = g['ra'].to_string('hour', **opts)
         dec = g['dec'].to_string('deg', alwayssign=True, **opts)
 
+        prepost = np.sign(np.dot(self.rt, self.vt))
+
         print(("""
 {:>34s} {:s}{:}
 {:>34s} {:s}{:}
 {:>34s} {:.2f}{:}
 
-{:>34s} {:8.3f}{:}
+{:>34s} {:+8.3f}{:}
 {:>34s} {:8.3f}{:}
 {:>34s} {:8.3f}{:}
 
@@ -614,7 +616,7 @@ class Geom(Mapping):
 """.format("Date:", date, minmaxdate,
            "Time (UT):", time, minmaxtime,
            "Julian day:", g['date'].jd, jdminmax,
-           "Heliocentric distance (AU):", g['rh'].value,
+           "Heliocentric distance (AU):", prepost * g['rh'].value,
            minmax('rh', '8.3f'),
            "Target-Observer distance (AU):", g['delta'].value,
            minmax('delta', '8.3f'),

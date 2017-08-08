@@ -109,7 +109,10 @@ else:
     target = ephem.getspiceobj(' '.join(args.target))
 
 try:
-    observer = eval('ephem.' + args.observer.capitalize())
+    if args.observer == 'L2':
+        observer = ephem.Earth_L2
+    else:
+        observer = eval('ephem.' + args.observer.capitalize())
 except AttributeError:
     observer = ephem.getspiceobj(' '.join(args.observer))
 
@@ -127,7 +130,7 @@ if args.include is not None:
     columns.extend(args.include.split(','))
     
 arg_list = ['start', 'end', 'n', 'observer', 'selong']
-if ephemeris_only or args.M is not None or args.N is not None:
+if ephemeris_only or args.M is not None or args.H is not None:
     t = target.ephemeris(observer, [args.start, end], num=n,
                          columns=columns)
     if args.M is not None:

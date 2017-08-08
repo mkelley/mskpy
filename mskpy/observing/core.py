@@ -9,6 +9,7 @@ observing.core --- Core observing functions
    ct2lst
    ct2lst0
    hadec2altaz
+   parallactic
    rts
 
 """
@@ -20,6 +21,7 @@ __all__ = [
     'ct2lst',
     'ct2lst0',
     'hadec2altaz',
+    'parallactic',
     'rts'
 ]
 
@@ -92,7 +94,7 @@ def ct2lst(date, lon, tz):
 
     d = date2time(date)
     jd = d.jd
-    if isinstance(tz, float):
+    if isinstance(tz, (float, int)):
         tzoff = tz
     else:
         tzoff = tz2utc(d, tz).total_seconds() / 3600.0
@@ -176,6 +178,32 @@ def hadec2altaz(ha, dec, lat):
 
     return alt, az
 
+def parallactic(ha, za, lat):
+    """Parallactic angle for differential refraction.
+
+    Filippenko 1982:
+      sin(eta) = sin(ha) sin(pi / 2 - lat) / sin(za)
+
+    Parameters
+    ----------
+    ha : Angle or Quantity
+      Target hour angle.
+    za : Angle or Quantity
+      Target zenith angle.
+    lat : Angle or Quantity
+      Observer's latitude.
+
+    Returns
+    -------
+    eta : Angle
+    
+    """
+
+    from numpy import sin, arcsin, pi
+    from astropy.coordinates import Angle
+
+    return arcsin(sin(ha) * sin(Angle(pi / 2, 'rad') - lat) / sin(za))
+
 def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
     """Rise, transit, set times for an object.
 
@@ -250,4 +278,4 @@ def rts(ra, dec, date, lon, lat, tz, limit=20, precision=1440):
             s = ct[i]
 
     return r, t, s
-        
+
