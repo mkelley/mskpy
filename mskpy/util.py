@@ -1057,6 +1057,7 @@ def leading_num_key(s):
     """
 
     pfx = ''
+    sfx = s
     for i in range(len(s)):
         if not s[i].isdigit():
             break
