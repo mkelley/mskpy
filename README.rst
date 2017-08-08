@@ -1,4 +1,4 @@
-mskpy v3.0.6
+mskpy v3.0.7-dev
 ============
 
 MSK's personal Python library, mostly for astronomy work.
