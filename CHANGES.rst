@@ -1,3 +1,65 @@
+3.0.7-dev
+-----
+
+3.0.6
+-----
+
+Critical fixes
+^^^^^^^^^^^^^^
+- `scripts/ephemeris` Fix crash for all flux density requests.
+
+New features
+^^^^^^^^^^^^
+
+- Create finding charts with `observing.finding`.
+
+- Estimate distance and phase angle for a target at a given
+  heliocentric distance and solar elongation with `util.delta_at_rh`.
+
+- Estimate the parallactic angle for differential refraction in the
+  atomosphere with `observing.parallactic`.
+
+- Rudimentary reduction of SpeX 60" slit data with
+  `instruments.irtf.SpeXPrism60`.
+
+- `photometry.hb` is nearly complete.  New and revised code for
+  working with the continuum, subtracting continuum from gas filters.
+  OH and CN fluxes can be properly estimated.
+
+- Parse comet names with `comet.parse_name`.
+
+- `ephem.geom.Geom.summary` Reports a negative heliocentric distance
+  for pre-perihelion epochs.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `image.analysis.gcentroid` uses 2D Gaussian fit from `photutils`.
+
+- `scripts/center-target` reuses the last box size, and can guess the
+  object location after first centering if a WCS is defined.
+
+- `photometry.hb`
+  - Revised SDSS r' zero point by a few percent.  Now using effective
+    wavelength from Fukugita et al. 1996.
+  - New V-band flux density and effective wavelength.
+  - Msun and S0 defined for all filters.
+  - `fluxd_continuum` overhauled.
+  - `cal_oh` overhauled.
+
+- `scripts/lmi-dither` allows subframes.
+
+- `scripts/ephemeris` allows L2 for the observer.
+
+- `image.analysis.imstat` now includes the sum.
+
+- New file format and fixed order scaling for `instruments.spitzer.IRSCombine` (last order was not scaled).
+
+- Various updates to work with numpy 1.3.
+
+- Fixed `util.planckfit` `err=None`.
+
+
 3.0.5
 -----
 
