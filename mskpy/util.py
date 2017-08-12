@@ -86,6 +86,7 @@ util --- Short and sweet functions, generic algorithms
    date2time
    dh2hms
    doy2md
+   drange
    hms2dh
    jd2doy
    jd2time
@@ -176,6 +177,7 @@ __all__ = [
     'date2time',
     'dh2hms',
     'doy2md',
+    'drange',
     'hms2dh',
     'jd2doy',
     'jd2time',
@@ -2653,6 +2655,30 @@ def doy2md(doy, year):
     else:
         md = jd2dt(jd0 + doy).strftime('%m-%d')
     return md
+
+def drange(start, stop, num=50):
+    """Array of dates, linearly spaced.
+
+    Parameters
+    ----------
+    start : string, float, astropy Time, datetime, or array
+      The start date, in any form suitable for `date2time`.
+    stop : 
+      The stop date, in any form suitable for `date2time`.
+    num : int, optional
+      The number of samples to generate.
+
+    Returns
+    -------
+    dates : astropy Time
+
+    """
+
+    import astropy.units as u
+    
+    endpoints = date2time((start, stop))
+    interval = np.diff(endpoints)[0].jd
+    return endpoints[0] + np.linspace(0, interval, num) * u.day
 
 def hms2dh(hms):
     """HH:MM:SS to decimal hours.
