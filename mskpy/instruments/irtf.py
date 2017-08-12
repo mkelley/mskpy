@@ -32,8 +32,7 @@ __all__ = [
 ]
 
 class BASS(CircularApertureSpectrometer):
-    """Broadband Array Spectrograph System.
-    """
+    """Broadband Array Spectrograph System."""
 
     def __init__(self):
         waves = [
