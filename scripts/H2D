@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+import argparse
+import numpy as np
+import astropy.units as u
+parser = argparse.ArgumentParser(description='Convert asteroid absolute magnitude to diamter.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('H', type=float, help='Absolute magnitude (rh=Delta=1 au, phase=0 deg).')
+parser.add_argument('Ap', type=float, help='Geometric albedo.')
+parser.add_argument('--Msun', type=float, action='store', default=-26.76, help='Absolute magnitude of the Sun.')
+args = parser.parse_args()
+D = (2 / np.sqrt(args.Ap) * 10**(0.2 * (args.Msun - args.H)) * u.au).to(u.km)
+if D.value < 1.0:
+    print('{:.3g}'.format(D))
+else:
+    print('{:.2f}'.format(D))
