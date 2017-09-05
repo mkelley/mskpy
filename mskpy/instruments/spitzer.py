@@ -1704,9 +1704,12 @@ def main():
 
         rx.trim(**config.get('trim', {}))
 
+        if "slitloss_correct" in config:
+            rx.slitloss_correct()
+
         opts = config.get('subtract_nucleus', {})
         try:
-            R = u.Quantity(opts.pop('R'))
+            R = u.Quantity(opts.pop('R')) * u.km
             assert R > 0 * u.km
             Ap = opts.pop('Ap')
             rx.subtract_nucleus(R, Ap, **opts)
