@@ -1635,7 +1635,9 @@ def irs_summary(files):
         i = between(spec['wavelength'], ranges[module])
         try:
             tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
-                         h['COLUMN'], h['ROW'], np.median(spec['flux_density'])])
+                         h['COLUMN'] if 'COLUMN' in h else -1,
+                         h['ROW'] if 'ROW' in h else -1,
+                         np.median(spec['flux_density'])])
         except Exception as e:
             print('Error processing {}'.format(f))
             raise e
@@ -1709,7 +1711,7 @@ def main():
 
         opts = config.get('subtract_nucleus', {})
         try:
-            R = u.Quantity(opts.pop('R')) * u.km
+            R = u.Quantity(opts.pop('R'))
             assert R > 0 * u.km
             Ap = opts.pop('Ap')
             rx.subtract_nucleus(R, Ap, **opts)
