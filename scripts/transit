@@ -72,7 +72,7 @@ ax = plt.gca()
 
 style = itertools.cycle(itertools.product(['-', '--', '-.', ':'], 'bgrcym'))
 for target in targets:
-    ls, color = style.next()
+    ls, color = next(style)
     plot_transit_time(target, g_sun, observer=observer, ax=ax,
                       color=color, ls=ls)
 
@@ -82,9 +82,9 @@ f = lambda x, pos: mskpy.dh2hms(x % 24.0, '{:02d}:{:02d}')
 plt.setp(ax.xaxis, minor_locator=ticker.AutoMinorLocator(),
          major_formatter=ticker.FuncFormatter(f))
 
-#ax.invert_yaxis()
+ax.invert_yaxis()
 mskpy.nicelegend(frameon=False, loc='upper left', bbox_to_anchor=(1.0, 0.95))
-mskpy.niceplot(axfs='10')
+mskpy.niceplot()
 fig.subplots_adjust(right=0.8)
 plt.draw()
 plt.savefig(args.o)
