@@ -1666,8 +1666,9 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.config, 'r') as inf:
-        config_sets = json.load(inf)['rx']
+    lines = [line for line in open(args.config, 'r')
+             if not line.startswith('#')]
+    config_sets = json.loads(''.join(lines))['rx']
 
     for config in config_sets:
         if config.get('skip', False):
