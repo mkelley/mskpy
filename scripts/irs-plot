@@ -1,0 +1,17 @@
+#!/usr/bin/python3
+import argparse
+import matplotlib.pyplot as plt
+from mskpy.instruments import spitzer
+
+parser = argparse.ArgumentParser(description='Plot Spitzer/IRS data.')
+parser.add_argument('files', nargs='*', help='Spitzer IRS spectral tables.')
+
+args = parser.parse_args()
+
+irs = spitzer.IRSCombine(args.files)
+fig = plt.figure(1)
+fig.clear()
+plt.minorticks_on()
+irs.plot('raw')
+plt.show()
+
