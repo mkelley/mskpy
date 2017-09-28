@@ -90,8 +90,6 @@ q.get_ephemerides('G37')
 if len(q) <= 0:
     raise ValueError('No output from HORIZONS.')
 
-print(target, start, end)
-
 with open(fn, 'w') as outf:
     for i in range(len(q)):
         d = q[i]['datetime']
@@ -100,6 +98,5 @@ with open(fn, 'w') as outf:
         hm = hm.split(':')
         ra = dh2hms(q[i]['RA'] / 15)
         dec = dd2dms(q[i]['DEC'])
-        print(q[i]['RA'], ra)
         outf.write('{0} {1} {2} {3} {4} 00 {5} {6}\n'.format(
             y, month[m], d, hm[0], hm[1], ra, dec))
