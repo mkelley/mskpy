@@ -1,17 +1,13 @@
 #!/usr/bin/python3
-"""Generate ephemeris files for DCT/LMI from HORIZONS output.
+"""Generate ephemeris files for DCT.
 
-The new file names are generated from the originals, e.g.,
-  c2013x1.eph --> c2013x1-dct.txt
-
-* This script assumes time precision is no less than 1 min.
-
-* In HORIZONS, be sure to select Apparent RA, Dec for output.  Do not
-use extended precision.  Use site G37 for the DCT.
+Requires the `callhorizons` module and Python 3.2 or later.
 
 2015-10-24: Initial version.  Requires Python 2.6 or later.
 
 2016-01-12: Requires Python 2.7 or later.
+
+2017-09-28: Requires Python 3.2 or later.  Gets HORIZONS ephemeris itself.
 
 - Michael S. P. Kelley, UMD
 
@@ -19,42 +15,91 @@ use extended precision.  Use site G37 for the DCT.
 
 import sys
 import os.path
+import argparse
+import datetime
+import callhorizons
 
-def horizons_file(filename):
-    month = dict()
-    for i, m in enumerate('Jan Feb Mar Apr May Jun'
-                          ' Jul Aug Sep Oct Nov Dec'.split()):
-        month[m] = '{0:02d}'.format(i + 1)
+month = dict()
+for i, m in enumerate('Jan Feb Mar Apr May Jun'
+                      ' Jul Aug Sep Oct Nov Dec'.split()):
+    month[m] = '{0:02d}'.format(i + 1)
 
-    line = ''
-    with open(filename, 'r') as inf:
-        while not line.startswith(' Date__(UT)__'):
-            line = inf.readline()
+parser = argparse.ArgumentParser(description='Generate ephemeris files for DCT.  Dates assume the format "YYYY-MM-DD HH:MM", where HH:MM is optional.')
+parser.add_argument('target', nargs='+', help='Target name.')
+parser.add_argument('--start', help='Default now.')
+parser.add_argument('--end', help='Default start + 24 hr.')
+parser.add_argument('--step', default='3m', help='Time step size, default 3m.')
+parser.add_argument('-o', help='Output file name.')
+args = parser.parse_args()
 
-        # find apparent RA, Dec
-        assert 'R.A.__(a-apparent' in line, "Apparent RA, Dec required"
-        i = line.find('R.A.__(a-apparent')
-        radec = slice(i, i+23)
-        
-        # find ephemerides
-        while not line.startswith('$$SOE'):
-            line = inf.readline()
+def dh2hms(dh, format="{:02d} {:02d} {:05.2f}"):
+    """Decimal hours as HH:MM:SS.SSS, or similar.
 
-        # yield formatted data
-        # yyyy mm dd hh mm ss rh rm rs.ss +dd dm ds.s
-        line = inf.readline()
-        while not line.startswith('$$EOE'):
-            yield '{0} {1} {2} {3} {4} 00 {5}\n'.format(line[1:5], month[line[6:9]], line[10:12], line[13:15], line[16:18], line[radec])
-            line = inf.readline()
+    Will work for degrees, too.
 
-    return
+    Parameters
+    ----------
+    dh : float
+    format : string, optional
+      Use this format, e.g., for [+/-]HH:MM, use "{:+02d}:{:02d}".
 
-if len(sys.argv) <= 1:
-    print("""usage: {0} [files...]
+    Returns
+    -------
+    hms : string
 
-Generate ephemeris files for DCT/LMI from HORIZONS output.""".format(os.path.basename(sys.argv[0])))
+    """
 
-for f in sys.argv[1:]:
-    with open(os.path.splitext(f)[0] + '-dct.txt', 'w') as outf:
-        for line in horizons_file(f):
-            outf.write(line)
+    sign = -1 if dh < 0 else 1
+    dh = abs(dh)
+    hh = int(dh)
+    mm = int((dh - hh) * 60.0)
+    ss = ((dh - hh) * 60.0 - mm) * 60.0
+    if ss >= 60:
+        ss -= 60
+        mm += 1
+    if mm >= 60:
+        mm -= 60
+        hh += 1
+    return format.format(sign * hh, mm, ss)
+
+def dd2dms(dd):
+    return dh2hms(dd, format='{:+02d} {:02d} {:04.1f}')
+
+target = ' '.join(args.target)
+if args.o is None:
+    fn = target.replace('/', '').replace(' ', '').lower() + '.txt'
+else:
+    fn = args.o
+
+if os.path.exists(fn):
+    raise FileExistsError(fn)
+
+start = args.start
+if start is None:
+    d = datetime.datetime.now(datetime.timezone.utc)
+    start = d.isoformat()[:16].replace('T', ' ')
+
+end = args.end
+if end is None:
+    d = datetime.datetime(*[int(x) for x in start.replace('-', ' ').replace(':', ' ').split()])
+    end = (d + datetime.timedelta(1)).isoformat()[:16].replace('T', ' ')
+
+q = callhorizons.query(target)
+q.set_epochrange(start, end, '3m')
+q.get_ephemerides('G37')
+if len(q) <= 0:
+    raise ValueError('No output from HORIZONS.')
+
+print(target, start, end)
+
+with open(fn, 'w') as outf:
+    for i in range(len(q)):
+        d = q[i]['datetime']
+        ymd, hm = d.split()
+        y, m, d = ymd.split('-')
+        hm = hm.split(':')
+        ra = dh2hms(q[i]['RA'] / 15)
+        dec = dd2dms(q[i]['DEC'])
+        print(q[i]['RA'], ra)
+        outf.write('{0} {1} {2} {3} {4} 00 {5} {6}\n'.format(
+            y, month[m], d, hm[0], hm[1], ra, dec))
