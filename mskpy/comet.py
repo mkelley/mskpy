@@ -69,6 +69,8 @@ class Coma(SolarSysObject):
     k : float, optional
       The logarithmic slope of the dust production rate's dependence
       on rh.
+    dt : Quantity, optional
+      Time offset for activity scaling; dt<0 for post-perihelion peak.
     reflected : AfrhoRadiation, optional
       A model for light scattered by dust or `None` to pass `kwargs`
       to `AfrhoScattered`.
@@ -84,13 +86,14 @@ class Coma(SolarSysObject):
     """
     _Afrho1 = None
 
-    def __init__(self, state, Afrho1, k=-2, reflected=None, thermal=None,
-                 name=None, **kwargs):
+    def __init__(self, state, Afrho1, k=-2, dt=0 * u.day,
+                 reflected=None, thermal=None, name=None, **kwargs):
         assert u.cm.is_equivalent(Afrho1), "Afrho1 must have units of length"
 
         SolarSysObject.__init__(self, state, name=name)
         self.k = k
-
+        self.dt = dt
+        
         if reflected is None:
             self.reflected = AfrhoScattered(1 * Afrho1.unit, **kwargs)
         else:
@@ -158,20 +161,42 @@ class Coma(SolarSysObject):
             return fluxd
 
         g = observer.observe(self, date, ltt=ltt)
+        if self.dt.value == 0:
+            rh = g.rh
+        else:
+            rh = self._offset_rh(date)
 
+        afrho = self.Afrho1.value * rh.to(u.au).value**self.k
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho1.value * g['rh'].to(u.au).value**self.k
+            fluxd += f * afrho
 
         if thermal:
             f = self.thermal.fluxd(g, wave, rap, unit=unit)
-            fluxd += f * self.Afrho1.value * g['rh'].to(u.au).value**self.k
+            fluxd += f * afrho
 
         return fluxd
 
+    def _offset_rh(self, date):
+        from .util import date2time
+        d = date2time(date) + self.dt
+        r = self.state.r(d)
+        if r.ndim == 1:
+            rh = np.sqrt(np.sum(r**2))
+        else:
+            rh = np.sqrt(np.sum(r**2, 1))
+        
+        return rh / 149597870.7 * u.au
+    
     def _add_lc_columns(self, lc):
         from astropy.table import Column
-        afrho = self.Afrho1 * lc['rh'].data**self.k
+        
+        if self.dt.value == 0:
+            rh = lc['rh'].data
+        else:
+            rh = self._offset_rh(lc['date']).value
+
+        afrho = self.Afrho1 * rh**self.k
         lc.add_column(Column(afrho, name='Afrho', format='{:.4g}'))
         return lc
 
