@@ -48,6 +48,7 @@ util --- Short and sweet functions, generic algorithms
    lb2xyz
    projected_vector_angle
    spherical_coord_rotate
+   spherical_distribution
    state2orbit
    vector_rotate
    xyz2lb
@@ -145,6 +146,7 @@ __all__ = [
     'lb2xyz',
     'projected_vector_angle',
     'spherical_coord_rotate',
+    'spherical_distribution',
     'state2orbit',
     'vector_rotate',
     'xyz2lb',
@@ -1442,7 +1444,44 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
 
     return (lon_new, lat_new)
 
+def spherical_distribution(N):
+    """Equally distributed points on a unit sphere.
+
+    Parameters
+    ----------
+    N : int
+      The approximate number of points.
+
+    Returns
+    -------
+    p : ndarray
+      Spherical coordinates of the points, `(lambda, beta)`, with the
+      shape `Nx2`.
+    
+    Notes
+    -----
+    Based on https://www.cmu.edu/biolphys/deserno/pdf/sphere_equi.pdf
+    by Markus Deserno.
+
+    """
+    
+    a = 4 * pi / N
+    d = np.sqrt(a)
+    Mth = int(np.round(pi / d))
+    dth = pi / Mth
+    dphi = a / dth
+    p = []
+    for m in range(Mth):
+        th = pi * (m + 0.5) / Mth
+        Mphi = int(np.round(2 * pi * np.sin(th) / dphi))
+        for n in range(Mphi):
+            phi = 2 * pi * n / Mphi
+            p.append((phi, th - pi / 2))
+
+    return np.array(p)
+
 def state2orbit(R, V):
+
     """Convert a small body's state vector into osculating orbital elements.
 
     CURRENTLY INCOMPLETE!  Only a, ec, q, Tp, P, f, E, and M are
