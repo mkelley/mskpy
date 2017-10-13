@@ -1464,7 +1464,8 @@ def spherical_distribution(N):
     by Markus Deserno.
 
     """
-    
+
+    pi = np.pi
     a = 4 * pi / N
     d = np.sqrt(a)
     Mth = int(np.round(pi / d))
