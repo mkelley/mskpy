@@ -1,3 +1,9 @@
+3.0.8-dev
+-----
+
+In development.
+
+
 3.0.7
 -----
 
@@ -10,7 +16,9 @@ New features
 ^^^^^^^^^^^^
 
 - `util`:
+  
   - `drange` for regularly-spaced times over an interval.
+    
   - `spherical_distribution` to generate a set of equally distributed
     points on a unit sphere.
 
@@ -18,15 +26,20 @@ New features
   scaling.
 
 - `scripts`:
+  
   - `H2D` script to convert asteroid absolute magnitude to diameter.
+    
   - `irs-plot` script for a quick plot of Spitzer/IRS data.
+    
   - Added --dt (peak activity offset) parameter to `ephemeris`.
 
 Other improvements
 ^^^^^^^^^^^^^^^^^^
 
 - `instruments.spitzer` module script
+  
   - Now able to run `slitloss_correct`.
+    
   - Configuration files may now have comment lines starting with "#".
 
 - Fixed `instruments.spitzer.irs_summary` crash when "COLUMN" or "ROW"
