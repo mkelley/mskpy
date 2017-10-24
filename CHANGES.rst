@@ -1,5 +1,40 @@
-3.0.7-dev
+3.0.7
 -----
+
+Critical fixes
+^^^^^^^^^^^^^^
+
+- `scripts/transit` updated for Python 3 (finally!).
+
+New features
+^^^^^^^^^^^^
+
+- `util`:
+  - `drange` for regularly-spaced times over an interval.
+  - `spherical_distribution` to generate a set of equally distributed
+    points on a unit sphere.
+
+- Add `dt` keyword to `comet.Coma`, a time offset for activity
+  scaling.
+
+- `scripts`:
+  - `H2D` script to convert asteroid absolute magnitude to diameter.
+  - `irs-plot` script for a quick plot of Spitzer/IRS data.
+  - Added --dt (peak activity offset) parameter to `ephemeris`.
+
+Other improvements
+^^^^^^^^^^^^^^^^^^
+
+- `instruments.spitzer` module script
+  - Now able to run `slitloss_correct`.
+  - Configuration files may now have comment lines starting with "#".
+
+- Fixed `instruments.spitzer.irs_summary` crash when "COLUMN" or "ROW"
+  is missing from the data header.
+
+- `scripts/horizons2dct-tcs` can obtain HORIZONS ephemerides itself.
+  It now requires `callhorizons` and Python 3.2 or later.
+
 
 3.0.6
 -----
