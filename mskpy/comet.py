@@ -16,6 +16,7 @@ comet --- Comets!
    ---------
    afrho2fluxd
    afrho2Q
+   fom_dct
    efrho2fluxd
    flux2Q
    fluxd2afrho
@@ -36,6 +37,7 @@ __all__ = [
     'Comet',
     'afrho2fluxd',
     'afrho2Q',
+    'fom_dct',
     'efrho2fluxd',
     'flux2Q',
     'fluxd2afrho',
@@ -560,7 +562,44 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
 
     return Q
 
+def fom_dct(geom, V=None, Q=None):
+    """Figure of merit for comet OH observations at DCT/LMI.
+
+    A figure of merit of 1.0 corresponds to our observations of C/2013
+    A1 (Siding Spring) at 2.5 au: V=15 mag, SNR(OH)=8 in 1 hr.
+
+    The inputs are flexible.  Choose one of `V` or `Q`.
+
+    Parameters
+    ----------
+    geom : dict-like
+      The observation geometry via keywords `'rh'` and `'delta'`.  The
+      values must be a `Quantity`.
+    V : float or array-like, optional
+      Visual magnitude for estimating water production rate via
+      `m2qh2o`.
+    Q : Quantity, optional
+      Water production rate (units of inverse time).
+
+    Returns
+    -------
+    fom : float or array-like
+      Figure of merit.
+
+    """
+
+    rh = geom['rh'].to('au').value
+    delta = geom['delta'].to('au').value
+    
+    if Q is None:
+        q = m2qh2o(V - 5 * np.log10(delta))
+    else:
+        q = Q.to('1/s').value
+
+    return rh**-1.5 / delta * q / 2.36e26
+
 def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
+
     """Convert efrho (epsilon * f * rho) to flux density.
 
     efrho as defined by Kelley et al. (2013, Icarus 225, 475-494).
