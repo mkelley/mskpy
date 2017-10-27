@@ -132,6 +132,24 @@ class SolarSysObject(object):
         """
         return self.state.v(date)
 
+    def rv(self, date):
+        """Position and velocity vectors.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Processed via `util.date2time`.
+
+        Returns
+        -------
+        r : ndarray
+          Position vector (3-element or Nx3 element array). [km]
+        v : ndarray
+          Velocity vector (3-element or Nx3 element array). [km/s]
+
+        """
+        return self.state.rv(date)
+
     def ephemeris(self, observer, dates, num=None, columns=None,
                   cformats=None, ra_unit='hourangle', date_format=None,
                   ltt=False, **kwargs):
