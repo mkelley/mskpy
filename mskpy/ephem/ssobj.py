@@ -16,8 +16,6 @@ ssobj --- Solar System objects.
 
 """
 
-from __future__ import print_function
-
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
@@ -32,7 +30,7 @@ __all__ = [
     'summarizegeom',
 ]
 
-class SolarSysObject(object):
+class SolarSysObject:
     """A star, planet, comet, etc. in the Solar System.
 
     Parameters
@@ -56,6 +54,7 @@ class SolarSysObject(object):
     orbit : Osculating orbital parameters at date.
     r : Position vector
     v : Velocity vector
+    h : Angular momentum integral, `r × v`
 
     Notes
     -----
@@ -149,6 +148,22 @@ class SolarSysObject(object):
 
         """
         return self.state.rv(date)
+
+    def h(self, date):
+        """Angular momentum integral, `r × v`.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Processed via `util.date2time`.
+
+        Returns
+        -------
+        h : ndarray
+          3-element or Nx3 element array.  [km2/s]
+
+        """
+        return self.state.h(date)
 
     def ephemeris(self, observer, dates, num=None, columns=None,
                   cformats=None, ra_unit='hourangle', date_format=None,

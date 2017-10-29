@@ -25,6 +25,7 @@ __all__ = [
     'ObjectError'
 ]
 
+from abc import ABC, abstractmethod
 from datetime import datetime
 import numpy as np
 from astropy.time import Time
@@ -35,24 +36,19 @@ from . import core
 class ObjectError(Exception):
     pass
 
-class State(object):
-    """An abstract class for computing state vectors.
+class State(ABC):
+    """An abstract base class for computing state vectors.
 
     Methods
     -------
     r : Position vector.
     v : Velocity vector.
     rv : Both vectors.
-
-    Notes
-    -----
-    Inheriting classes should override `rv`.
+    h : Angular momentum integral.
 
     """
 
-    def __init__(self):
-        pass
-
+    @abstractmethod
     def rv(self, date):
         """Position and velocity vectors.
 
@@ -71,13 +67,15 @@ class State(object):
         """
         pass
 
-    def r(self, date):
+    def r(self, date, **kwargs):
         """Position vector.
 
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
           Processed via `util.date2time`.
+        kwargs :
+          Keyword arguments passed to `rv`.
 
         Returns
         -------
@@ -88,16 +86,18 @@ class State(object):
         from .. import util
         N = util.date_len(date)
         if N > 0:
-            return np.array([self.rv(d)[0] for d in date])
-        return self.rv(date)[0]
+            return np.array([self.rv(d, **kwargs)[0] for d in date])
+        return self.rv(date, **kwargs)[0]
 
-    def v(self, date):
+    def v(self, date, **kwargs):
         """Velocity vector.
 
         Parameters
         ----------
         date : string, float, astropy Time, datetime, or array
           Processed via `util.date2time`.
+        kwargs :
+          Keyword arguments passed to `rv`.
 
         Returns
         -------
@@ -108,8 +108,26 @@ class State(object):
         from .. import util
         N = util.date_len(date)
         if N > 0:
-            return np.array([self.rv(d)[1] for d in date])
-        return self.rv(date)[1]
+            return np.array([self.rv(d, **kwargs)[1] for d in date])
+        return self.rv(date, **kwargs)[1]
+
+    def h(self, date, **kwargs):
+        """Angular momentum integral, `r × v`.
+
+        Parameters
+        ----------
+        date : string, float, astropy Time, datetime, or array
+          Processed via `util.date2time`.
+        kwargs :
+          Keyword arguments passed to `rv`.
+
+        Returns
+        -------
+        h : ndarray
+          3-element or Nx3 element array.  [km2/s]
+
+        """
+        return np.cross(*self.rv(date, **kwargs))    
 
 class FixedState(State):
     """A fixed point in space.
@@ -254,9 +272,10 @@ class SpiceState(State):
 
     Methods
     -------
-    r : Position vector.
-    v : Velocity vector.
+    r : Position vector. [km]
+    v : Velocity vector. [km/s]
     rv : Both vectors.
+    h : Angular momentum integral. [km2/s]
     oscelt : Conic orbital elements.
 
     Attributes
@@ -283,50 +302,6 @@ class SpiceState(State):
         self.obj = obj
         self.naifid = naifid
 
-    def r(self, date, **kwargs):
-        """Position vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array
-          Processed via `util.date2time`.
-        kwargs :
-          Keyword arguments passed to `SpiceState.rv`.
-
-        Returns
-        -------
-        r : ndarray
-          Position vector (3-element or Nx3 element array). [km]
-       
-        """
-        from .. import util
-        N = util.date_len(date)
-        if N > 0:
-            return np.array([self.rv(d)[0] for d in date])
-        return self.rv(date, **kwargs)[0]
-
-    def v(self, date, **kwargs):
-        """Velocity vector.
-
-        Parameters
-        ----------
-        date : string, float, astropy Time, datetime, or array
-          Processed via `util.date2time`.
-        kwargs :
-          Keyword arguments passed to `SpiceState.rv`.
-
-        Returns
-        -------
-        v : ndarray
-          Velocity vector (3-element or Nx3 element array). [km/s]
-       
-        """
-        from .. import util
-        N = util.date_len(date)
-        if N > 0:
-            return np.array([self.rv(d)[1] for d in date])
-        return self.rv(date, **kwargs)[1]
-
     def rv(self, date, frame="ECLIPJ2000", corr="NONE", observer=10):
         """Position and velocity vectors.
 
@@ -351,6 +326,12 @@ class SpiceState(State):
         """
 
         from .. import util
+
+        N = util.date_len(date)
+        if N > 0:
+            rv = tuple(zip(*(self.rv(d) for d in date)))
+            return np.array(rv[0]), np.array(rv[1])
+
         et = core.date2et(date)
         # no light corrections, sun = 10
         state, lt = spice.spkez(self.naifid, et, frame, corr, observer)
