@@ -48,6 +48,9 @@ class State(ABC):
 
     """
 
+    def __init__(self, name=None):
+        self.name = name
+
     @abstractmethod
     def rv(self, date):
         """Position and velocity vectors.
@@ -137,6 +140,8 @@ class FixedState(State):
     xyz : 3-element array
       The heliocentric rectangular ecliptic coordinates of the
       point. [km]
+    name : string, optional
+      The object's name.
 
     Methods
     -------
@@ -150,7 +155,8 @@ class FixedState(State):
 
     """
 
-    def __init__(self, xyz):
+    def __init__(self, xyz, **kwargs):
+        State.__init__(self, **kwargs)
         self.xyz = np.array(xyz)
         if self.xyz.shape != (3,):
             raise ValueError("xyz must be a 3-element vector.")
@@ -185,11 +191,9 @@ class KeplerState(State):
       The initial position vector. [km]
     v_i : array
       The initial velocity vector. [km/s]
-
     state : State or simlar
       Create a KeplerState based on another solution.  `state` must
       have callable `r` and `v` methods.
-
     date : various
       The date at which `r_i` and `v_i` are valid, processed with
       `util.date2time`.
@@ -213,7 +217,8 @@ class KeplerState(State):
     def __init__(self, *args, **kwargs):
         from ..util import date2time
 
-        self.name = kwargs.pop('name', None)
+        State.__init__(self, **kwargs)
+
         if hasattr(args[0], 'r') and hasattr(args[0], 'v'):
             self.date = date2time(args[1])
             self.r_i = args[0].r(self.date)
@@ -286,6 +291,8 @@ class SpiceState(State):
     """
 
     def __init__(self, obj, kernel=None):
+        State.__init__(self, name=obj)
+        
         if not core._spice_setup:
             core._setup_spice()
 
