@@ -46,6 +46,7 @@ util --- Short and sweet functions, generic algorithms
    delta_at_rh
    ec2eq
    lb2xyz
+   mhat
    projected_vector_angle
    spherical_coord_rotate
    spherical_distribution
@@ -144,6 +145,7 @@ __all__ = [
     'delta_at_rh',
     'ec2eq',
     'lb2xyz',
+    'mhat',
     'projected_vector_angle',
     'spherical_coord_rotate',
     'spherical_distribution',
@@ -1330,6 +1332,30 @@ def lb2xyz(lam, bet=None):
     return np.array((np.cos(betr) * np.cos(lamr),
                      np.cos(betr) * np.sin(lamr),
                      np.sin(betr)))
+
+def mhat(a, axis=None):
+    """Mangitude and unit vector decomposition.
+
+    Parameters
+    ----------
+    a : ndarray
+      An array.
+    axis : int, optional
+      The axis to decompose.  Default is the last axis.
+    
+    Returns
+    -------
+    m : ndarray
+      The magnitudes.
+    hat : ndarray
+      The unit vectors.
+
+    """
+
+    axis = (a.ndim - 1) if axis is None else axis
+    m = np.sqrt(np.sum(a**2, axis))
+    hat = np.rollaxis(np.rollaxis(a, axis) / m, 0, axis + 1)
+    return m, hat
 
 def projected_vector_angle(r, rot, ra, dec):
     """Position angle of a vector projected onto the observing plane.
