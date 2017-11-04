@@ -1333,7 +1333,7 @@ def lb2xyz(lam, bet=None):
                      np.cos(betr) * np.sin(lamr),
                      np.sin(betr)))
 
-def mhat(a, axis=None):
+def mhat(a, axis=-1):
     """Mangitude and unit vector decomposition.
 
     Parameters
@@ -1353,6 +1353,8 @@ def mhat(a, axis=None):
     """
 
     axis = (a.ndim - 1) if axis is None else axis
+    if axis < 0:
+        axis += a.ndim
     m = np.sqrt(np.sum(a**2, axis))
     hat = np.rollaxis(np.rollaxis(a, axis) / m, 0, axis + 1)
     return m, hat
