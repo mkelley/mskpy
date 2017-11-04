@@ -404,8 +404,8 @@ def xarray(shape, yx=[0, 0], rot=0, dtype=int):
     from ..util import rotmat
 
     y, x = np.indices(shape, dtype)[-2:]
-    y -= yx[0]
-    x -= yx[1]
+    y = y - yx[0]
+    x = x - yx[1]
 
     if rot != 0:
         R = rotmat(rot)
@@ -438,8 +438,8 @@ def yarray(shape, yx=[0, 0], rot=0, dtype=int):
     from ..util import rotmat
 
     y, x = np.indices(shape, dtype)[-2:]
-    y -= yx[0]
-    x -= yx[1]
+    y = y - yx[0]
+    x = x - yx[1]
 
     if rot != 0:
         R = rotmat(rot)
