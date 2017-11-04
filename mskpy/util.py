@@ -1338,7 +1338,7 @@ def mhat(a, axis=-1):
 
     Parameters
     ----------
-    a : ndarray
+    a : array-like
       An array.
     axis : int, optional
       The axis to decompose.  Default is the last axis.
@@ -1352,11 +1352,12 @@ def mhat(a, axis=-1):
 
     """
 
-    axis = (a.ndim - 1) if axis is None else axis
+    _a  = np.array(a)
+    axis = (_a.ndim - 1) if axis is None else axis
     if axis < 0:
-        axis += a.ndim
-    m = np.sqrt(np.sum(a**2, axis))
-    hat = np.rollaxis(np.rollaxis(a, axis) / m, 0, axis + 1)
+        axis += _a.ndim
+    m = np.sqrt(np.sum(_a**2, axis))
+    hat = np.rollaxis(np.rollaxis(_a, axis) / m, 0, axis + 1)
     return m, hat
 
 def projected_vector_angle(r, rot, ra, dec):
