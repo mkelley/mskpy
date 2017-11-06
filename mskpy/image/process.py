@@ -611,7 +611,7 @@ def subim(im, yx, half_box):
     """
 
     y0 = int(np.around(yx[0]))
-    x0 = int(np.around(yx[0]))
+    x0 = int(np.around(yx[1]))
     s = np.s_[max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
               max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1])]
     return im[s]
