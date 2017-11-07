@@ -586,7 +586,7 @@ def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
 
     return s
 
-def subim(im, yx, half_box):
+def subim(im, yx, half_box, expand=False, pad=0):
     """Extract a sub-image.
 
     If any part of the sub-image is beyond the image edge, it will be
@@ -600,13 +600,22 @@ def subim(im, yx, half_box):
       The center of the sub-image.  Floating point values will be
       rounded.
     half_box : int
-      The desired half-length of a side of the sub-image.  The image
-      shape will be `half_box * 2 + 1` for each dimension, unless
-      truncated by an image edge.
+      The desired half-length of a side of the sub-image.
+    expand : bool, optional
+      Set to `True` to expand a truncated image to the full box size.
+      The image will be padded with `pad` at the end of each axis.
+    pad : int or float, optional
+      Pad expanded images with this value.
 
     Returns
     -------
     subim : ndarray
+
+    Notes
+    -----
+    The image shape will be `half_box * 2 + 1` for each dimension,
+    unless truncated by an image edge.  Set `expand=True` to return
+    the full box.
 
     """
 
@@ -614,7 +623,18 @@ def subim(im, yx, half_box):
     x0 = int(np.around(yx[1]))
     s = np.s_[max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
               max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1])]
-    return im[s]
+
+    _subim = im[s]
+    shape = (2 * half_box + 1, 2 * half_box + 1)
+    if expand and _subim.shape != shape:
+        dy = shape[0] - _subim.shape[0]
+        dx = shape[1] - _subim.shape[1]
+        subim = np.zeros(shape) + pad
+        subim[:_subim.shape[0], :_subim.shape[1]] = _subim
+    else:
+        subim = _subim
+        
+    return subim
 
 # update module docstring
 from ..util import autodoc
