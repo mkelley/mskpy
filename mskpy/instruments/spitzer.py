@@ -570,20 +570,24 @@ class IRSCombine:
                 bins[:-1] = w - dw / 2.0
                 bins[-1] = w[-1] + dw[-1] / 2.0
                 wave, fluxd, err2 = np.zeros((3, len(files), len(bins) - 1))
-                for i, f in enumerate(files):
-                    spec = self.raw[f]
-                    n = np.histogram(spec['wavelength'][k], bins)[0]
-                    wave[i] = np.histogram(spec['wavelength'][k], bins,
-                                           weights=spec['wavelength'][k])[0]
-                    fluxd[i] = np.histogram(spec['wavelength'][k], bins,
-                                            weights=spec['flux_density'][k])[0]
-                    err2[i] = np.histogram(spec['wavelength'][k], bins,
-                                           weights=spec['error'][k]**2)[0]
+                for i, fn in enumerate(files):
+                    spec = self.raw[fn]
+                    good = np.isfinite(spec['flux_density'][k]
+                                       * spec['error'][k])
+                    w = spec['wavelength'][k][good]
+                    f = spec['flux_density'][k][good]
+                    e = spec['error'][k][good]
+                    n = np.histogram(w, bins)[0]
+                    wave[i] = np.histogram(w, bins, weights=w)[0]
+                    fluxd[i] = np.histogram(w, bins,weights=f)[0]
+                    err2[i] = np.histogram(w, bins, weights=e**2)[0]
 
                     j = n > 0
                     wave[i, j] /= n[j]  # just in case 2 indices fell in 1 bin
                     fluxd[i, j] /= n[j]
                     err2[i, j] /= n[j]
+                    if np.sum(np.isnan(err2[i])) > 20:
+                        stop
 
                     try:
                         j = spec['bit-flag'][k] > 0
@@ -592,13 +596,13 @@ class IRSCombine:
                     fluxd[i, j] = np.nan
                     err2[i, j] = np.nan
 
-                    fluxd[i] *= _scales[f]
-                    err2[i] *= _scales[f]**2
+                    fluxd[i] *= _scales[fn]
+                    err2[i] *= _scales[fn]**2
 
                 w = wave[0]
                 f, e = np.zeros((2, len(w)))
                 for i in range(len(w)):
-                    if fluxd.shape[1] > 2:
+                    if fluxd.shape[0] > 2:
                         mc = meanclip(fluxd[:, i], lsig=sig, hsig=sig,
                                       full_output=True)
                         f[i] = mc[0]
