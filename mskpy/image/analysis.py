@@ -513,10 +513,10 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     elif np.size(box) == 1:
         box = np.array((box, box)).reshape((2,))
 
-    y0 = max(yx[0] - box[0] / 2, 0)
-    y1 = min(yx[0] + box[0] / 2 + 1, im.shape[0])
-    x0 = max(yx[1] - box[1] / 2, 0)
-    x1 = min(yx[1] + box[1] / 2 + 1, im.shape[1])
+    y0 = max(yx[0] - box[0] // 2, 0)
+    y1 = min(yx[0] + box[0] // 2 + 1, im.shape[0])
+    x0 = max(yx[1] - box[1] // 2, 0)
+    x1 = min(yx[1] + box[1] // 2 + 1, im.shape[1])
     subim = im[y0:y1, x0:x1].copy()
     subim -= subim.min()
 
