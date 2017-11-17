@@ -2150,7 +2150,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     else:
         _se = np.array(se)
 
-    if (fw is not None) and (ft != None):
+    if (fw is not None) and (ft is not None):
         _fw = np.array(fw)
         _ft = np.array(ft)
     elif filter is not None:
