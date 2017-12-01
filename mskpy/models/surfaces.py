@@ -167,7 +167,7 @@ class NEATM(SurfaceRadiation):
                             epsrel=self.tol)[0]
 
         fluxd *= (self.epsilon * (self.D / geom['delta'])**2
-                  / pi / 2.0).decompose() # W/m^2/Hz
+                  / pi / 2.0).decompose().value # W/m^2/Hz
 
         fluxd = fluxd * u.Unit('W / (m2 Hz)')
         equiv = u.spectral_density(u.um, wave.to(u.um).value)
