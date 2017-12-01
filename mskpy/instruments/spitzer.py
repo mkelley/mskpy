@@ -609,7 +609,7 @@ class IRSCombine:
                         e[i] = np.sqrt(sum(err2[mc[2], i])) / len(mc[2])
                     else:
                         f[i] = np.mean(fluxd[:, i])
-                        e = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
+                        e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
 
                 i = np.isfinite(w * f * e)  # clean nans
                 self.coadded[module[:2] + str(order)] = dict(
