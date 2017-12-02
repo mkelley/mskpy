@@ -1113,10 +1113,11 @@ class IRSCombine:
         self.meta['subtract_nucleus'] = dict(R=str(R), Ap=Ap, **kwargs)
 
         model = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
+        spec = self.spectra
         self.coma = dict()
-        for k, v in self.coadded.items():
+        for k, v in spec.items():
             self.coma[k] = {}
-            for kk, vv in self.coadded[k].items():
+            for kk, vv in spec[k].items():
                 self.coma[k][kk] = vv.copy()
             f = splev(self.coma[k]['wave'], model)
             self.coma[k]['fluxd'] -= f
@@ -1192,7 +1193,6 @@ class IRSCombine:
         self.meta['shape_correct'] = ['Shape corrected with user provided data.']
 
     def trim(self, **kwargs):
-
         """Trim orders at given limits.
 
         Parameters
@@ -1212,12 +1212,23 @@ class IRSCombine:
         
         self.trimmed = self.coadded.copy()
         self.meta['trim'] = {}
+        delete_keys = []
         for k in self.trimmed.keys():
             wrange = tr[k]
+            if wrange[0] >= wrange[1]:
+                # delete this order
+                delete_keys.append(k)
+                continue
+            
             i = between(self.trimmed[k]['wave'], wrange)
             for j in ('wave', 'fluxd', 'err'):
                 self.trimmed[k][j] = self.trimmed[k][j][i]
+                
             self.meta['trim'][k] = wrange
+
+        for k in delete_keys:
+            del self.trimmed[k]
+            print('IRSCombine trim: deleting', k)
 
     def write(self, filename, meta={}, overwrite=False):
         """Write the spectra to a single file.
