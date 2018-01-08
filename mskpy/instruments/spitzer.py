@@ -1133,11 +1133,10 @@ class IRSCombine:
         h = list(self.headers.values())[0]
         calset = h['CAL_SET'].strip("'").strip('.A')
 
-        assert self.coma is not None
         if self.aploss_corrected is not None:
             spec = self.aploss_corrected
         else:
-            spec = self.coma
+            spec = self.spectra
             
         self.slitloss_corrected = dict()
         for k in spec.keys():
@@ -1152,7 +1151,7 @@ class IRSCombine:
             self.slitloss_corrected[k]['fluxd'] *= slcf
             self.slitloss_corrected[k]['err'] *= slcf
 
-        self.meta['slitloss_correct'] = ['Slit loss corrected for point sources using IRS pipeline correction.']
+        self.meta['slitloss_correct'] = ['Slit loss corrected for uniform sources using IRS pipeline correction.']
 
     def shape_correct(self, correction):
         """Correct the shape of the coma spectra.
