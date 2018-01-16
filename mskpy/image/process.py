@@ -141,65 +141,76 @@ def align_by_offset(data, dyx, **kwargs):
 
     return stack
 
-def align_by_wcs(files, target=None, observer=None, time_key='DATE-OBS',
-                 **kwargs):
+def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
+                 time_key='DATE-OBS', method='interp', **kwargs):
     """Align a set of images using their world coordinate systems.
 
     Parameters
     ----------
     files : list
       The list of FITS files to align.
-    target : SolarSysObject
-      Align in the reference frame of this object.
-    observer : SolarSysObject
+    wcs : astropy WCS, optional
+      Align to this coordinate system.
+    shape : tuple, optional
+      Use this array shape.
+    target : SolarSysObject, optional
+      Align in the reference frame of this object.  If `wcs` is
+      specified, it is assumed to correspond to the first epoch in
+      `files`.
+    observer : SolarSysObject, optional
       Observe `target` with this observer.
-    time_key : string
+    time_key : string, optional
       The header keyword for the observation time.
+    method : string, optional
+      'interp' or 'exact' corresponding to the methods in `reproject`.
     **kwargs
-      Keyword arguments for `imshift`.
+      Keyword arguments for `reproject_interp` or `reproject_exact`.
 
     Results
     -------
     stack : ndarray
       The aligned images.
-    dyx : ndarray
-      The offsets.  Suitable for input into `align_by_offset`.
+    cov : ndarray
+      The coverage map for each image.
 
     """
 
     import astropy.units as u
     from astropy.io import fits
     from astropy.wcs import WCS
-    from astropy.coordinates import Angle
+    from reproject import reproject_interp, reproject_exact
+
+    assert method in ['interp', 'exact']
+    if method == 'interp':
+        reproject = reproject_interp
+    else:
+        reproject = reproject_exact
 
     im, h0 = fits.getdata(files[0], header=True)
-    wcs0 = WCS(h0)
-    stack = np.zeros((len(files), ) + im.shape)
-    stack[0] = im
-
-    y0, x0 = np.array(im.shape) / 2.0
-    if target is not None:
+    shape = (h['NAXIS2'], h['NAXIS1']) if shape is None else shape
+    wcs0 = WCS(h0) if wcs is None else wcs
+        
+    if target is None:
+        d = np.array((0, 0))
+    else:
         assert observer is not None, "observer required"
         g0 = observer.observe(target, h0[time_key])
-        xt, yt = wcs0.wcs_world2pix(np.c_[g0.ra, g0.dec], 0)[0]
 
-    ra0, dec0 = Angle(wcs0.wcs_pix2world(np.c_[x0, y0], 0)[0] * u.deg)
-    dra = 0 * u.deg
-    ddec = 0 * u.deg
+    stack, cov = np.zeros((2, len(files), shape[0], shape[1]))
+    for i in range(len(files)):
+        print(files[i])
+        im, h = fits.getdata(files[i], header=True)
 
-    dyx = np.zeros((len(files), 2))
-    for i in range(1, len(files)):
-        stack[i], h = fits.getdata(files[i], header=True)
-        wcs = WCS(h)
         if target is not None:
             g = observer.observe(target, h[time_key])
-            dra = g.ra - g0.ra
-            ddec = g.dec - g0.dec
+            d = np.array((g0.ra.deg - g.ra.deg, g0.dec.deg - g.dec.deg))
 
-        x, y = wcs.wcs_world2pix(np.c_[ra0 + dra, dec0 + ddec], 0)[0]
-        dyx[i] = y0 - y, x0 - x
+        wcs = WCS(h)
+        wcs.wcs.crval = wcs.wcs.crval + d
 
-    return align_by_offset(stack, dyx, **kwargs), dyx
+        stack[i], cov[i] = reproject((im, wcs), wcs0, shape_out=shape, **kwargs)
+
+    return stack, cov
 
 def columnpull(column, index, bg, stdev):
     """Define a column pull detector artifact.

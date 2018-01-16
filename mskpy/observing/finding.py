@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 def finding_charts(target, observer, dates, step=1, lstep=6,
-                   alpha=0.5):
+                   alpha=0.5, cap=True, nofrag=True):
     """Generate finding charts for a moving target.
 
     The downloaded images are saved as gzipped FITS with a name based
@@ -45,6 +45,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     alpha : float, optional
       Transparency for figure annotations.  0 to 1 for transparent to
       solid.
+    cap, nofrag : bool, optional
+      Current apparition and fragment matching flags for HORIZONS.
 
     """
 
@@ -63,7 +65,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     start, stop = util.date2time(dates)
 
     jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
-    q = callhorizons.query(target)
+    q = callhorizons.query(target, cap=cap, nofrag=nofrag)
     q.set_discreteepochs(jd)
     q.get_ephemerides(observer)
     eph = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
@@ -159,13 +161,16 @@ if __name__ == "__main__":
     parser.add_argument('--step', default=1, type=float, help='Tick mark step size in hours.')
     parser.add_argument('--lstep', default=6, type=float, help='Label step size in hours.')
     parser.add_argument('--alpha', default=0.5, type=float, help='Amount of transparency for overlays.')
+    parser.add_argument('--cap', action='store_true', help='For comets, request the Current APparition from HORIZONS.')
+    parser.add_argument('--nofrag', action='store_true', help='For comets, disable HORIZONS nucleus fragment matching.')
 
     args = parser.parse_args()
     target = ' '.join(args.target)
     assert len(target.strip()) > 0
 
     finding_charts(target, args.observer, [args.start, args.end],
-                   step=args.step, lstep=args.lstep, alpha=args.alpha)
+                   step=args.step, lstep=args.lstep, alpha=args.alpha,
+                   cap=args.cap, nofrag=args.nofrag)
 
 # update module docstring
 from ..util import autodoc
