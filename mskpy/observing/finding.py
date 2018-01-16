@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 def finding_charts(target, observer, dates, step=1, lstep=6,
-                   alpha=0.5, cap=True, nofrag=True):
+                   alpha=0.5, **kwargs):
     """Generate finding charts for a moving target.
 
     The downloaded images are saved as gzipped FITS with a name based
@@ -45,8 +45,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     alpha : float, optional
       Transparency for figure annotations.  0 to 1 for transparent to
       solid.
-    cap, nofrag : bool, optional
-      Current apparition and fragment matching flags for HORIZONS.
+    **kwargs
+      Additional keyword arguments are passed to `callhorizons.query`.
 
     """
 
@@ -65,7 +65,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
     start, stop = util.date2time(dates)
 
     jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
-    q = callhorizons.query(target, cap=cap, nofrag=nofrag)
+    q = callhorizons.query(target, **kwargs)
     q.set_discreteepochs(jd)
     q.get_ephemerides(observer)
     eph = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
@@ -163,6 +163,8 @@ if __name__ == "__main__":
     parser.add_argument('--alpha', default=0.5, type=float, help='Amount of transparency for overlays.')
     parser.add_argument('--cap', action='store_true', help='For comets, request the Current APparition from HORIZONS.')
     parser.add_argument('--nofrag', action='store_true', help='For comets, disable HORIZONS nucleus fragment matching.')
+    parser.add_argument('--comet', action='store_true', help='Force comet flag for callhorizons.')
+    parser.add_argument('--asteroid', action='store_true', help='Force asteroid flag for callhorizons.')
 
     args = parser.parse_args()
     target = ' '.join(args.target)
@@ -170,7 +172,8 @@ if __name__ == "__main__":
 
     finding_charts(target, args.observer, [args.start, args.end],
                    step=args.step, lstep=args.lstep, alpha=args.alpha,
-                   cap=args.cap, nofrag=args.nofrag)
+                   cap=args.cap, nofrag=args.nofrag, comet=args.comet,
+                   asteroid=args.asteroid)
 
 # update module docstring
 from ..util import autodoc
