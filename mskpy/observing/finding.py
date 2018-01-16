@@ -17,7 +17,7 @@ __all__ = [
     'finding_charts',
 ]
 
-def finding_charts(target, observer, dates, step=1, lstep=6,
+def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
                    alpha=0.5, **kwargs):
     """Generate finding charts for a moving target.
 
@@ -42,6 +42,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
       Length of each time step. [hr]
     lstep : float, optional
       Length of time steps between labels. [hr]
+    lformat : string, optional
+      Label format, using strftime format codes.
     alpha : float, optional
       Transparency for figure annotations.  0 to 1 for transparent to
       solid.
@@ -136,7 +138,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6,
         for k in np.flatnonzero(j):
             d = util.date2time(jd_labels[k])
             fig.add_label(labels.ra[k].degree, labels.dec[k].degree,
-                          d.datetime.strftime('%H:%M'), color='w',
+                          d.datetime.strftime(lformat), color='w',
                           alpha=alpha, size='small')
 
         fig.show_rectangles(eph[step].ra.degree, eph[step].dec.degree,
@@ -160,6 +162,7 @@ if __name__ == "__main__":
     parser.add_argument('--observer', default='Earth', help='Name of observer.')
     parser.add_argument('--step', default=1, type=float, help='Tick mark step size in hours.')
     parser.add_argument('--lstep', default=6, type=float, help='Label step size in hours.')
+    parser.add_argument('--lformat', default='%H:%M', help='Label format, using strftime codes.')
     parser.add_argument('--alpha', default=0.5, type=float, help='Amount of transparency for overlays.')
     parser.add_argument('--cap', action='store_true', help='For comets, request the Current APparition from HORIZONS.')
     parser.add_argument('--nofrag', action='store_true', help='For comets, disable HORIZONS nucleus fragment matching.')
@@ -171,9 +174,9 @@ if __name__ == "__main__":
     assert len(target.strip()) > 0
 
     finding_charts(target, args.observer, [args.start, args.end],
-                   step=args.step, lstep=args.lstep, alpha=args.alpha,
-                   cap=args.cap, nofrag=args.nofrag, comet=args.comet,
-                   asteroid=args.asteroid)
+                   step=args.step, lstep=args.lstep, lformat=args.lformat,
+                   alpha=args.alpha, cap=args.cap, nofrag=args.nofrag,
+                   comet=args.comet, asteroid=args.asteroid)
 
 # update module docstring
 from ..util import autodoc
