@@ -1248,7 +1248,7 @@ def delta_at_rh(rh, selong):
         distance_unit = 1
     
     if isinstance(selong, u.Quantity):
-        angle_unit = selong.unit
+        angle_unit = u.rad.to(selong.unit) * selong.unit
     else:
         angle_unit = 1
     
