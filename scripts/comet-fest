@@ -1,0 +1,151 @@
+#!/usr/bin/python3
+import sys
+import argparse
+import numpy as np
+import astropy.units as u
+from astropy.time import Time
+from astropy.table import Table
+import mskpy
+from mskpy import ephem, between, Coma, Asteroid
+
+today = Time.now()
+
+class ListAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        v = [float(x) for x in values.split(',')]
+        setattr(namespace, self.dest, v)
+
+parser = argparse.ArgumentParser(description='Generate an ephemeris.')
+parser.add_argument('target', type=str, nargs='+',
+                    help='name of the target')
+parser.add_argument('--date', type=Time, default=today,
+                    help='observation date, UT')
+parser.add_argument('--wave', type=str, action=ListAction, default=[0.3, 30],
+                    help='wavelength range in μm, default: 0.3, 30 μm')
+parser.add_argument('-n', type=int, default=10,
+                    help='number of wavelength steps, default: 100 log-spaced')
+parser.add_argument('--linear', action='store_true',
+                    help='use linear scaling for wavelength steps')
+
+parser.add_argument('--observer', type=str, default='Earth',
+                    help='observer, default: Earth')
+
+parser.add_argument('--kernel', type=str, action='append', default=[],
+                    help='load this kernel')
+
+parser.add_argument('--afrho', type=float,
+                    help='Afrho parameter at phase angle = 0 [cm], default 100')
+parser.add_argument('-k', type=float, default=-2.0,
+                    help='Afrho heliocentric distance power-law slope, default: -2')
+parser.add_argument('--dt', type=float, default=0.0,
+                    help='time offset for activity scaling, <0 for post-perihelion peak [days]')
+parser.add_argument('--rh', type=float, default=1.0,
+                    help='Afrho parameter specified at this rh [AU], default: 1')
+parser.add_argument('--ef2af', type=float, default=3.5,
+                    help='ratio of IR emissivity to albedo, default: 3.5')
+parser.add_argument('--tscale', type=float, default=1.1,
+                    help='effective temperature scale factor, default: 1.1')
+parser.add_argument('--phasef', type=str, default='phaseHM',
+                    help='phase function (phaseK, phaseH, phaseHM), default: phaseHM')
+
+parser.add_argument('-D', type=float,
+                    help='asteroid diameter [km], default 1')
+parser.add_argument('--eta', type=float, default=1.0,
+                    help='IR-beaming parameter, default: 1')
+parser.add_argument('--Ap', type=float, default=0.04,
+                    help='asteroid/nucleus geometric albedo, default: 0.04')
+
+parser.add_argument('--rap', type=float, default=1.0,
+                    help='aperture radius [arcsec], default: 1')
+parser.add_argument('--unit', type=u.Unit, default='Jy',
+                    help='flux density unit, default: Jy')
+parser.add_argument('--format', default='.4g',
+                    help='format for flux density columns')
+
+args = parser.parse_args()
+if args.target == []:
+    parser.print_help()
+    print()
+    sys.exit()
+
+if len(args.kernel) > 0:
+    for k in args.kernel:
+        ephem.core.load_kernel(k)
+
+if (len(args.target) == 1
+    and args.target[0].isdigit()
+    and len(args.target[0]) < 6):
+    # asteroid designation
+    target = ephem.getspiceobj(int(args.target[0]) + 2000000)
+else:
+    target = ephem.getspiceobj(' '.join(args.target))
+
+try:
+    if args.observer == 'L2':
+        observer = ephem.Earth_L2
+    else:
+        observer = eval('ephem.' + args.observer.capitalize())
+except AttributeError:
+    observer = ephem.getspiceobj(' '.join(args.observer))
+
+if args.linear:
+    wave = np.linspace(args.wave[0], args.wave[1], args.n) * u.um
+else:
+    wave = np.logspace(np.log10(args.wave[0]), np.log10(args.wave[1]),
+                       args.n) * u.um
+
+if args.afrho is None and args.D is None:
+    print('Nothing to do.')
+    sys.exit()
+    
+names = ['wave']
+data = [wave]
+total = 0
+if args.afrho is not None:
+    afrho1 = args.afrho / args.rh**args.k * u.cm
+    coma = Coma(target.state, afrho1, k=args.k, dt=args.dt * u.day,
+                ef2af=args.ef2af, Tscale=args.tscale,
+                phasef=getattr(mskpy.models, args.phasef))
+
+    _args = (observer, args.date, wave)
+    opts = dict(rap=args.rap * u.arcsec, unit=args.unit)
+    refl = coma.fluxd(*_args, reflected=True, thermal=False, **opts)
+    thrm = coma.fluxd(*_args, reflected=False, thermal=True, **opts)
+
+    names.append('coma refl')
+    data.append(refl)
+
+    names.append('coma thrm')
+    data.append(thrm)
+
+    names.append('coma total')
+    data.append(refl + thrm)
+
+    total = total + refl + thrm
+
+if args.D is not None: 
+    asteroid = Asteroid(target.state, args.D * u.km, args.Ap, eta=args.eta)
+
+    _args = (observer, args.date, wave)
+    opts = dict(unit=args.unit)
+    refl = asteroid.fluxd(*_args, reflected=True, thermal=False, **opts)
+    thrm = asteroid.fluxd(*_args, reflected=False, thermal=True, **opts)
+
+    names.append('surface refl')
+    data.append(refl)
+
+    names.append('surface thrm')
+    data.append(thrm)
+
+    names.append('surface total')
+    data.append(refl + thrm)
+
+    total = total + refl + thrm
+
+data.insert(1, total)
+names.insert(1, 'total')
+tab = Table(data=data, names=names)
+for k in tab.colnames[1:]:
+    tab[k].format = '{:' + args.format + '}'
+
+tab.pprint(max_lines=-1, max_width=-1)

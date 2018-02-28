@@ -51,7 +51,7 @@ if __name__ == "__main__":
                     'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing',
                     'mskpy.photometry'],
           data_files=files,
-          scripts=['scripts/ephemeris', 'scripts/transit',
+          scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
                    'scripts/center-target', 'scripts/H2D'],
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
