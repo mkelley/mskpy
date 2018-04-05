@@ -72,6 +72,7 @@ util --- Short and sweet functions, generic algorithms
    "Special" functions
    -------------------
    bandpass
+   constant_spectral_resolution
    deresolve
    phase_integral
    planck
@@ -167,6 +168,7 @@ __all__ = [
     'uclip',
 
     'bandpass',
+    'constant_spectral_resolution',
     'deresolve',
     'phase_integral',
     'planck',
@@ -2206,7 +2208,29 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     else:
         return wave, flux, err
 
+def constant_spectral_resolution(start, stop, R):
+    """Spectral wavelength generator for constant spectral resolution.
+
+    Parameters
+    ----------
+    start, stop : array-like
+      Start and stop wavelengths.  The stop wavelength will always be
+      in the spectrum.
+    R : float
+      The desired spectral resolution.
+
+    Returns
+    -------
+    wave : array
+
+    """
+
+    d = 1 + 1 / R
+    n = int(np.ceil(np.log(stop / start) / np.log(d)))
+    return start * d**np.arange(n)
+    
 def deresolve(func, wave, flux, err=None):
+
     """De-resolve a spectrum using the supplied instrument profile.
 
     Parameters
