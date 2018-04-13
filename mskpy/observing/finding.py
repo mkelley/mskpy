@@ -159,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument('target', nargs='+', help='Name of a target.')
     parser.add_argument('start', help='Start date.')
     parser.add_argument('end', help='End date.')
-    parser.add_argument('--observer', default='Earth', help='Name of observer.')
+    parser.add_argument('--observer', default='500', help='Observer location.')
     parser.add_argument('--step', default=1, type=float, help='Tick mark step size in hours.')
     parser.add_argument('--lstep', default=6, type=float, help='Label step size in hours.')
     parser.add_argument('--lformat', default='%H:%M', help='Label format, using strftime codes.')
