@@ -635,7 +635,8 @@ def ext_total_oh(toz, z_true, b, c, E_bc, h):
             + ext_ozone_oh(z_true, toz, c))
 
 
-def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, Rm=None, Rm_unc=None):
+def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, Rm=None,
+            Rm_unc=None):
     """Flux from OH.
 
     Appendix A and D of Farnham et al. 2000.
@@ -700,7 +701,10 @@ def flux_oh(oh, oh_unc, m, unc, zp, toz, z_true, E_bc, h, Rm=None, Rm_unc=None):
     f_unc = oh_unc * f / 1.0857  # first estimate
 
     frac = fc['OH'] / f  # fraction that is continuum
-    frac_unc = np.sqrt(f_unc**2 * fc['OH']**2 + fc_unc['OH']**2 * f**2) / f**2
+    # propagation of uncertainty, but avoiding a divide by zero error:
+    frac_unc = (
+        np.sqrt(f_unc**2 * fc['OH']**2 + fc_unc['OH']**2 * f**2) / f**2)
+
     # E_unc = frac_unc / frac * 1.0857
     # E_unc = np.sqrt(oh_unc**2 + ((fc_unc / fc) * 1.0857)**2)
 
