@@ -39,13 +39,14 @@ _e490 = __mskpy_path__[0] + "/data/E490_00a_AM0.txt"
 _e490_sm = __mskpy_path__[0] + "/data/e490-lowres.txt"
 
 # the filter transmission files
-_filterdir =  __mskpy_path__[0] + '/data/filters'
+_filterdir = __mskpy_path__[0] + '/data/filters'
 
 # The location of mid-IR calibration data.  cohenstandard() will
 # search all directories that match cohen* in _midirdir.  Many
 # templates are available from Gemini:
 # http://www.gemini.edu/sciops/instruments/mid-ir-resources/spectroscopic-calibrations
 _midirdir = '/home/msk/data/mid-ir'
+
 
 def e490(smooth=False, unit=u.Unit('W/(m2 um)')):
     """The ASTM (2000) E490-00 solar spectrum (at 1 AU).
@@ -82,6 +83,7 @@ def e490(smooth=False, unit=u.Unit('W/(m2 um)')):
         f = f.to(unit, equivalencies=equiv)
 
     return w, f
+
 
 def wehrli(smooth=True, unit=u.Unit('W/(m2 um)')):
     """Wehrli (1985) solar spectrum (at 1 AU).
@@ -122,6 +124,7 @@ def wehrli(smooth=True, unit=u.Unit('W/(m2 um)')):
 
     return w, f
 
+
 def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
     """Spectrum of the Sun.
 
@@ -155,6 +158,7 @@ def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
         return solarInterp([wave])[0] * solarf.unit
     else:
         return solarInterp(wave) * solarf.unit
+
 
 def filter_trans(name):
     """Wavelength and filter transmission for a requested filter.
@@ -195,6 +199,10 @@ def filter_trans(name):
         * FOR 34
         * FOR 35
         * FOR 37
+        * WISE W1
+        * WISE W2
+        * WISE W3
+        * WISE W4
 
     Returns
     -------
@@ -232,34 +240,34 @@ def filter_trans(name):
         'mips 160': ('/spitzer/mips160.txt', [0, 1], u.um),
         'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um),
         'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um),
-	'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um),
-	'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um),
-	'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um),
-	'for 7.7': ('/sofia/OCLI_N07688-9A_1.txt', [1, 2], u.um),
-	'for 8.6': ('/sofia/OCLI_N08606-9_1.txt', [1, 2], u.um),
-	'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um),
-	'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um),
-	'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um),
-	'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt', [1, 2], u.um),
-	'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um),
-	'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt', [1, 2], u.um),
-	'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt', [1, 2], u.um),
-	'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt', [1, 2], u.um),
+        'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um),
+        'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um),
+        'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um),
+        'for 7.7': ('/sofia/OCLI_N07688-9A_1.txt', [1, 2], u.um),
+        'for 8.6': ('/sofia/OCLI_N08606-9_1.txt', [1, 2], u.um),
+        'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um),
+        'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um),
+        'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um),
+        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt', [1, 2], u.um),
+        'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um),
+        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt', [1, 2], u.um),
+        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt', [1, 2], u.um),
+        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt', [1, 2], u.um),
         'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um),
         'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um),
         'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um),
         'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um)
-        }
+    }
 
     try:
         fil = filters[name.lower()]
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    #table = ascii.read(_filterdir + '/' + fil[0], format='fixed_width_no_header')
-    #cols = fil[1]
-    #w = table.columns[cols[0]].data * u.um
-    #tr = table.columns[cols[1]].data
+    # table = ascii.read(_filterdir + '/' + fil[0], format='fixed_width_no_header')
+    # cols = fil[1]
+    # w = table.columns[cols[0]].data * u.um
+    # tr = table.columns[cols[1]].data
 
     table = np.loadtxt(_filterdir + '/' + fil[0]).T
     cols = fil[1]
@@ -267,6 +275,7 @@ def filter_trans(name):
     tr = table[cols[1]]
 
     return w, tr
+
 
 def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     """Cohen spectral templates.
@@ -327,6 +336,7 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     fd = (fd * u.Unit('W/(cm2 um)')).to(unit, u.spectral_density(wave))
 
     return wave, fd
+
 
 def dw_atran(airmass, fw, ft, pw='2.5'):
     """Use the Diane Wooden method to compute the transmission of the
