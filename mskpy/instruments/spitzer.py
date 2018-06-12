@@ -108,6 +108,7 @@ campaign2rogue = {
 
 module2channel = {'sl': 0, 'sh': 1, 'll': 2, 'lh': 3}
 
+
 class IRAC(Camera):
     """Spitzer's Infrared Array Camera
 
@@ -162,13 +163,15 @@ class IRAC(Camera):
             sfnu = sf(tw).to(u.Jy, u.spectral_density(tw)).value
 
             i = ch - 1  # self.wave index
-            sfnu /= sf(self.wave[i]).to(u.Jy, u.spectral_density(self.wave[i])).value
+            sfnu /= sf(self.wave[i]).to(u.Jy,
+                                        u.spectral_density(self.wave[i])).value
 
             sfnu, tr, nu = takefrom((sfnu, tr, nu), nu.argsort())
             K[i] = (davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
                     / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1]))
 
         return K
+
 
 def warm_aperture_correction(rap, bgan):
     """Compute an aperture correction for IRAC Warm Mission data.
@@ -180,7 +183,7 @@ def warm_aperture_correction(rap, bgan):
     bgan : 2-element array-like
       The inner and outer radii of the background annulus, or `None`
       if there is no background annulus.
-    
+
     Result
     ------
     c : float
@@ -207,7 +210,7 @@ def warm_aperture_correction(rap, bgan):
     from astropy.io import fits
     from ..image import apphot, bgphot
 
-    f0 = np.array([  2.02430430e+08,   1.29336376e+08])
+    f0 = np.array([2.02430430e+08,   1.29336376e+08])
 
     path = config.get('irac', 'psf_path')
     psf = (fits.getdata(os.path.join(path, 'I1_hdr_warm_psf.fits')),
@@ -264,6 +267,7 @@ def warm_aperture_correction(rap, bgan):
 #            K[i] = (davint(nu, _sf * ft * nu0[i] / nu, nu[0], nu[-1])
 #                    / davint(nu, ft * (nu0[i] / nu)**2, nu[0], nu[-1]))
 #        return K
+
 
 class IRS(Instrument):
     """Spitzer's Infrared Spectrometer.
@@ -371,6 +375,7 @@ class IRS(Instrument):
         """
         return self.mode.lightcurve(*args, **kwargs)
 
+
 class IRSCombine:
     """Combine extracted and calibrated IRS data into a single spectrum.
 
@@ -382,7 +387,7 @@ class IRSCombine:
       Files to load.
     **kwargs
       Passed to `IRSCombine.read`.
-    
+
     Attributes
     ----------
     aploss_corrected : dict
@@ -436,7 +441,7 @@ class IRSCombine:
     combine.plot('raw')
     plt.setp(plt.gca(), ylim=(0, 0.8))
     plt.draw()
-    
+
     fig = plt.figure(2)
     plt.clf()
     plt.minorticks_on()
@@ -444,7 +449,7 @@ class IRSCombine:
     combine.plot('nucleus', ls='--', label='nucleus')
     mskpy.nicelegend(loc='lower right')
     plt.draw()
-    
+
     fig = plt.figure(3)
     plt.clf()
     plt.minorticks_on()
@@ -516,7 +521,8 @@ class IRSCombine:
             wb = aploss[i]['key_wavelength']
             polya = np.polyval(a, wa - self.coma[k]['wave'])
             polyb = np.polyval(b, wb - self.coma[k]['wave'])
-            alcf = aploss[i]['fluxcon'] * polya / (fluxcon[i]['fluxcon'] * polyb)
+            alcf = aploss[i]['fluxcon'] * polya / \
+                (fluxcon[i]['fluxcon'] * polyb)
 
             self.aploss_corrected[k] = dict()
             for kk, vv in self.coma[k].items():
@@ -557,7 +563,7 @@ class IRSCombine:
         else:
             _scales = dict(**self.scales)
             _scales.update(scales)
-        
+
         self.coadded = dict()
         self.meta['coadd'] = []
         for module, files in self.modules.items():
@@ -579,7 +585,7 @@ class IRSCombine:
                     e = spec['error'][k][good]
                     n = np.histogram(w, bins)[0]
                     wave[i] = np.histogram(w, bins, weights=w)[0]
-                    fluxd[i] = np.histogram(w, bins,weights=f)[0]
+                    fluxd[i] = np.histogram(w, bins, weights=f)[0]
                     err2[i] = np.histogram(w, bins, weights=e**2)[0]
 
                     j = n > 0
@@ -616,11 +622,14 @@ class IRSCombine:
                     wave=w[i], fluxd=f[i], err=e[i])
 
                 if fluxd.shape[0] > 2:
-                    self.meta['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(fluxd.shape[0], module[:-1], order, sig))
+                    self.meta['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(
+                        fluxd.shape[0], module[:-1], order, sig))
                 elif fluxd.shape[0] == 2:
-                    self.meta['coadd'].append("{} {}{} spectra averaged together.".format(fluxd.shape[0], module[:-1], order))
+                    self.meta['coadd'].append("{} {}{} spectra averaged together.".format(
+                        fluxd.shape[0], module[:-1], order))
                 else:
-                    self.meta['coadd'].append("{} {}{} spectrum included.".format(fluxd.shape[0], module[:-1], order))
+                    self.meta['coadd'].append("{} {}{} spectrum included.".format(
+                        fluxd.shape[0], module[:-1], order))
 
     def plot(self, name='spectra', ax=None, errorbar=True,
              label=str.upper, unit=u.Jy, lambda_scale=False, **kwargs):
@@ -667,16 +676,17 @@ class IRSCombine:
                                      lambda_scale=lambda_scale, **kwargs)
 
         if lambda_scale:
-            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
-        
+            assert unit.is_equivalent(
+                'W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+
         if ax is None:
             ax = plt.gca()
 
         if not callable(label):
-            _label = lambda k: label
+            def _label(k): return label
         else:
             _label = label
-            
+
         lines = []
         spectra = getattr(self, name, None)
         assert spectra is not None, '{} does not exist.'.format(name)
@@ -729,7 +739,8 @@ class IRSCombine:
                 lines = self.plot(k)
                 break
         else:
-            raise RuntimeError('scale_orders has been run, but the prior processing steps are missing.')
+            raise RuntimeError(
+                'scale_orders has been run, but the prior processing steps are missing.')
 
         orders = list(self._scale_order_lines.keys())
         for (k1, k2) in zip(orders[:-1], orders[1:]):
@@ -774,7 +785,8 @@ class IRSCombine:
 
         c = u.Jy.to(unit, 1, u.spectral_density(self.nucleus['wave'] * u.um))
         if lambda_scale:
-            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+            assert unit.is_equivalent(
+                'W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
             c *= self.nucleus['wave']
 
         line = ax.plot(self.nucleus['wave'], c * self.nucleus['fluxd'],
@@ -815,9 +827,10 @@ class IRSCombine:
 
         if ax is None:
             ax = plt.gca()
-        
+
         if lambda_scale:
-            assert unit.is_equivalent('W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+            assert unit.is_equivalent(
+                'W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
 
         lines = []
         for f, spec in sorted(self.raw.items()):
@@ -851,7 +864,7 @@ class IRSCombine:
         from .. import spice
         from ..util import cal2time
         from ..ephem import getgeom, Spitzer
-        
+
         self.headers = dict()
         self.raw = dict()
         self.modules = dict()
@@ -883,13 +896,13 @@ class IRSCombine:
 
             if not keep:
                 continue
-                    
+
             self.raw[f] = spec
             self.headers[f] = header
 
             if module not in self.modules:
                 self.modules[module] = []
-                
+
             self.modules[module].append(f)
             self.meta['read_files'].append(f)
 
@@ -898,14 +911,15 @@ class IRSCombine:
         m = self.modules.keys()
         print('IRSCombine found {} supported IRS modules: {}.'.format(
             len(m), ' '.join(m)))
-        
+
         headers = list(self.headers.values())
         times = [h['DATE_OBS'] for h in headers]
         first = times.index(min(times))
         last = times.index(max(times))
 
         start_time = times[first]
-        dt = float(headers[last]['RAMPTIME']) + float(headers[last]['DEADTIME'])
+        dt = float(headers[last]['RAMPTIME']) + \
+            float(headers[last]['DEADTIME'])
         stop_time = (cal2time(times[last]) + dt * u.s).isot
 
         self.header = OrderedDict()
@@ -930,17 +944,25 @@ class IRSCombine:
         self.header['rh'] = '{:.3f}'.format(g.rh)
         self.header['Delta'] = '{:.3f}'.format(g.delta)
         self.header['phase'] = '{:.1f}'.format(g.phase)
-        self.header['Sun angle'] = ('{:.1f}'.format(g.sangle), 'Projected Sun angle (E of N)')
-        self.header['Velocity angle'] = ('{:.1f}'.format(g.vangle), 'Projected target velocity angle (E of N)')
+        self.header['Sun angle'] = ('{:.1f}'.format(
+            g.sangle), 'Projected Sun angle (E of N)')
+        self.header['Velocity angle'] = ('{:.1f}'.format(
+            g.vangle), 'Projected target velocity angle (E of N)')
 
-        self.header['RA'] = (float(headers[first]['RA_SLT']) * u.deg, 'Initial slit center RA')
-        self.header['Dec'] = (float(headers[first]['DEC_SLT']) * u.deg, 'Initial slit center Dec')
-        self.header['position angle'] = (float(headers[first]['PA_SLT']) * u.deg, 'Initial slit position angle (E of N)')
+        self.header['RA'] = (float(headers[first]['RA_SLT'])
+                             * u.deg, 'Initial slit center RA')
+        self.header['Dec'] = (float(headers[first]['DEC_SLT'])
+                              * u.deg, 'Initial slit center Dec')
+        self.header['position angle'] = (
+            float(headers[first]['PA_SLT']) * u.deg, 'Initial slit position angle (E of N)')
 
-        c = SkyCoord(self.header['RA'][0], self.header['Dec'][0], 1 * u.Mpc, frame='icrs')
-        self.header['lambda'] = (c.heliocentrictrueecliptic.lon, 'Ecliptic longitude')
-        self.header['beta'] = (c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
-        
+        c = SkyCoord(self.header['RA'][0],
+                     self.header['Dec'][0], 1 * u.Mpc, frame='icrs')
+        self.header['lambda'] = (
+            c.heliocentrictrueecliptic.lon, 'Ecliptic longitude')
+        self.header['beta'] = (
+            c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
+
         #self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
         xyz = [float(headers[first]['SPTZR_' + x]) * u.km for x in 'XYZ']
         self.header['R_Spitzer'] = dict([(k, v) for k, v in zip('xyz', xyz)])
@@ -952,7 +974,7 @@ class IRSCombine:
         self.aploss_corrected = None
         self.meta['subtract_nucleus'] = []
         print('IRSCombine: Model nucleus removed.')
-        
+
     def scale_orders(self, fixed, dlam=0.1):
         """Order-to-order scaling with linear interpolation.
 
@@ -975,8 +997,8 @@ class IRSCombine:
 
         assert self.coadded is not None, "Spectra must first be coadded (even if there is only one spectrum per module)."
 
-
-        stitching_order = ['sl2', 'sl3', 'sl1', 'sh', 'll2', 'll3', 'll1', 'lh']
+        stitching_order = ['sl2', 'sl3', 'sl1',
+                           'sh', 'll2', 'll3', 'll1', 'lh']
         self.order_scales = dict()
         self._scale_order_lines = OrderedDict()
         self._scale_order_edges = dict()
@@ -1048,7 +1070,7 @@ class IRSCombine:
           Wavelength range with which to derive the scale factors.
 
         """
-        
+
         from ..util import between, meanclip
 
         ranges = dict(sl1=sl1, sl2=sl2, ll1=ll1, ll2=ll2)
@@ -1097,7 +1119,7 @@ class IRSCombine:
             self.delete_nucleus()
 
         target = self.header['naif id'] if target is None else target
-            
+
         model = NEATM(R * 2, Ap, **kwargs)
         wave = np.logspace(np.log10(5), np.log10(40), 100) * u.um
         fluxd = model.fluxd(self.geom, wave, unit=u.Jy)
@@ -1137,7 +1159,7 @@ class IRSCombine:
             spec = self.aploss_corrected
         else:
             spec = self.spectra
-            
+
         self.slitloss_corrected = dict()
         for k in spec.keys():
             fn = 'b{}_slitloss_convert.tbl'.format(module2channel[k[:2]])
@@ -1151,7 +1173,8 @@ class IRSCombine:
             self.slitloss_corrected[k]['fluxd'] *= slcf
             self.slitloss_corrected[k]['err'] *= slcf
 
-        self.meta['slitloss_correct'] = ['Slit loss corrected for uniform sources using IRS pipeline correction.']
+        self.meta['slitloss_correct'] = [
+            'Slit loss corrected for uniform sources using IRS pipeline correction.']
 
     def shape_correct(self, correction):
         """Correct the shape of the coma spectra.
@@ -1189,7 +1212,8 @@ class IRSCombine:
             self.slitloss_corrected[k]['fluxd'] *= correction[k](w)
             self.slitloss_corrected[k]['err'] *= correction[k](w)
 
-        self.meta['shape_correct'] = ['Shape corrected with user provided data.']
+        self.meta['shape_correct'] = [
+            'Shape corrected with user provided data.']
 
     def trim(self, **kwargs):
         """Trim orders at given limits.
@@ -1208,7 +1232,7 @@ class IRSCombine:
         tr = dict(sl1=[0, 13.5], sl2=[0, 100], sl3=[0, 100],
                   ll2=[0, 19.55], ll3=[19.55, 100], ll1=[21.51, 35])
         tr.update(kwargs)
-        
+
         self.trimmed = self.coadded.copy()
         self.meta['trim'] = {}
         delete_keys = []
@@ -1218,11 +1242,11 @@ class IRSCombine:
                 # delete this order
                 delete_keys.append(k)
                 continue
-            
+
             i = between(self.trimmed[k]['wave'], wrange)
             for j in ('wave', 'fluxd', 'err'):
                 self.trimmed[k][j] = self.trimmed[k][j][i]
-                
+
             self.meta['trim'][k] = wrange
 
         for k in delete_keys:
@@ -1256,7 +1280,8 @@ class IRSCombine:
         keys = np.array(list(self.spectra.keys()))[i]
 
         if self.nucleus is not None:
-            nucleus_interp = splrep(self.nucleus['wave'], self.nucleus['fluxd'])
+            nucleus_interp = splrep(
+                self.nucleus['wave'], self.nucleus['fluxd'])
 
         wave = []
         fluxd = []
@@ -1302,7 +1327,7 @@ class IRSCombine:
         """
 
         from ..util import nearest
-        
+
         for order, waves in kwargs.items():
             assert order in self.coadded
             for w in waves:
@@ -1316,7 +1341,7 @@ class IRSCombine:
                 print('IRSCombine zapped {} from {}'.format(w, order))
                 self.meta['zap'].append('Zapped {} from {}'.format(
                     w, order))
-        
+
 
 def irsclean(im, h, bmask=None, maskval=28672,
              rmask=None, func=None, nan=True, sigma=None, box=3,
@@ -1379,16 +1404,17 @@ def irsclean(im, h, bmask=None, maskval=28672,
         stdev = nd.generic_filter(im, np.std, size=box)
         m = nd.median_filter(im, size=box)
         mask += ((im - m) / stdev) > sigma
-    
+
     h.add_history('Cleaned with mskpy.instruments.spitzer.irsclean.')
     h.add_history('irsclean: function={}, arguments={}'.format(
         str(cleaner), str(fargs)))
-    
+
     cleaned = cleaner(im, mask, **fargs)
     if bmask is None:
         return cleaned, h
     else:
         return cleaned, h, new_mask
+
 
 def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                    maskval=16384, rmasks=True, func=None, nan=True,
@@ -1435,7 +1461,7 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
     """
 
     from astropy.io import fits
-    
+
     def file_generator(in_list, optional_list, replace_string):
         for i in range(len(in_list)):
             if optional_list is True:
@@ -1492,9 +1518,10 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
             # bmask was updated, save it
             bmask = cleaned[2]  # update array for use with unc cleaning
             h_bmask = fits.getheader(bmask_file)
-            h_bmask.add_history('Updated with mskpy.instruments.spitzer.irsclean')
+            h_bmask.add_history(
+                'Updated with mskpy.instruments.spitzer.irsclean')
             fits.writeto(bmask_file, bmask, h_bmask, clobber=True)
-        
+
         if unc is not None:
             if '_bcd' in outfiles[i]:
                 outf = outfiles[i].replace('_bcd', '_func')
@@ -1508,8 +1535,9 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
             # do not use sigma clipping with unc array!
             cleaned = irsclean(unc, h, bmask=bmask, maskval=maskval,
                                rmask=rmask, func=func, sigma=None, **fargs)
-            
+
             fits.writeto(outf, cleaned[0], cleaned[1], clobber=True)
+
 
 def moving_wcs_fix(files, ref=None):
     """Correct IRS FITS WCS for the motion of the targeted moving object.
@@ -1531,7 +1559,7 @@ def moving_wcs_fix(files, ref=None):
 
     from astropy.io import fits
     from ..util import spherical_coord_rotate
-    
+
     assert np.iterable(files), "files must be an array of file names"
 
     ra_ref0, dec_ref0 = ref
@@ -1564,8 +1592,10 @@ def moving_wcs_fix(files, ref=None):
         h["RA_SLT"] = raslt
         h["DEC_RQST"] = decrqst
         h["DEC_SLT"] = decslt
-        h.add_history("WCS updated for moving target motion with mskpy.instrum3ents.spitzer.moving_wcs_fix")
+        h.add_history(
+            "WCS updated for moving target motion with mskpy.instrum3ents.spitzer.moving_wcs_fix")
         fits.update(f, im, h)
+
 
 def spice_read(filename):
     """Read in an IRS spectrum and header from a SPICE file.
@@ -1590,7 +1620,7 @@ def spice_read(filename):
 
     IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
                               '\\char COMMENT')
-    
+
     h = dict()
     with open(filename, 'r') as inf:
         for line in inf:
@@ -1622,7 +1652,8 @@ def spice_read(filename):
         module += '2'
 
     return spec, h, module
-        
+
+
 def irs_summary(files):
     """Summarize a set of IRS spectra produced with SPICE.
 
@@ -1643,7 +1674,7 @@ def irs_summary(files):
                 dtype=['S256', 'S32', 'S4', int, int, int, int, float])
 
     ranges = dict(sl1=(9, 11), sl2=(6, 7), ll1=(25, 30), ll2=(16, 18))
-    
+
     for f in files:
         spec, h, module = spice_read(f)
         i = between(spec['wavelength'], ranges[module])
@@ -1660,8 +1691,10 @@ def irs_summary(files):
     tab.pprint(max_lines=-1, max_width=-1)
     return tab
 
+
 if __name__ == "__main__":
     main()
+
 
 def main():
     import argparse
@@ -1672,11 +1705,14 @@ def main():
     from ..graphics import nicelegend
     from mskpy import hms2dh
 
-    parser = argparse.ArgumentParser(description='Reduce Spitzer/IRS comet data.')
+    parser = argparse.ArgumentParser(
+        description='Reduce Spitzer/IRS comet data.')
     parser.add_argument('config', help='Configuration file name.')
-    parser.add_argument('-i', action='store_true', help='Show plots (interactive mode).')
+    parser.add_argument('-i', action='store_true',
+                        help='Show plots (interactive mode).')
     parser.add_argument('--reduced-by', help='Name of a scientist.')
-    parser.add_argument('--summary', action='store_true', help='Only show the data summary.')
+    parser.add_argument('--summary', action='store_true',
+                        help='Only show the data summary.')
 
     args = parser.parse_args()
 
@@ -1687,8 +1723,11 @@ def main():
     for config in config_sets:
         if config.get('skip', False):
             continue
-        
+
         files = glob(config['files'])
+        if len(files) == 0:
+            raise ValueError("No data to read.")
+
         rx = IRSCombine(files, **config.get('IRSCombine', {}))
 
         if np.dot(rx.geom.rt, rx.geom.vt) < 0:
@@ -1780,6 +1819,7 @@ def main():
 
         if args.i:
             plt.show()
+
 
 # update module docstring
 from ..util import autodoc
