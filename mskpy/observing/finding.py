@@ -125,6 +125,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
         j = (c[0] > 0) * (c[0] < 900) * (c[1] > 0) * (c[1] < 900)
 
         fig = aplpy.FITSFigure(im)
+        fig.set_title(target)
         vmin = np.min(im[0].data)
         if vmin < 0:
             vmid = vmin * 1.5
