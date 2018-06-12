@@ -17,6 +17,7 @@ __all__ = [
     'finding_charts',
 ]
 
+
 def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
                    alpha=0.5, **kwargs):
     """Generate finding charts for a moving target.
@@ -71,12 +72,12 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     q.set_discreteepochs(jd)
     q.get_ephemerides(observer)
     eph = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
-    
+
     jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
     q.set_discreteepochs(jd_labels)
     q.get_ephemerides(observer)
     labels = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
-    
+
     step = 0
     while step < len(eph):
         print('This step: ', util.date2time(jd[step]).iso,
@@ -98,7 +99,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
                 im = SkyView.get_images(survey='SDSSr', **opts)[0]
             except:
                 im = None
-            
+
             if im is not None:
                 if np.sum(im[0].data == 0) / np.prod(im[0].data.shape) > 0.2:
                     print('  SDSS image coverage is too low.')
@@ -151,23 +152,33 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
 
         step = np.flatnonzero(i)[-1] + 1
 
+
 if __name__ == "__main__":
     import argparse
     from .. import ephem
 
-    parser = argparse.ArgumentParser(description='Moving target finding charts.')
+    parser = argparse.ArgumentParser(
+        description='Moving target finding charts.')
     parser.add_argument('target', nargs='+', help='Name of a target.')
     parser.add_argument('start', help='Start date.')
     parser.add_argument('end', help='End date.')
     parser.add_argument('--observer', default='500', help='Observer location.')
-    parser.add_argument('--step', default=1, type=float, help='Tick mark step size in hours.')
-    parser.add_argument('--lstep', default=6, type=float, help='Label step size in hours.')
-    parser.add_argument('--lformat', default='%H:%M', help='Label format, using strftime codes.')
-    parser.add_argument('--alpha', default=0.5, type=float, help='Amount of transparency for overlays.')
-    parser.add_argument('--cap', action='store_true', help='For comets, request the Current APparition from HORIZONS.')
-    parser.add_argument('--nofrag', action='store_true', help='For comets, disable HORIZONS nucleus fragment matching.')
-    parser.add_argument('--comet', action='store_true', help='Force comet flag for callhorizons.')
-    parser.add_argument('--asteroid', action='store_true', help='Force asteroid flag for callhorizons.')
+    parser.add_argument('--step', default=1, type=float,
+                        help='Tick mark step size in hours.')
+    parser.add_argument('--lstep', default=6, type=float,
+                        help='Label step size in hours.')
+    parser.add_argument('--lformat', default='%H:%M',
+                        help='Label format, using strftime codes.')
+    parser.add_argument('--alpha', default=0.5, type=float,
+                        help='Amount of transparency for overlays.')
+    parser.add_argument('--cap', action='store_true',
+                        help='For comets, request the Current APparition from HORIZONS.')
+    parser.add_argument('--nofrag', action='store_true',
+                        help='For comets, disable HORIZONS nucleus fragment matching.')
+    parser.add_argument('--comet', action='store_true',
+                        help='Force comet flag for callhorizons.')
+    parser.add_argument('--asteroid', action='store_true',
+                        help='Force asteroid flag for callhorizons.')
 
     args = parser.parse_args()
     target = ' '.join(args.target)
