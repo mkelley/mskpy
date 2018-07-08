@@ -8,6 +8,7 @@ config --- mskpy configuration
 import os.path
 import configparser
 
+
 def _find_config():
     """Locate the config file."""
     fn = os.path.join(os.path.expanduser("~"), '.config', 'mskpy',
@@ -17,15 +18,23 @@ def _find_config():
 
     return fn
 
+
 _defaults = (
     # (section, parameter, value)
-    ('ephem.core', 'kernel_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'kernels'])),
-    ('calib', 'cohen_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'mid-ir'])),
-    ('spex', 'spextool_path', os.path.sep.join([os.path.expanduser("~"), 'local', 'idl', 'irtf', 'Spextool'])),
-    ('irs', 'rogue_masks_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'spitzer', 'irs', 'calibration', 'rogue-masks'])),
-    ('irs', 'spice_path', os.path.sep.join([os.path.expanduser("~"), 'local', 'spitzer', 'spice'])),
-    ('irac', 'psf_path', os.path.sep.join([os.path.expanduser("~"), 'data', 'spitzer', 'calibration', 'irac'])),
+    ('ephem.core', 'kernel_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'data', 'kernels'])),
+    ('calib', 'cohen_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'data', 'mid-ir'])),
+    ('spex', 'spextool_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'local', 'idl', 'irtf', 'Spextool'])),
+    ('irs', 'rogue_masks_path', os.path.sep.join([os.path.expanduser(
+        "~"), 'data', 'spitzer', 'irs', 'calibration', 'rogue-masks'])),
+    ('irs', 'spice_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'local', 'spitzer', 'spice'])),
+    ('irac', 'psf_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'data', 'spitzer', 'calibration', 'irac'])),
 )
+
 
 def _create_config(fn):
     from configparser import DuplicateSectionError
@@ -39,10 +48,11 @@ def _create_config(fn):
             os.mkdir(x)
 
     home = os.path.expanduser("~")
-    config = _verify_config(configparser.RawConfigParser())
+    config, updated = _verify_config(configparser.RawConfigParser())
 
     with open(fn, 'w') as outf:
         config.write(outf)
+
 
 def _verify_config(c):
     """Verifies that all sections are contained in `c`, else adds them."""
@@ -61,6 +71,7 @@ def _verify_config(c):
             updated = True
 
     return c, updated
+
 
 config_file = _find_config()
 if not os.path.exists(config_file):
