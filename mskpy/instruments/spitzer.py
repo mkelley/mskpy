@@ -197,7 +197,8 @@ def warm_aperture_correction(rap, bgan):
 
     The default aperture flux was measured via:
 
-    psf = (fits.getdata('I1_hdr_warm_psf.fits'), fits.getdata('I2_hdr_warm_psf.fits'))
+    psf = (fits.getdata('I1_hdr_warm_psf.fits'),
+           fits.getdata('I2_hdr_warm_psf.fits'))
     n, f = apphot(psf, (640., 640.), 10 / 0.24, subsample=1)
     bg = bgphot(psf, (640., 640.), r_[12, 20] / 0.24, ufunc=np.mean)[1]
     f -= n * bg
@@ -385,6 +386,8 @@ class IRSCombine:
     ----------
     files : array-like, optional
       Files to load.
+    minimum_uncertainty : float, optional
+      Force this minimum uncertainty on all results. (Jy)
     **kwargs
       Passed to `IRSCombine.read`.
 
@@ -458,8 +461,10 @@ class IRSCombine:
 
     """
 
-    def __init__(self, files=[], **kwargs):
+    def __init__(self, files=[], minimum_uncertainty=0.0001, **kwargs):
         from collections import OrderedDict
+
+        self.minimum_uncertainty = 0.0001
 
         self.raw = None
         self.trimmed = None
@@ -528,11 +533,13 @@ class IRSCombine:
             for kk, vv in self.coma[k].items():
                 self.aploss_corrected[k][kk] = vv
             self.aploss_corrected[k]['fluxd'] *= alcf
-            self.aploss_corrected[k]['err'] *= alcf
+            e = np.maximum(self.aploss_corrected[k]['err'] * alcf,
+                           self.minimum_uncertainty)
+            self.aploss_corrected[k]['err'] = e
 
         self.meta['aploss_correct'] = ['Aperture loss corrected.']
 
-    def coadd(self, scales=dict(), sig=2.5):
+    def coadd(self, scales=dict(), sig=2.5, repeatability=0.018):
         """Combine by module.
 
         Scale factors derived by `scale_spectra()` are applied by
@@ -553,6 +560,10 @@ class IRSCombine:
           then `mskpy.meanclip` is used to combine the spectra by
           wavelength, clipping at `sig` sigma.  Otherwise, the spectra
           are averaged.
+
+        repeatability : float, optional
+          Add this fraction of the flux desnity to the uncertainty, in
+          quadrature.
 
         """
         from ..util import deriv, meanclip
@@ -575,7 +586,11 @@ class IRSCombine:
                 bins = np.zeros(len(w) + 1)
                 bins[:-1] = w - dw / 2.0
                 bins[-1] = w[-1] + dw[-1] / 2.0
-                wave, fluxd, err2 = np.zeros((3, len(files), len(bins) - 1))
+                shape = (len(files), len(bins) - 1)
+                wave = np.ma.MaskedArray(np.zeros(shape), mask=np.zeros(shape))
+                fluxd = np.ma.MaskedArray(
+                    np.zeros(shape), mask=np.zeros(shape))
+                err2 = np.ma.MaskedArray(np.zeros(shape), mask=np.zeros(shape))
                 for i, fn in enumerate(files):
                     spec = self.raw[fn]
                     good = np.isfinite(spec['flux_density'][k]
@@ -584,6 +599,7 @@ class IRSCombine:
                     f = spec['flux_density'][k][good]
                     e = spec['error'][k][good]
                     n = np.histogram(w, bins)[0]
+
                     wave[i] = np.histogram(w, bins, weights=w)[0]
                     fluxd[i] = np.histogram(w, bins, weights=f)[0]
                     err2[i] = np.histogram(w, bins, weights=e**2)[0]
@@ -592,21 +608,27 @@ class IRSCombine:
                     wave[i, j] /= n[j]  # just in case 2 indices fell in 1 bin
                     fluxd[i, j] /= n[j]
                     err2[i, j] /= n[j]
-                    if np.sum(np.isnan(err2[i])) > 20:
-                        stop
+
+                    # some bins end up empty
+                    j = n == 0
+                    if np.any(j):
+                        wave.mask[i, j] = True
+                        fluxd.mask[i, j] = True
+                        err2.mask[i, j] = True
 
                     try:
                         j = spec['bit-flag'][k] > 0
                     except KeyError:
                         j = spec['bit_flag'][k] > 0
-                    fluxd[i, j] = np.nan
-                    err2[i, j] = np.nan
+                    fluxd.mask[i, j] = True
+                    err2.mask[i, j] = True
 
                     fluxd[i] *= _scales[fn]
                     err2[i] *= _scales[fn]**2
 
-                w = wave[0]
-                f, e = np.zeros((2, len(w)))
+                w = wave.mean(0)  # mitigates empty bins
+                f = np.ma.MaskedArray(np.zeros(len(w)), mask=np.zeros(len(w)))
+                e = np.ma.MaskedArray(np.zeros(len(w)), mask=np.zeros(len(w)))
                 for i in range(len(w)):
                     if fluxd.shape[0] > 2:
                         mc = meanclip(fluxd[:, i], lsig=sig, hsig=sig,
@@ -617,7 +639,15 @@ class IRSCombine:
                         f[i] = np.mean(fluxd[:, i])
                         e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
 
-                i = np.isfinite(w * f * e)  # clean nans
+                f.mask[e == 0] == True
+                e.mask[e == 0] == True
+
+                # add in repeatability factor (cf., Section 9.3.2 of
+                # IRS Instrument Handbook)
+                e = np.sqrt((f * repeatability)**2 + e**2)
+                e = np.maximum(e, self.minimum_uncertainty)
+
+                i = ~(w.mask + f.mask + e.mask)
                 self.coadded[module[:2] + str(order)] = dict(
                     wave=w[i], fluxd=f[i], err=e[i])
 
@@ -963,7 +993,7 @@ class IRSCombine:
         self.header['beta'] = (
             c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
 
-        #self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
+        # self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
         xyz = [float(headers[first]['SPTZR_' + x]) * u.km for x in 'XYZ']
         self.header['R_Spitzer'] = dict([(k, v) for k, v in zip('xyz', xyz)])
 
@@ -1171,7 +1201,9 @@ class IRSCombine:
             for kk, vv in spec[k].items():
                 self.slitloss_corrected[k][kk] = vv
             self.slitloss_corrected[k]['fluxd'] *= slcf
-            self.slitloss_corrected[k]['err'] *= slcf
+            e = np.maximum(self.slitloss_corrected[k]['err'] * slcf,
+                           self.minimum_uncertainty)
+            self.slitloss_corrected[k]['err'] = e
 
         self.meta['slitloss_correct'] = [
             'Slit loss corrected for uniform sources using IRS pipeline correction.']
@@ -1210,7 +1242,10 @@ class IRSCombine:
                 self.slitloss_corrected[k][kk] = vv
             w = self.slitloss_corrected[k]['wave']
             self.slitloss_corrected[k]['fluxd'] *= correction[k](w)
-            self.slitloss_corrected[k]['err'] *= correction[k](w)
+            e = np.maximum(
+                self.slitloss_corrected[k]['err'] * correction[k](w),
+                self.minimum_uncertainty)
+            self.aploss_corrected[k]['err'] = e
 
         self.meta['shape_correct'] = [
             'Shape corrected with user provided data.']
@@ -1692,10 +1727,6 @@ def irs_summary(files):
     return tab
 
 
-if __name__ == "__main__":
-    main()
-
-
 def main():
     import argparse
     from glob import glob
@@ -1707,12 +1738,14 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Reduce Spitzer/IRS comet data.')
-    parser.add_argument('config', help='Configuration file name.')
+    parser.add_argument('config', help='configuration file name')
     parser.add_argument('-i', action='store_true',
-                        help='Show plots (interactive mode).')
+                        help='show plots (interactive mode)')
+    parser.add_argument('--debug', action='store_true',
+                        help='enter python debugger after execution')
     parser.add_argument('--reduced-by', help='Name of a scientist.')
     parser.add_argument('--summary', action='store_true',
-                        help='Only show the data summary.')
+                        help='only show the data summary')
 
     args = parser.parse_args()
 
@@ -1817,8 +1850,16 @@ def main():
         plt.draw()
         plt.savefig(pfx + '.png')
 
+        if args.debug:
+            import pdb
+            pdb.set_trace()
+
         if args.i:
             plt.show()
+
+
+if __name__ == "__main__":
+    main()
 
 
 # update module docstring
