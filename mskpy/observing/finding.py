@@ -1,6 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """finding --- Finding charts
-==========================
+=============================
 
 Finding charts may be generated from the command line with `python3 -m
 mskpy.observing.finding`.
@@ -33,9 +33,9 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     Parameters
     ----------
     target : string
-      The target, sent to `callhorizons`.
+      The target designation.
     observer : string
-      The observer location, sent to `callhorizons`.
+      The observer location.
     date : array-like of string
       The start and end dates for the finding charts.  Processed with
       `util.date2time`.
@@ -49,7 +49,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
       Transparency for figure annotations.  0 to 1 for transparent to
       solid.
     **kwargs
-      Additional keyword arguments are passed to `callhorizons.query`.
+      Additional keyword arguments are passed to astroquery's
+      `~Horizons.ephemerides`.
 
     """
 
@@ -60,7 +61,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     import astropy.units as u
     import astropy.coordinates as coords
     from astroquery.skyview import SkyView
-    import callhorizons
+    from astroquery.jplhorizons import Horizons
     import aplpy
     from .. import util
 
@@ -68,15 +69,18 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     start, stop = util.date2time(dates)
 
     jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
-    q = callhorizons.query(target, **kwargs)
-    q.set_discreteepochs(jd)
-    q.get_ephemerides(observer)
-    eph = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
+    q = Horizons(id=target, id_type='designation', location=observer,
+                 epochs=jd)
+
+    kwargs['closest_apparition'] = kwargs.get('closest_apparition', True)
+    kwargs['no_fragments'] = kwargs.get('no_fragments', True)
+    tab = q.ephemerides(**kwargs)
+    eph = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['DEC']))
 
     jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
-    q.set_discreteepochs(jd_labels)
-    q.get_ephemerides(observer)
-    labels = coords.SkyCoord(q['RA'], q['DEC'], unit='deg')
+    q.epochs = jd_labels
+    tab = q.ephemerides(**kwargs)
+    labels = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['DEC']))
 
     step = 0
     while step < len(eph):
@@ -173,13 +177,9 @@ if __name__ == "__main__":
     parser.add_argument('--alpha', default=0.5, type=float,
                         help='Amount of transparency for overlays.')
     parser.add_argument('--cap', action='store_true',
-                        help='For comets, request the Current APparition from HORIZONS.')
+                        help='For comets, request the Closest APparition from HORIZONS.')
     parser.add_argument('--nofrag', action='store_true',
                         help='For comets, disable HORIZONS nucleus fragment matching.')
-    parser.add_argument('--comet', action='store_true',
-                        help='Force comet flag for callhorizons.')
-    parser.add_argument('--asteroid', action='store_true',
-                        help='Force asteroid flag for callhorizons.')
 
     args = parser.parse_args()
     target = ' '.join(args.target)
@@ -187,8 +187,8 @@ if __name__ == "__main__":
 
     finding_charts(target, args.observer, [args.start, args.end],
                    step=args.step, lstep=args.lstep, lformat=args.lformat,
-                   alpha=args.alpha, cap=args.cap, nofrag=args.nofrag,
-                   comet=args.comet, asteroid=args.asteroid)
+                   alpha=args.alpha, closest_apparition=args.cap,
+                   no_fragments=args.nofrag)
 
 # update module docstring
 from ..util import autodoc
