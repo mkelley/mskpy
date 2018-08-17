@@ -18,8 +18,9 @@ __all__ = [
 ]
 
 
-def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
-                   alpha=0.5, **kwargs):
+def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
+                   text=None, size=15, step=1, lstep=6, lformat='%H:%M',
+                   alpha=0.5, lalpha=1, **kwargs):
     """Generate finding charts for a moving target.
 
     The downloaded images are saved as gzipped FITS with a name based
@@ -39,6 +40,13 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     date : array-like of string
       The start and end dates for the finding charts.  Processed with
       `util.date2time`.
+    surveys : array-like, optional
+      List of surveys to display in order of preference.  See
+      `astroquery.skyview`.
+    size : int, optional
+      Field of view in arcmin.
+    test : string, optiona
+      Additional text to add to the upper-left corner of the plot.
     step : float, optional
       Length of each time step. [hr]
     lstep : float, optional
@@ -48,6 +56,8 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     alpha : float, optional
       Transparency for figure annotations.  0 to 1 for transparent to
       solid.
+    lalpha : float, optional
+      Transparency for labels.
     **kwargs
       Additional keyword arguments are passed to astroquery's
       `~Horizons.ephemerides`.
@@ -55,6 +65,7 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
     """
 
     import os
+    import matplotlib.pyplot as plt
     from astropy.io import fits
     from astropy.wcs import WCS
     from astropy.wcs.utils import skycoord_to_pixel
@@ -96,28 +107,21 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
         else:
             print('reading from URL')
             # note, radius seems to be size of image
-            opts = dict(position=eph[step], radius=15 * u.arcmin, pixels=900)
+            position = eph[step].to_string('decimal', precision=6)
+            opts = dict(position=position, radius=size * u.arcmin,
+                        pixels=int(900 / 15 * size))
 
-            print('Trying SDSS.')
-            try:
-                im = SkyView.get_images(survey='SDSSr', **opts)[0]
-            except:
-                im = None
-
-            if im is not None:
-                if np.sum(im[0].data == 0) / np.prod(im[0].data.shape) > 0.2:
-                    print('  SDSS image coverage is too low.')
-                    im = None
-
-            if im is None:
-                # try DSS2
-                im = SkyView.get_images(survey='DSS2 Red', **opts)[0]
+            im = None
+            for survey in surveys:
+                print(survey)
+                try:
+                    im = SkyView.get_images(survey=survey, **opts)[0]
+                except:
+                    continue
+                break
 
             if im is None:
-                # last resort: DSS1
-                im = SkyView.get_images(survey='DSS1 Red', **opts)[0]
-
-            assert im is not None, "Cannot download sky image, tried SDSSr, DSS2 Red, and DSS1 Red from NASA SkyView."
+                raise ValueError("Cannot download sky image.")
 
             im.writeto('sky-{}.fits.gz'.format(fn))
 
@@ -145,10 +149,16 @@ def finding_charts(target, observer, dates, step=1, lstep=6, lformat='%H:%M',
             d = util.date2time(jd_labels[k])
             fig.add_label(labels.ra[k].degree, labels.dec[k].degree,
                           d.datetime.strftime(lformat), color='w',
-                          alpha=alpha, size='small')
+                          alpha=lalpha, size='small')
 
         fig.show_rectangles(eph[step].ra.degree, eph[step].dec.degree,
                             1 / 60, 1 / 60, edgecolors='w', alpha=alpha)
+
+        if text is not None:
+            ax = plt.gca()
+            ax.text(0.03, 0.98, text, va='top', transform=ax.transAxes,
+                    size=16, color='w')
+
         t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
         d = util.date2time(jd[step])
         d = d.isot[:16].replace('-', '').replace(':', '').replace('T', '_')
