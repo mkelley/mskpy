@@ -53,14 +53,18 @@ __all__ = [
     'trace'
 ]
 
+
 class UnableToCenter(Exception):
     pass
+
 
 class LostTraceWarning(Warning):
     pass
 
+
 class UnableToTrace(Exception):
     pass
+
 
 class NoSourcesFound(Exception):
     pass
@@ -151,6 +155,7 @@ def anphot(im, yx, rap, subsample=4, squeeze=True):
     else:
         return n, f
 
+
 def apphot(im, yx, rap, subsample=4, **kwargs):
     """Simple aperture photometry.
 
@@ -191,6 +196,7 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
         return n.cumsum(-1), f.cumsum(-1)
     else:
         return n, f
+
 
 def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
                   cfunc=None, ckwargs={}, **kwargs):
@@ -292,6 +298,7 @@ def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
     else:
         return yx, n, f
 
+
 def azavg(im, yx, raps=None, subsample=4, **kwargs):
     """Create an aziumthally averaged image.
 
@@ -330,7 +337,7 @@ def azavg(im, yx, raps=None, subsample=4, **kwargs):
     """
 
     from scipy.interpolate import interp1d
-    from ..util import takefrom 
+    from ..util import takefrom
 
     kind = kwargs.pop('kind', 'zero')
     bounds_error = kwargs.pop('bounds_error', False)
@@ -356,6 +363,7 @@ def azavg(im, yx, raps=None, subsample=4, **kwargs):
     aa = aa(r).reshape(im.shape)
 
     return aa
+
 
 def bgfit(im, unc=None, order=1, mask=True):
     """Fit an image background.
@@ -400,6 +408,7 @@ def bgfit(im, unc=None, order=1, mask=True):
     bg = np.polyval(cy, yy) + np.polyval(cx, xx)
 
     return bg
+
 
 def bgphot(im, yx, rap, ufunc=np.mean, squeeze=True, **kwargs):
     """Background photometry and error analysis in an annulus.
@@ -476,6 +485,7 @@ def bgphot(im, yx, rap, ufunc=np.mean, squeeze=True, **kwargs):
     else:
         return n, bg, sig
 
+
 def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
     """Centroid (center of mass) of an image.
 
@@ -531,7 +541,7 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
 
         if not silent:
             print("y, x = {0[0]:.1f}, {0[1]:.1f}, next box size = {1}".format(
-                    cyx, str(box)))
+                cyx, str(box)))
 
         if np.any(box < 2):
             if not silent:
@@ -539,12 +549,13 @@ def centroid(im, yx=None, box=None, niter=1, shrink=True, silent=True):
             return cyx
 
         cyx = centroid(im, yx=cyx, box=box, niter=niter-1,
-                        shrink=shrink, silent=silent)
+                       shrink=shrink, silent=silent)
     else:
         if not silent:
             print("y, x = {0[0]:.1f}, {0[1]:.1f}".format(cyx))
 
     return cyx
+
 
 def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
     """Find sources in an image.
@@ -582,7 +593,7 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
       removed if `sigma` is `None`).
 
     """
-    
+
     import scipy.ndimage as nd
     from ..util import meanclip
 
@@ -600,7 +611,8 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
 
     det = _im > thresh * sigma
     det = nd.binary_erosion(det, iterations=fwhm)  # remove small objects
-    det = nd.binary_dilation(det, iterations=fwhm * 2 + 1)  # grow aperture size
+    det = nd.binary_dilation(det, iterations=fwhm *
+                             2 + 1)  # grow aperture size
     label, n = nd.label(det)
 
     yx = []
@@ -638,6 +650,7 @@ def find(im, sigma=None, thresh=2, centroid=None, fwhm=2, **kwargs):
 
     print('[find] {} good, {} bad sources'.format(len(yx), bad))
     return np.array(yx), np.array(f)
+
 
 def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
          **kwargs):
@@ -705,6 +718,7 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
     fit, err = gaussfit(args[0], args[1], unc, guess)
 
     return abs(fit[2]) * 2.35
+
 
 def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
     """Centroid (x-/y-cut Gaussian fit) of an image.
@@ -798,6 +812,7 @@ def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
 
     return cyx
 
+
 def imstat(im, **kwargs):
     """Get some basic statistics from an array.
 
@@ -829,16 +844,17 @@ def imstat(im, **kwargs):
     scmean, scstdev = mc[:2]
     scmedian = np.median(im.flatten()[mc[2]])
 
-    return dict(min = np.nanmin(im),
-                max = np.nanmax(im),
-                mean = np.nanmean(im.ravel()),
-                median = util.nanmedian(im),
-                mode = 3.0 * scmedian - 2.0 * scmean,
-                stdev = np.nanstd(im.ravel()),
-                scmean = scmean,
-                scmedian = scmedian,
-                scstdev = scstdev,
-                sum = np.nansum(im))
+    return dict(min=np.nanmin(im),
+                max=np.nanmax(im),
+                mean=np.nanmean(im.ravel()),
+                median=util.nanmedian(im),
+                mode=3.0 * scmedian - 2.0 * scmean,
+                stdev=np.nanstd(im.ravel()),
+                scmean=scmean,
+                scmedian=scmedian,
+                scstdev=scstdev,
+                sum=np.nansum(im))
+
 
 def linecut(im, yx, width, length, pa, subsample=4):
     """Photometry along a line.
@@ -891,7 +907,7 @@ def linecut(im, yx, width, length, pa, subsample=4):
             _im = np.array([core.rebin(x, subsample, flux=True) for x in _im])
         else:
             _im = core.rebin(_im, subsample, flux=True)
-        
+
         yx = yx * subsample + (subsample - 1) / 2.0
 
     sz = _im.shape[-2:]
@@ -944,6 +960,7 @@ def linecut(im, yx, width, length, pa, subsample=4):
 
     n /= float(subsample**2)
     return midstep(xap), n, f
+
 
 def polyfit2d(f, y, x, unc=None, order=1):
     """Fit a polynomial surface to 2D data.
@@ -999,6 +1016,7 @@ def polyfit2d(f, y, x, unc=None, order=1):
 
     return cx, cy, cov
 
+
 def radprof(im, yx, bins=10, range=None, subsample=4):
     """Radial surface brightness profile of an image.
 
@@ -1036,10 +1054,10 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     if range is None:
         yx = np.array(yx)
         rmax = np.sqrt(max(
-                sum(yx**2),
-                sum((yx - np.r_[0, im.shape[1]])**2),
-                sum((yx - np.r_[im.shape[0], 0])**2),
-                sum((yx - np.r_[im.shape])**2)))
+            sum(yx**2),
+            sum((yx - np.r_[0, im.shape[1]])**2),
+            sum((yx - np.r_[im.shape[0], 0])**2),
+            sum((yx - np.r_[im.shape])**2)))
         range = [0, int(rmax) + 1]
 
     if np.iterable(bins):
@@ -1063,6 +1081,7 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
     rc = midstep(rap)
 
     return rc, f, n, rmean
+
 
 def spextract(im, cen, rap, axis=0, trace=None, mean=False,
               bgap=None, bgorder=0, subsample=5):
@@ -1123,7 +1142,7 @@ def spextract(im, cen, rap, axis=0, trace=None, mean=False,
 
     from numpy.ma import MaskedArray
     from . import yarray
-    
+
     assert bgorder == 0, "bgorder must be 0"
 
     if axis == 1:
@@ -1174,19 +1193,21 @@ def spextract(im, cen, rap, axis=0, trace=None, mean=False,
                 spec[i] -= mbg[i]
             else:
                 spec[i] -= 2 * rap * mbg[i]
-        
+
     if bgap is None:
         return n, spec
     else:
         return n, spec, nbg, mbg, bgvar
 
+
 def _spextract_mask(y, trace, rap, subsample):
-    """Create an photometry mask for `spextract`."""
+    """Create photometry mask for `spextract`."""
     aper = (y >= trace - rap) * (y < trace + rap)
     aper = aper.reshape(y.shape[0] // subsample, subsample, y.shape[1])
     aper = aper.sum(1) / subsample
     return aper
-        
+
+
 def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
           **imshow_kwargs):
     """Trace the peak pixels along an axis of a 2D image.
