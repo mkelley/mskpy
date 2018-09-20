@@ -464,7 +464,7 @@ class IRSCombine:
     def __init__(self, files=[], minimum_uncertainty=0.0001, **kwargs):
         from collections import OrderedDict
 
-        self.minimum_uncertainty = 0.0001
+        self.minimum_uncertainty = minimum_uncertainty
 
         self.raw = None
         self.trimmed = None
@@ -1086,6 +1086,7 @@ class IRSCombine:
 
             self.order_scales[k] /= fixed_scale
             self.order_scaled[k]['fluxd'] *= self.order_scales[k]
+            self.order_scaled[k]['err'] *= self.order_scales[k]
 
             self.meta['scale_orders'].append('{} scaled by {}'.format(
                 k, self.order_scales[k]))
@@ -1743,6 +1744,8 @@ def main():
                         help='show plots (interactive mode)')
     parser.add_argument('--debug', action='store_true',
                         help='enter python debugger after execution')
+    parser.add_argument('--no-skip', action='store_false', dest='skip',
+                        help='Ignore "skip" configuration parameter.')
     parser.add_argument('--reduced-by', help='Name of a scientist.')
     parser.add_argument('--summary', action='store_true',
                         help='only show the data summary')
@@ -1754,7 +1757,7 @@ def main():
     config_sets = json.loads(''.join(lines))['rx']
 
     for config in config_sets:
-        if config.get('skip', False):
+        if config.get('skip', False) and args.skip:
             continue
 
         files = glob(config['files'])
