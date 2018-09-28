@@ -18,9 +18,10 @@ __all__ = [
 ]
 
 
-def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
-                   text=None, size=15, step=1, lstep=6, lformat='%H:%M',
-                   alpha=0.5, lalpha=1, **kwargs):
+def finding_charts(target, observer, start,
+                   surveys=['SDSSr', 'DSS Red', 'DSS'],
+                   text=None, size=15, step=1, lstep=6, number=25,
+                   lformat='%H:%M', alpha=0.5, lalpha=1, **kwargs):
     """Generate finding charts for a moving target.
 
     The downloaded images are saved as gzipped FITS with a name based
@@ -34,33 +35,47 @@ def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
     Parameters
     ----------
     target : string
-      The target designation.
+        Target designation.
+
     observer : string
-      The observer location.
+        Observer location.
+
     date : array-like of string
-      The start and end dates for the finding charts.  Processed with
-      `util.date2time`.
+        Start date for the finding charts.  Processed with
+        `astropy.time.Time`.
+
     surveys : array-like, optional
-      List of surveys to display in order of preference.  See
-      `astroquery.skyview`.
+        List of surveys to display in order of preference.  See
+        `astroquery.skyview`.
+
     size : int, optional
-      Field of view in arcmin.
-    test : string, optiona
-      Additional text to add to the upper-left corner of the plot.
+        Field of view in arcmin.
+
+    text : string, optiona
+        Additional text to add to the upper-left corner of the plot.
+
     step : float, optional
-      Length of each time step. [hr]
+        Length of each time step. [hr]
+
     lstep : float, optional
-      Length of time steps between labels. [hr]
+        Length of time steps between labels. [hr]
+
+    number : int, optional
+        Number of steps.
+
     lformat : string, optional
-      Label format, using strftime format codes.
+        Label format, using strftime format codes.
+
     alpha : float, optional
-      Transparency for figure annotations.  0 to 1 for transparent to
-      solid.
+        Transparency for figure annotations.  0 to 1 for transparent
+        to solid.
+
     lalpha : float, optional
-      Transparency for labels.
+        Transparency for labels.
+
     **kwargs
-      Additional keyword arguments are passed to astroquery's
-      `~Horizons.ephemerides`.
+        Additional keyword arguments are passed to
+        `astroquery.mpc.MPC.get_ephemeris`.
 
     """
 
@@ -69,33 +84,62 @@ def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
     from astropy.io import fits
     from astropy.wcs import WCS
     from astropy.wcs.utils import skycoord_to_pixel
+    from astropy.time import Time
     import astropy.units as u
     import astropy.coordinates as coords
+    from astropy.table import vstack
     from astroquery.skyview import SkyView
-    from astroquery.jplhorizons import Horizons
+    from astroquery.mpc import MPC
     import aplpy
     from .. import util
 
-    # dates
-    start, stop = util.date2time(dates)
+    # nominal tick marks
+    t0 = Time(start)
+    current = 0
+    tab = None
+    while True:
+        t1 = t0 + current * u.hr
+        n = min(number - current, 1440)
+        if n <= 0:
+            break
 
-    jd = np.arange(start.jd, stop.jd + step / 24, step / 24)
-    q = Horizons(id=target, id_type='designation', location=observer,
-                 epochs=jd)
+        e = MPC.get_ephemeris(target, location=observer, start=t1,
+                              step=step * u.hr, number=n, **kwargs)
+        if tab is None:
+            tab = e
+        else:
+            tab = vstack((tab, e))
 
-    kwargs['closest_apparition'] = kwargs.get('closest_apparition', True)
-    kwargs['no_fragments'] = kwargs.get('no_fragments', True)
-    tab = q.ephemerides(**kwargs)
-    eph = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['DEC']))
+        current += n
 
-    jd_labels = np.arange(start.jd, stop.jd + lstep / 24, lstep / 24)
-    q.epochs = jd_labels
-    tab = q.ephemerides(**kwargs)
-    labels = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['DEC']))
+    dates = tab['Date']
+    eph = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['Dec']))
+
+    # label tick marks
+    current = 0
+    tab = None
+    number_lsteps = int(number * step / lstep)
+    while True:
+        t1 = t0 + current * u.hr
+        n = min(number_lsteps - current, 1440)
+        if n <= 0:
+            break
+
+        e = MPC.get_ephemeris(target, location=observer, start=t1,
+                              step=lstep * u.hr, number=n, **kwargs)
+        if tab is None:
+            tab = e
+        else:
+            tab = vstack((tab, e))
+
+        current += n
+
+    dates_labels = tab['Date']
+    labels = coords.SkyCoord(u.Quantity(tab['RA']), u.Quantity(tab['Dec']))
 
     step = 0
     while step < len(eph):
-        print('This step: ', util.date2time(jd[step]).iso,
+        print('This step: ', dates[step],
               eph[step].to_string('hmsdms', sep=':', precision=0))
 
         fn = '{}'.format(
@@ -146,7 +190,7 @@ def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
                          marker='x', alpha=alpha)
 
         for k in np.flatnonzero(j):
-            d = util.date2time(jd_labels[k])
+            d = dates_labels[k]
             fig.add_label(labels.ra[k].degree, labels.dec[k].degree,
                           d.datetime.strftime(lformat), color='w',
                           alpha=lalpha, size='small')
@@ -160,7 +204,7 @@ def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
                     size=16, color='w')
 
         t = target.replace(' ', '').replace('/', '').replace("'", '').lower()
-        d = util.date2time(jd[step])
+        d = dates[step]
         d = d.isot[:16].replace('-', '').replace(':', '').replace('T', '_')
         fig.save('{}-{}-{}.png'.format(t, d, fn),
                  dpi=300)
@@ -170,6 +214,7 @@ def finding_charts(target, observer, dates, surveys=['SDSSr', 'DSS Red'],
 
 if __name__ == "__main__":
     import argparse
+    from astropy.time import Time
     from .. import ephem
 
     parser = argparse.ArgumentParser(
@@ -186,19 +231,19 @@ if __name__ == "__main__":
                         help='Label format, using strftime codes.')
     parser.add_argument('--alpha', default=0.5, type=float,
                         help='Amount of transparency for overlays.')
-    parser.add_argument('--cap', action='store_true',
-                        help='For comets, request the Closest APparition from HORIZONS.')
-    parser.add_argument('--nofrag', action='store_true',
-                        help='For comets, disable HORIZONS nucleus fragment matching.')
+    parser.add_argument('--surveys', default='SDSSr,DSS2 Red,DSS1 Red,DSS',
+                        help='Comma-separated list of SkyView surveys to query.')
+    parser.add_argument('--size', default=15, type=int,
+                        help='Requested FOV size in arcmin.')
 
     args = parser.parse_args()
     target = ' '.join(args.target)
     assert len(target.strip()) > 0
-
-    finding_charts(target, args.observer, [args.start, args.end],
-                   step=args.step, lstep=args.lstep, lformat=args.lformat,
-                   alpha=args.alpha, closest_apparition=args.cap,
-                   no_fragments=args.nofrag)
+    number = int((Time(args.end).jd - Time(args.start).jd) * 24 / args.step)
+    finding_charts(target, args.observer, args.start, size=args.size,
+                   surveys=args.surveys.split(','), number=number,
+                   step=args.step, lstep=args.lstep,
+                   lformat=args.lformat, alpha=args.alpha)
 
 # update module docstring
 from ..util import autodoc
