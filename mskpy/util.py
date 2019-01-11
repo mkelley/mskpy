@@ -200,6 +200,7 @@ __all__ = [
     'write_table'
 ]
 
+
 def archav(y):
     """Inverse haversine.
 
@@ -217,6 +218,7 @@ def archav(y):
 
     """
     return 2.0 * np.arcsin(np.sqrt(y))
+
 
 def cartesian(*arrays):
     """Cartesian product of the input arrays.
@@ -252,15 +254,17 @@ def cartesian(*arrays):
     from itertools import product
     return np.array(list(product(*arrays)))
 
+
 _davint_err = dict()
 _davint_err[2] = 'x1 was less than x0'
 _davint_err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
 _davint_err[4] = 'the restriction x(i+1) > x(i) was violated.'
 _davint_err[5] = 'the number of function values was < 2'
 
+
 def davint(x, y, x0, x1, axis=0):
     """Integrate an array using overlapping parabolas.
-    
+
     Interface to davint.f from SLATEC at netlib.org.
 
     DAVINT integrates a function tabulated at arbitrarily spaced
@@ -300,7 +304,8 @@ def davint(x, y, x0, x1, axis=0):
     if y.ndim == 1:
         r, ierr = _davint(x, y, len(x), x0, x1)
         if ierr != 1:
-            raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
+            raise RuntimeError(
+                "DAVINT integration error: {}".format(err[ierr]))
     elif y.ndim == 2:
         r = np.zeros(y.shape[axis])
         for i, yy in enumerate(np.rollaxis(y, axis)):
@@ -309,6 +314,7 @@ def davint(x, y, x0, x1, axis=0):
         raise ValueError("y must have 1 or 2 dimensions.")
 
     return r
+
 
 def deriv(y, x=None):
     """The numerical derivative using 3-point Lagrangian interpolation.
@@ -350,23 +356,24 @@ def deriv(y, x=None):
     xx = x.astype(float)
     x12 = xx - np.roll(xx, -1)           # x1 - x2
     x01 = np.roll(xx, 1) - xx            # x0 - x1
-    x02 = np.roll(xx, 1) - np.roll(xx, -1) # x0 - x2
+    x02 = np.roll(xx, 1) - np.roll(xx, -1)  # x0 - x2
 
     # mid points
     dydx = (np.roll(y, 1) * (x12 / (x01 * x02)) +
             y * (1.0 / x12 - 1.0 / x01) -
-            np.roll(y,-1) * (x01 / (x02 * x12)))
+            np.roll(y, -1) * (x01 / (x02 * x12)))
 
     # end points
     dydx[0] = (y[0] * (x01[1] + x02[1]) / (x01[1] * x02[1]) -
-               y[1] *           x02[1]  / (x01[1] * x12[1]) +
-               y[2] *           x01[1]  / (x02[1] * x12[1]))
+               y[1] * x02[1] / (x01[1] * x12[1]) +
+               y[2] * x01[1] / (x02[1] * x12[1]))
 
-    dydx[-1] = (-y[-3] *            x12[-2]  / (x01[-2] * x02[-2]) +
-                y[-2] *            x02[-2]  / (x01[-2] * x12[-2]) -
+    dydx[-1] = (-y[-3] * x12[-2] / (x01[-2] * x02[-2]) +
+                y[-2] * x02[-2] / (x01[-2] * x12[-2]) -
                 y[-1] * (x02[-2] + x12[-2]) / (x02[-2] * x12[-2]))
 
     return dydx
+
 
 def gaussian(x, mu, sigma):
     """A normalized Gaussian curve.
@@ -388,6 +395,7 @@ def gaussian(x, mu, sigma):
     """
     return (np.exp(-(x - mu)**2 / 2.0 / sigma**2) /
             np.sqrt(2.0 * np.pi) / sigma)
+
 
 def gaussian2d(shape, sigma, theta=0):
     """A normalized 2-D Gaussian function.
@@ -432,6 +440,7 @@ def gaussian2d(shape, sigma, theta=0):
     G /= 2.0 * np.pi * sx * sy
     return G
 
+
 def hav(th):
     """Haversine of an angle.
 
@@ -449,6 +458,7 @@ def hav(th):
 
     """
     return np.sin(th / 2.0)**2
+
 
 def rotmat(th):
     """Returns a rotation matrix.
@@ -478,6 +488,7 @@ def rotmat(th):
     c = np.cos(th)
     s = np.sin(th)
     return np.matrix([[c, s], [-s, c]])
+
 
 def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
     """A basic world coordinate system (WCS) object.
@@ -514,6 +525,7 @@ def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
         wcs.wcs.pc = np.array([[-np.cos(par), -np.sin(par)],
                                [-np.sin(par),  np.cos(par)]])
     return wcs
+
 
 def fitslog(keywords, files=None, path='.', format=None, csv=True):
     """One-line descriptions of a list of FITS files.
@@ -557,9 +569,14 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
                         'AIRMASS', 'GRAT', 'OBJECT']
             format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
                       "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
-        elif keywords.lower() == 'guidedog':
+        elif keywords.lower() == 'old-guidedog':
             keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
                         'AIRMASS', 'GFLT', 'OBJECT']
+            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
+                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
+        elif keywords.lower() == 'guidedog':
+            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
+                        'TCS_AM', 'GFLT', 'OBJECT']
             format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
                       "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
         elif keywords.lower() == 'mirsi':
@@ -600,10 +617,11 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
             values = ()
         for k in keywords:
             values += (h[k], )
-            log += format.format(*values)
-            log += "\n"
-            
+        log += format.format(*values)
+        log += "\n"
+
     return log
+
 
 def getrot(h):
     """Image rotation and pixel scale from a FITS header.
@@ -642,12 +660,12 @@ def getrot(h):
     # Transformation matrix?
     tmDefined = False
     if (('CD1_1' in h) and ('CD1_2' in h) and
-        ('CD2_1' in h) and ('CD2_2' in h)):
+            ('CD2_1' in h) and ('CD2_2' in h)):
         tmDefined = True
         cd = np.array(((h['CD1_1'], h['CD1_2']), (h['CD2_1'], h['CD2_2'])))
 
     if (('PC1_1' in h) and ('PC1_2' in h) and
-        ('PC2_1' in h) and ('PC2_2' in h)):
+            ('PC2_1' in h) and ('PC2_2' in h)):
         tmDefined = True
         cd = np.array(((h['PC1_1'], h['PC1_2']), (h['PC2_1'], h['PC2_2'])))
 
@@ -663,8 +681,8 @@ def getrot(h):
 
     if (h['CTYPE1'].find('DEC-') >= 0) or (h['CTYPE1'].find('LAT') >= 0):
         newcd = cd.copy()
-        newcd[0,:] = cd[1,:]
-        newcd[1,:] = cd[0,:]
+        newcd[0, :] = cd[1, :]
+        newcd[1, :] = cd[0, :]
         cd = newcd.copy()
 
     if np.linalg.det(cd) < 0:
@@ -691,6 +709,7 @@ def getrot(h):
             cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
 
     return cdelt * 3600.0, np.degrees(rot1)
+
 
 def gaussfit(x, y, err, guess, covar=False, **kwargs):
     """A quick Gaussian fitting function, optionally including a line.
@@ -771,6 +790,7 @@ def gaussfit(x, y, err, guess, covar=False, **kwargs):
     else:
         return fit, err
 
+
 def glfit(x, y, err, guess, covar=False):
     """A quick Gaussian + line fitting function.
 
@@ -817,6 +837,7 @@ def glfit(x, y, err, guess, covar=False):
         return fit, cov
     else:
         return fit, err
+
 
 def linefit(x, y, err, guess, covar=False):
     """A quick line fitting function.
@@ -869,6 +890,7 @@ def linefit(x, y, err, guess, covar=False):
     else:
         return fit, err
 
+
 def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
     """A quick scaled Planck fitting function.
 
@@ -915,8 +937,9 @@ def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
 
         model = planck(wave, T, unit=fluxd.unit / u.sr) * u.sr
         d[0] = (model / err).decompose().value
-        
-        model = scale * planck(wave, T, unit=fluxd.unit / u.sr, deriv='T') * u.sr
+
+        model = scale * planck(wave, T, unit=fluxd.unit /
+                               u.sr, deriv='T') * u.sr
         d[1] = (model / err).decompose().value
         return d
 
@@ -937,6 +960,7 @@ def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
             return fit, None
         else:
             return fit, np.sqrt(np.diag(cov))
+
 
 def between(a, limits, closed=True):
     """Return True for elements within the given limits.
@@ -971,9 +995,10 @@ def between(a, limits, closed=True):
     else:
         i = np.zeros(b.shape)
         for j in range(lim.shape[0]):
-            i += between(a, lim[j,:])
+            i += between(a, lim[j, :])
 
     return i.astype(bool)
+
 
 def clusters(test):
     """Define array slices based on a test value.
@@ -997,8 +1022,8 @@ def clusters(test):
     print("{} clusters found".format(n))
     return nd.find_objects(labels)
 
-def groupby(key, *lists):
 
+def groupby(key, *lists):
     """Sort elements of `lists` by `unique(key)`.
 
     Note: this is not the same as `itertools.groupby`.
@@ -1043,6 +1068,7 @@ def groupby(key, *lists):
             groups[k] += (list(np.asarray(l)[i]),)
     return groups
 
+
 def leading_num_key(s):
     """Keys for sorting strings, based on leading multidigit numbers.
 
@@ -1078,6 +1104,7 @@ def leading_num_key(s):
         pfx = 0
     return pfx, sfx
 
+
 def nearest(array, v):
     """Return the index of `array` where the value is nearest `v`.
 
@@ -1095,6 +1122,7 @@ def nearest(array, v):
 
     """
     return np.abs(np.array(array) - v).argmin()
+
 
 def stat_avg(x, y, u, N):
     """Bin an array, weighted by measurement errors.
@@ -1142,6 +1170,7 @@ def stat_avg(x, y, u, N):
 
     return _x, _y, _u, n
 
+
 def takefrom(arrays, indices):
     """Return elements from each array at the given indices.
 
@@ -1166,6 +1195,7 @@ def takefrom(arrays, indices):
             newa = type(a)(newa)
             r += (newa,)
     return r
+
 
 def whist(x, y, w, errors=True, **keywords):
     """A weighted histogram binned by an independent variable.
@@ -1223,6 +1253,7 @@ def whist(x, y, w, errors=True, **keywords):
 
     return m, err, n, edges
 
+
 def delta_at_rh(rh, selong):
     """Earth-target distance and phase angle at heliocentric distance and solar elongation.
 
@@ -1248,17 +1279,18 @@ def delta_at_rh(rh, selong):
     else:
         _rh = rh
         distance_unit = 1
-    
+
     if isinstance(selong, u.Quantity):
         angle_unit = u.rad.to(selong.unit) * selong.unit
     else:
         angle_unit = 1
-    
+
     cth = np.cos(u.Quantity(selong, u.rad).value)
     delta = (cth + np.sqrt(cth**2 + _rh**2))
     phi = np.arccos((delta**2 + _rh**2 - 1) / 2 / delta / _rh)
-    
+
     return delta * distance_unit, phi * angle_unit
+
 
 def ec2eq(lam, bet):
     """Ecliptic coordinates to equatorial (J2000.0) coordinates.
@@ -1281,13 +1313,13 @@ def ec2eq(lam, bet):
 
     # using the mean obliquity of the ecliptic at the J2000.0 epoch
     # eps = 23.439291111 degrees (Astronomical Almanac 2008)
-    ceps = 0.91748206207 # cos(eps)
-    seps = 0.39777715593 # sin(eps)
+    ceps = 0.91748206207  # cos(eps)
+    seps = 0.39777715593  # sin(eps)
 
     # convert to radians
     lam = np.radians(lam)
     bet = np.radians(bet)
-    
+
     cbet = np.cos(bet)
     sbet = np.sin(bet)
     clam = np.cos(lam)
@@ -1307,6 +1339,7 @@ def ec2eq(lam, bet):
     ra = (ra + 4.0 * np.pi) % (2.0 * np.pi)
 
     return np.degrees(ra), np.degrees(dec)
+
 
 def lb2xyz(lam, bet=None):
     """Transform longitude and latitude to a unit vector.
@@ -1335,6 +1368,7 @@ def lb2xyz(lam, bet=None):
                      np.cos(betr) * np.sin(lamr),
                      np.sin(betr)))
 
+
 def mhat(a, axis=-1):
     """Mangitude and unit vector decomposition.
 
@@ -1344,7 +1378,7 @@ def mhat(a, axis=-1):
       An array.
     axis : int, optional
       The axis to decompose.  Default is the last axis.
-    
+
     Returns
     -------
     m : ndarray
@@ -1354,13 +1388,14 @@ def mhat(a, axis=-1):
 
     """
 
-    _a  = np.array(a)
+    _a = np.array(a)
     axis = (_a.ndim - 1) if axis is None else axis
     if axis < 0:
         axis += _a.ndim
     m = np.sqrt(np.sum(_a**2, axis))
     hat = np.rollaxis(np.rollaxis(_a, axis) / m, 0, axis + 1)
     return m, hat
+
 
 def projected_vector_angle(r, rot, ra, dec):
     """Position angle of a vector projected onto the observing plane.
@@ -1396,8 +1431,9 @@ def projected_vector_angle(r, rot, ra, dec):
 
     th = np.degrees(np.arctan2(y2, x2))
     pa = 90.0 - th
-    
+
     return pa
+
 
 def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
     """Rotate about an axis defined by two reference points.
@@ -1438,11 +1474,11 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
         # convert to cartesian coords
         clat = np.cos(lat)
         return np.array([clat * np.cos(lon),
-                            clat * np.sin(lon),
-                            np.sin(lat)])
+                         clat * np.sin(lon),
+                         np.sin(lat)])
     v0 = rd2cartesian(np.radians(lon0), np.radians(lat0))
     v1 = rd2cartesian(np.radians(lon1), np.radians(lat1))
-    v  = rd2cartesian(np.radians(lon), np.radians(lat))
+    v = rd2cartesian(np.radians(lon), np.radians(lat))
 
     # construct coordinate frame with x -> ref point and z -> rotation
     # axis
@@ -1464,7 +1500,7 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
         vx = np.dot(v.T, x)
         vy = np.dot(v.T, y)
         vz = np.dot(v.T, z)
-        v  = vx * np.repeat(x2, v.shape[1]).reshape(v.shape)
+        v = vx * np.repeat(x2, v.shape[1]).reshape(v.shape)
         v += vy * np.repeat(y2, v.shape[1]).reshape(v.shape)
         v += vz * np.repeat(z,  v.shape[1]).reshape(v.shape)
 
@@ -1474,6 +1510,7 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
     lon_new = lon_new % 360.0
 
     return (lon_new, lat_new)
+
 
 def spherical_distribution(N):
     """Equally distributed points on a unit sphere.
@@ -1488,7 +1525,7 @@ def spherical_distribution(N):
     p : ndarray
       Spherical coordinates of the points, `(lambda, beta)`, with the
       shape `Nx2`.
-    
+
     Notes
     -----
     Based on https://www.cmu.edu/biolphys/deserno/pdf/sphere_equi.pdf
@@ -1512,8 +1549,8 @@ def spherical_distribution(N):
 
     return np.array(p)
 
-def state2orbit(R, V):
 
+def state2orbit(R, V):
     """Convert a small body's state vector into osculating orbital elements.
 
     CURRENTLY INCOMPLETE!  Only a, ec, q, Tp, P, f, E, and M are
@@ -1598,6 +1635,7 @@ def state2orbit(R, V):
 
     return dict(a=a, ec=ec, q=q, Tp=Tp, P=P, f=f, E=E, M=M)
 
+
 def vector_rotate(r, n, th):
     """Rotate vector `r` an angle `th` CCW about `n`.
 
@@ -1634,6 +1672,7 @@ def vector_rotate(r, n, th):
     else:
         return np.array([rot(r, nhat, t) for t in th])
 
+
 def xyz2lb(r):
     """Transform a vector to angles.
 
@@ -1661,6 +1700,7 @@ def xyz2lb(r):
         bet = np.arctan2(r[:, 2], np.sqrt(r[:, 0]**2 + r[:, 1]**2))
 
     return np.degrees(lam), np.degrees(bet)
+
 
 def kuiper(x, y):
     """Compute Kuiper's statistic and probablity.
@@ -1697,6 +1737,7 @@ def kuiper(x, y):
     V = np.ptp(cdf1 - cdf2)
     Ne = n1 * n2 / (n1 + n2)
     return V, kuiperprob(V, Ne)
+
 
 def kuiperprob(V, Ne):
     """The probability of a false positive in Kuiper's test.
@@ -1737,7 +1778,8 @@ def kuiperprob(V, Ne):
         if (abs(term) <= (EPS1 * termbf)) or (abs(term) <= (EPS2 * p)):
             return p
         termbf = abs(term)
-    return 1.0  # did not converge        
+    return 1.0  # did not converge
+
 
 def mean2minmax(a):
     """The distance from the mean to the min and max of `a`.
@@ -1758,6 +1800,7 @@ def mean2minmax(a):
 
     """
     return np.abs(minmax(a) - np.array(a).mean())
+
 
 def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
              full_output=False, dtype=np.float64):
@@ -1842,7 +1885,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
         if full_output:
             return np.nan, np.nan, (), 0
         else:
-            return np.nan  
+            return np.nan
 
     for i in range(maxiter):
         y = x.flatten()[good]
@@ -1866,6 +1909,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
     else:
         return y.mean(dtype=dtype)
 
+
 def midstep(a):
     """Compute the midpoints of each step in `a`.
 
@@ -1880,6 +1924,7 @@ def midstep(a):
 
     """
     return (np.array(a)[1:] + np.array(a)[:-1]) / 2.0
+
 
 def minmax(a):
     """Compute the minimum and the maximum of an array.
@@ -1896,6 +1941,7 @@ def minmax(a):
 
     """
     return np.array([np.min(a), np.max(a)])
+
 
 def nanmedian(a, axis=None):
     """Median of `a`, ignoring NaNs.
@@ -1920,6 +1966,7 @@ def nanmedian(a, axis=None):
     else:
         return np.nan
 
+
 def nanminmax(a):
     """Compute the minimum and the maximum of an array, ignoring NaNs.
 
@@ -1935,6 +1982,7 @@ def nanminmax(a):
 
     """
     return np.array([np.nanmin(a), np.nanmax(a)])
+
 
 def randpl(x0, x1, k, n=1):
     """Pick random deviates from a power-law distribution.
@@ -1972,6 +2020,7 @@ def randpl(x0, x1, k, n=1):
     y = np.random.rand(n)
     return ((x1**(k + 1) - x0**(k + 1)) * y + x0**(k + 1))**(1.0 / (k + 1))
 
+
 def sigma(s):
     """The probablity a normal variate will be `<s` sigma from the mean.
 
@@ -1988,6 +2037,7 @@ def sigma(s):
     """
     from scipy.special import erf
     return 0.5 * (erf(s / np.sqrt(2.0)) - erf(-s / np.sqrt(2.0)))
+
 
 def spearman(x, y, nmc=None, xerr=None, yerr=None):
     """Perform a Spearman "rho" test on two or more data sets.
@@ -2040,7 +2090,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
         varD = (N - 1) * N**2 * (N + 1)**2 / 36.0
         varD *= (1 - sx / (N**3 - N)) * (1 - sy / (N**3 - N))
         return abs(D - meanD) / np.sqrt(varD)
- 
+
     N = len(x)
 
     rp = stats.mstats.spearmanr(x, y, use_ties=True)
@@ -2064,6 +2114,7 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
         return r, p, Z, meanZ, n
 
     return r, p, Z
+
 
 def uclip(x, ufunc, full_output=False, **keywords):
     """Sigma clip data and apply the function ufunc.
@@ -2094,6 +2145,7 @@ def uclip(x, ufunc, full_output=False, **keywords):
         return ufunc(x.flatten()[mc[2]]), mc[2], mc[3]
     else:
         return ufunc(x.flatten()[mc[2]])
+
 
 def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
              k=3, s=None):
@@ -2208,6 +2260,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     else:
         return wave, flux, err
 
+
 def constant_spectral_resolution(start, stop, R):
     """Spectral wavelength generator for constant spectral resolution.
 
@@ -2228,9 +2281,9 @@ def constant_spectral_resolution(start, stop, R):
     d = 1 + 1 / R
     n = int(np.ceil(np.log(stop / start) / np.log(d)))
     return start * d**np.arange(n)
-    
-def deresolve(func, wave, flux, err=None):
 
+
+def deresolve(func, wave, flux, err=None):
     """De-resolve a spectrum using the supplied instrument profile.
 
     Parameters
@@ -2262,11 +2315,13 @@ def deresolve(func, wave, flux, err=None):
     if type(func) is str:
         if 'gaussian' in func.lower():
             sigma = float(re.findall('gaussian\(([^)]+)\)', func.lower())[0])
+
             def func(dw):
                 return gaussian(dw, 0, sigma)
         elif 'uniform' in func.lower():
             hwhm = (float(re.findall('uniform\(([^)]+)\)', func.lower())[0])
                     / 2.0)
+
             def func(dw):
                 f = np.zeros_like(dw)
                 i = (dw > -hwhm) * (dw <= hwhm)
@@ -2294,6 +2349,7 @@ def deresolve(func, wave, flux, err=None):
 
     return fluxout
 
+
 def phase_integral(phasef, range=[0, 180]):
     """The phase integral of a phase function.
 
@@ -2315,6 +2371,7 @@ def phase_integral(phasef, range=[0, 180]):
     pint = 2.0 * quad(lambda x: phasef(np.degrees(x)) * np.sin(x),
                       min(range), max(range))[0]
     return pint
+
 
 def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
     """The Planck function.
@@ -2380,6 +2437,7 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
 
     return B
 
+
 def _redden(wave, S, wave0=0.55):
     """Redden a spectrum with the slope S.
 
@@ -2434,6 +2492,7 @@ def _redden(wave, S, wave0=0.55):
 
     return spec
 
+
 def polcurve(th, p, a, b, th0):
     """The comet polarization versus phase angle curve.
 
@@ -2458,6 +2517,7 @@ def polcurve(th, p, a, b, th0):
     thr = np.radians(th)
     return (p * np.sin(thr)**a * np.cos(thr / 2.)**b
             * np.sin(thr - np.radians(th0)))
+
 
 def savitzky_golay(x, kernel=11, order=4):
     """Smooth with the Savitzky-Golay filter.
@@ -2484,9 +2544,11 @@ def savitzky_golay(x, kernel=11, order=4):
     """
 
     if (kernel % 2) != 1 or kernel < 1:
-        raise ValueError("kernel size must be a positive odd number, was:{}".format(kernel))
+        raise ValueError(
+            "kernel size must be a positive odd number, was:{}".format(kernel))
     if kernel < order + 2:
-        raise ValueError("kernel is to small for the polynomals\nshould be > order + 2")
+        raise ValueError(
+            "kernel is to small for the polynomals\nshould be > order + 2")
 
     half_window = (kernel - 1) // 2
     b = np.mat([[k**i for i in range(order + 1)]
@@ -2521,6 +2583,7 @@ def savitzky_golay(x, kernel=11, order=4):
 
     return np.array(smooth_data)
 
+
 def cal2doy(cal, scale='utc'):
     """Calendar date to day of year.
 
@@ -2543,6 +2606,7 @@ def cal2doy(cal, scale='utc'):
         return [int(x.yday.split(':')[1]) for x in t]
     else:
         return int(t.yday.split(':')[1])
+
 
 def cal2iso(cal):
     """Calendar date to ISO format.
@@ -2586,7 +2650,7 @@ def cal2iso(cal):
     cal = cal.replace('dec', '12')
 
     d = (''.join(map(a2space, cal))).split(" ")
-    d = d[:6] # truncate at seconds
+    d = d[:6]  # truncate at seconds
     d = [float(t) for t in d] + [0] * (6 - len(d))
     if d[1] == 0.0:
         d = d[:1] + [1.0] + d[2:]
@@ -2596,6 +2660,7 @@ def cal2iso(cal):
                             seconds=d[5])
     d = datetime.datetime(int(d[0]), int(d[1]), 1) + dt
     return d.isoformat()
+
 
 def cal2time(cal, scale='utc'):
     """Calendar date to astropy `Time`.
@@ -2615,6 +2680,7 @@ def cal2time(cal, scale='utc'):
     """
     from astropy.time import Time
     return Time(cal2iso(cal), format='isot', scale=scale)
+
 
 def date_len(date):
     """Length of the date, or 0 if it is a scalar.
@@ -2648,6 +2714,7 @@ def date_len(date):
     else:
         return len(date)
 
+
 @singledispatch
 def date2time(date, scale='utc'):
     """Lazy date to astropy `Time`.
@@ -2669,22 +2736,27 @@ def date2time(date, scale='utc'):
     return astropy.time.Time(datetime.datetime.utcnow(), scale=scale,
                              format='datetime')
 
+
 @date2time.register(astropy.time.Time)
 def _(date, scale='utc'):
     return astropy.time.Time(date, scale=scale)
+
 
 @date2time.register(int)
 @date2time.register(float)
 def _(date, scale='utc'):
     return jd2time(date, scale=scale)
 
+
 @date2time.register(str)
 def _(date, scale='utc'):
     return cal2time(date, scale=scale)
 
+
 @date2time.register(datetime.datetime)
 def _(date, scale='utc'):
     return astropy.time.Time(date, scale=scale)
+
 
 @date2time.register(list)
 @date2time.register(tuple)
@@ -2692,6 +2764,7 @@ def _(date, scale='utc'):
 def _(date, scale='utc'):
     date = [date2time(d, scale=scale) for d in date]
     return astropy.time.Time(date)
+
 
 def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
     """Decimal hours as HH:MM:SS.SSS, or similar.
@@ -2723,6 +2796,7 @@ def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
         hh += 1
     return format.format(sign * hh, mm, ss)
 
+
 def doy2md(doy, year):
     """Day of year in MM-DD format.
 
@@ -2749,6 +2823,7 @@ def doy2md(doy, year):
         md = jd2dt(jd0 + doy).strftime('%m-%d')
     return md
 
+
 def drange(start, stop, num=50):
     """Array of dates, linearly spaced.
 
@@ -2768,10 +2843,11 @@ def drange(start, stop, num=50):
     """
 
     import astropy.units as u
-    
+
     endpoints = date2time((start, stop))
     interval = np.diff(endpoints)[0].jd
     return endpoints[0] + np.linspace(0, interval, num) * u.day
+
 
 def hms2dh(hms):
     """HH:MM:SS to decimal hours.
@@ -2794,7 +2870,7 @@ def hms2dh(hms):
 
     """
     if (isinstance(hms, (list, tuple, np.ndarray))
-        and isinstance(hms[0], (list, tuple, np.ndarray, str))):
+            and isinstance(hms[0], (list, tuple, np.ndarray, str))):
         return [hms2dh(x) for x in hms]
 
     def a2space(c):
@@ -2818,9 +2894,12 @@ def hms2dh(hms):
     hms = np.abs(hms)
 
     dh = hms[0]
-    if len(hms) > 1: dh += hms[1] / 60.0
-    if len(hms) > 2: dh += hms[2] / 3600.0
+    if len(hms) > 1:
+        dh += hms[1] / 60.0
+    if len(hms) > 2:
+        dh += hms[2] / 3600.0
     return s * dh
+
 
 def jd2doy(jd, jd2=None, scale='utc'):
     """Julian date to day of year.
@@ -2848,6 +2927,7 @@ def jd2doy(jd, jd2=None, scale='utc'):
     else:
         return int(t.yday.split(':')[1])
 
+
 def jd2time(jd, jd2=None, scale='utc'):
     """Julian date to astropy `Time`.
 
@@ -2869,6 +2949,7 @@ def jd2time(jd, jd2=None, scale='utc'):
     from astropy.time import Time
     return Time(jd, val2=jd2, format='jd', scale=scale)
 
+
 def timestamp(format='%Y%m%d'):
     """The current date/time as a string.
 
@@ -2880,6 +2961,7 @@ def timestamp(format='%Y%m%d'):
     """
     from datetime import datetime
     return datetime.utcnow().strftime(format)
+
 
 def tz2utc(date, tz):
     """Offset between local time and UTC.
@@ -2900,6 +2982,7 @@ def tz2utc(date, tz):
 
     from pytz import timezone
     return timezone(tz).utcoffset(date2time(date).datetime)
+
 
 def asAngle(x, unit=None):
     """Make `x` an astropy `Angle`.
@@ -2927,6 +3010,7 @@ def asAngle(x, unit=None):
 
     return a
 
+
 def asQuantity(x, unit, **keywords):
     """Make `x` a Quantity with units `unit`.
 
@@ -2947,10 +3031,11 @@ def asQuantity(x, unit, **keywords):
     from astropy.units import Quantity
     if not isinstance(x, Quantity):
         q = x * unit
-    else: 
+    else:
         q = x
 
     return q.to(unit, **keywords)
+
 
 def asValue(x, unit_in, unit_out):
     """Return the value of `x` in units of `unit_out`.
@@ -2993,6 +3078,7 @@ def asValue(x, unit_in, unit_out):
         y = (x * unit_in).to(unit_out).value
 
     return y
+
 
 def autodoc(glbs, width=15, truncate=True):
     """Update a module's docstring with a summary of its functions.
@@ -3037,6 +3123,7 @@ def autodoc(glbs, width=15, truncate=True):
 
     glbs['__doc__'] = newdoc
 
+
 def file2list(f, strip=True):
     """A list from strings from a file.
 
@@ -3059,6 +3146,7 @@ def file2list(f, strip=True):
         for line in inf.readlines():
             lines.append(line.strip() if strip else line)
     return lines
+
 
 def horizons_csv(table):
     """Read a JPL/HORIZONS CSV file into a Table.
@@ -3099,7 +3187,7 @@ def horizons_csv(table):
     for i in range(len(colnames)):
         if colnames[i] == '':
             colnames[i] = 'col{}'.format(i)
-        
+
     data = ''
     for line in inf:
         if line.startswith('$$EOE'):
@@ -3118,11 +3206,11 @@ def horizons_csv(table):
 
     tab.meta['header'] = ''.join(header)
     tab.meta['footer'] = footer
-    
+
     return tab
 
-def spectral_density_sb(s):
 
+def spectral_density_sb(s):
     """Equivalence pairs for spectra density surface brightness.
 
     For use with `astropy.units`.
@@ -3183,6 +3271,7 @@ def spectral_density_sb(s):
         (fla, lafla, converter_fla_lafla, iconverter_fla_lafla),
     ]
 
+
 def timesten(v, sigfigs):
     """Format a number in LaTeX style scientific notation: $A\times10^{B}$.
 
@@ -3204,6 +3293,7 @@ def timesten(v, sigfigs):
     s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
     s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
     return s
+
 
 def write_table(fn, tab, header, comments=[], **kwargs):
     """Write an astropy Table with a simple header.
@@ -3239,6 +3329,7 @@ def write_table(fn, tab, header, comments=[], **kwargs):
         outf.write('#\n')
 
         tab.write(outf, format=format, **kwargs)
+
 
 # summarize the module
 autodoc(globals())
