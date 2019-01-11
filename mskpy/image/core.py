@@ -31,6 +31,7 @@ __all__ = [
 
 import numpy as np
 
+
 def imshift(im, yx, subsample=4):
     """Shift an image, allowing for sub-pixel offsets.
 
@@ -55,7 +56,7 @@ def imshift(im, yx, subsample=4):
     if subsample <= 1:
         subsample = 1
 
-    sy = int(round(yx[0] * subsample)) # whole sampled pixels
+    sy = int(round(yx[0] * subsample))  # whole sampled pixels
     sx = int(round(yx[1] * subsample))
 
     sim = rebin(im, subsample, flux=True)
@@ -63,6 +64,7 @@ def imshift(im, yx, subsample=4):
     sim = np.roll(sim, sx, 1)
 
     return rebin(sim, -subsample, flux=True)
+
 
 def rarray(shape, yx=None, subsample=0, dtype=float):
     """Array of distances from a point.
@@ -100,6 +102,7 @@ def rarray(shape, yx=None, subsample=0, dtype=float):
         r = refine_center(rarray, r, yx, 11, subsample, scale=-1, dtype=dtype)
 
     return r
+
 
 def rebin(a, factor, flux=False, trim=False):
     """Rebin a 1, 2, or 3 dimensional array by integer amounts.
@@ -174,6 +177,7 @@ def rebin(a, factor, flux=False, trim=False):
 
     return b
 
+
 def stack2grid(stack):
     """Reshape a stack of images into an NxN (2D) grid.
 
@@ -204,6 +208,7 @@ def stack2grid(stack):
     grid = grid.swapaxes(1, 2)
     grid = grid.reshape(n * _stack.shape[1], -1)
     return grid
+
 
 def tarray(shape, yx=None, subsample=0, dtype=float):
     """Array of azimuthal angles values.
@@ -240,6 +245,7 @@ def tarray(shape, yx=None, subsample=0, dtype=float):
         th = refine_center(tarray, th, yx, 5, subsample, dtype=dtype)
 
     return th
+
 
 def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
     """Subsample an array generating function near the center.
@@ -293,8 +299,8 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
 
     # subsample the NxN region, where is the center in that?
     shape_s = np.ones(2, int) * int(N) * int(subsample)
-    yx_s = subsample * (yx_N + 0.5) - 0.5    
-    
+    yx_s = subsample * (yx_N + 0.5) - 0.5
+
     # generate the subsampled center
     refined_s = func(shape_s, yx=yx_s, subsample=0, **kwargs)
     refined_s = rebin(refined_s, -subsample, flux=False)
@@ -312,6 +318,7 @@ def refine_center(func, im, yx, N, subsample, scale=0, **kwargs):
         refined[yi[i], xi[i]] = refined_s[i]
 
     return refined
+
 
 def yx2rt(im, yx, dtdr=0, scale=None, bins=100, range=None,
           dtype=float):
@@ -379,6 +386,7 @@ def yx2rt(im, yx, dtdr=0, scale=None, bins=100, range=None,
     nn[n == 0] = 1
     return rt[0] / nn, rbin[0] / nn, thbin[0] / nn, n
 
+
 def xarray(shape, yx=[0, 0], rot=0, dtype=int):
     """Array of x values.
 
@@ -413,6 +421,7 @@ def xarray(shape, yx=[0, 0], rot=0, dtype=int):
 
     return x
 
+
 def yarray(shape, yx=[0, 0], rot=0, dtype=int):
     """Array of y values.
 
@@ -446,6 +455,7 @@ def yarray(shape, yx=[0, 0], rot=0, dtype=int):
         y = x * R[1, 0] + y * R[1, 1]
 
     return y
+
 
 # update module docstring
 from ..util import autodoc

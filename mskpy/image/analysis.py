@@ -17,6 +17,7 @@ image.analysis --- Analyze (astronomical) images.
    find
    fwhm
    gcentroid
+   gcentroid_wcs
    imstat
    linecut
    polyfit2d
@@ -32,6 +33,8 @@ image.analysis --- Analyze (astronomical) images.
 """
 
 import numpy as np
+import astropy.coordinates as coords
+from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
 from . import core
 
 __all__ = [
@@ -43,6 +46,7 @@ __all__ = [
     'bgphot',
     'centroid',
     'gcentroid',
+    'gcentroid_wcs',
     'find',
     'fwhm',
     'imstat',
@@ -198,7 +202,7 @@ def apphot(im, yx, rap, subsample=4, **kwargs):
         return n, f
 
 
-def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
+def apphot_by_wcs(im, centers, wcs, rap, centroid=False,
                   cfunc=None, ckwargs={}, **kwargs):
     """Simple aperture photometry, using a world coordinate system.
 
@@ -214,7 +218,7 @@ def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
       An image, cube, or tuple of images on which to measure
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
-    coords : astropy SkyCoord
+    centers : astropy SkyCoord
       The coordinates (e.g., RA, Dec) of the targets.  Only sources
       interior to the image and at least `2 * max(rap)` from the edges
       are considered.
@@ -256,12 +260,12 @@ def apphot_by_wcs(im, coords, wcs, rap, centroid=False,
     # When SIP is included in WCS, coords.to_pixel can fail when the
     # coordinate is outside the image.  Use a two-pass system to
     # prevent crashing.
-    x, y = coords.to_pixel(wcs, mode='wcs')
+    x, y = centers.to_pixel(wcs, mode='wcs')
     i = between(y, [0, shape[0] + 1]) * between(x, [0, shape[1] + 1])
     if not np.any(i):
         raise NoSourcesFound
 
-    x[i], y[i] = coords[i].to_pixel(wcs, mode='all')
+    x[i], y[i] = centers[i].to_pixel(wcs, mode='all')
     yx = np.c_[y, x]
 
     n = np.zeros((len(yx), np.size(rap)))
@@ -720,8 +724,9 @@ def fwhm(im, yx, unc=None, guess=None, kind='radial', width=1, length=21,
     return abs(fit[2]) * 2.35
 
 
-def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
-    """Centroid (x-/y-cut Gaussian fit) of an image.
+def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True,
+              silent=True):
+    """Centroid (Gaussian fit) of an image.
 
     The best-fit should be bounded within `box`.
 
@@ -813,6 +818,48 @@ def gcentroid(im, yx=None, box=None, niter=1, dim=2, shrink=True, silent=True):
     return cyx
 
 
+def gcentroid_wcs(im, wcs, guess, **kwargs):
+    """Gaussian centroid given sky coordinates.
+
+    Parameters
+    ----------
+    im : ndarray
+        2D image for centroiding.
+
+    wcs : astropy WCS
+        World coordinate system object.
+
+    guess : SkyCoord or tuple of Quantity
+        Location on which to centroid.
+
+    **kwargs
+        Any ``gcentroid`` keyword arguments.
+
+
+    Returns
+    -------
+    cyx : ndarray
+        Pixel coordinates of the computed center.  The lower-left
+        corner of a pixel is -0.5, -0.5.
+
+    c : SkyCoord
+        World coordinates of the computed center.
+
+    """
+
+    if isinstance(guess, coords.SkyCoord):
+        g = guess
+    else:
+        g = coords.SkyCoord(*guess)
+
+    gx, gy = np.array(skycoord_to_pixel(g, wcs))
+
+    cyx = gcentroid(im, yx=(gy, gx), **kwargs)
+    c = pixel_to_skycoord(cyx[1], cyx[0], wcs)
+
+    return cyx, c
+
+
 def imstat(im, **kwargs):
     """Get some basic statistics from an array.
 
@@ -820,7 +867,7 @@ def imstat(im, **kwargs):
 
     Parameters
     ----------
-    im : array
+    im: array
       The image to operate on.
 
     **kwargs
@@ -828,10 +875,10 @@ def imstat(im, **kwargs):
 
     Returns
     -------
-    stats : dict
+    stats: dict
       Statistics commonly used in astronomical interpretations of
       images: min, max, mean, median, mode, stdev, sigclip mean,
-      sigclip median, sigclip stdev (3-sigma clipping), sum.  The mode
+      sigclip median, sigclip stdev(3-sigma clipping), sum.  The mode
       is estimated assuming a unimodal data set that isn't too
       asymmetric: mode = 3 * median - 2 * mean, where median and mean
       are the sigma-clipped estimates.
@@ -859,35 +906,35 @@ def imstat(im, **kwargs):
 def linecut(im, yx, width, length, pa, subsample=4):
     """Photometry along a line.
 
-    Pixels may be sub-sampled (drizzled).
+    Pixels may be sub-sampled(drizzled).
 
     Parameters
     ----------
-    im : array or array of arrays
+    im: array or array of arrays
       An image, cube, or tuple of images from which to measure
       photometry.  For data cubes, the first axis iterates over the
       images.  All images must have the same shape.
-    yx : array-like
+    yx: array-like
       The y, x center of the extraction.
-    width : float
+    width: float
     length: float or array
       If `length` is a float, the line cut will be boxes of size
       `width` x `width` along position angle `pa`, spanning a total
       length of `length`.  If `length` is an array, it specifies the
       bin edges along `pa`, each bin having a width of `width`.
-    pa : float
+    pa: float
       Position angle measured counter-clockwise from the
       x-axis. [degrees]
-    subsample : int, optional
+    subsample: int, optional
       The sub-pixel sampling factor.  Set to <= 1 for no sampling.
 
     Returns
     -------
-    x : ndarray
+    x: ndarray
       The centers of the bins, measured along the line cut.
-    n : ndarray
+    n: ndarray
       The number of pixels per bin.
-    f : ndarray
+    f: ndarray
       The line cut photometry.
 
     """
@@ -971,23 +1018,23 @@ def polyfit2d(f, y, x, unc=None, order=1):
 
     Parameters
     ----------
-    f : array
+    f: array
      The array to fit.
-    y, x : array
+    y, x: array
       The coordinates for each value of `f`.
-    unc : array, optional
+    unc: array, optional
       The uncertainties on each value of `f`, or a single value for
       all points.  If `None`, then 1 is assumed.
-    order : int, optional
-      The polynomial order (in one dimension) of the fit.
+    order: int, optional
+      The polynomial order(in one dimension) of the fit.
 
     Returns
     -------
-    polyx, polyy : ndarray
+    polyx, polyy: ndarray
       The polynomial coefficients, in the same format as from
       `np.polyfit`.
 
-    cov : ndarray
+    cov: ndarray
       The covariance matrix.
 
     v1.0.0 Written by Michael S. Kelley, UMD, Mar 2009
@@ -1024,27 +1071,27 @@ def radprof(im, yx, bins=10, range=None, subsample=4):
 
     Parameters
     ----------
-    im : array
+    im: array
       The image to examine.
-    yx : array
+    yx: array
       The `y, x` center of the radial profile.
-    bins : int or array, optional
+    bins: int or array, optional
       The number of radial bins, or the radial bin edges.
-    range : array, optional
+    range: array, optional
       If bins is a single number, set the bin range to this, otherwise
       set the range to from 0 to the maximal radius.
-    subsample : int, optional
+    subsample: int, optional
       Sub-sample the image at this scale factor.
 
     Returns
     -------
-    rc : ndarray
+    rc: ndarray
       The center of each radial bin.
-    sb : ndarray
+    sb: ndarray
       The surface brightness at each `r`.
-    n : ndarray
+    n: ndarray
       The number of pixels in each bin.
-    rmean : ndarray
+    rmean: ndarray
       The mean radius of the points in each radial bin.
 
     """
@@ -1092,50 +1139,50 @@ def spextract(im, cen, rap, axis=0, trace=None, mean=False,
 
     Parameters
     ----------
-    im : ndarray or MaskedArray
+    im: ndarray or MaskedArray
       The 2D spectral image or similar.  If `im` is not a
       `MaskedArray`, then a bad value mask will be created from all
       non-finite elements.
-    cen : int, float or array thereof
+    cen: int, float or array thereof
       The center(s) of the extraction.  The extraction will be along axis
       `axis`.
-    rap : int or float
+    rap: int or float
       Aperture radius.
-    axis : int, optional
+    axis: int, optional
       The axis of the extraction.
-    trace : array, optional
+    trace: array, optional
       An array of polynomial coefficients to use to adjust the
       aperture center based on axis index.  The first element is the
       coefficient of the highest order.  `cen` will be added to the
       last element.  If `cen` is an array, then `trace` may be an
       array of polynomial sets for each `cen`.  The first axis
       iterates over each set.
-    mean : bool, optional
+    mean: bool, optional
       Set to `True` to return the average value within the aperture,
       rather than the sum.
-    bgap : array, optional
+    bgap: array, optional
       Inner and outer radii for a background aperture.  If defined,
       the background will be removed, and the `nbg`, `mbg`, `bgvar`
       arrays will be returned.
-    bgorder : int, optional
+    bgorder: int, optional
       Fit the background with a `bgorder` polynomial.  Currently
       limited to 0.
-    subsample : int, optional
+    subsample: int, optional
       The image is linearly subsampled to define the aperture edges.
       Set to `None` for no subsampling.
 
     Returns
     -------
-    n : MaskedArray
+    n: MaskedArray
       The aperture size in pixels for each element in `spec`.
-    spec : MaskedArray
+    spec: MaskedArray
       The extracted spectrum, background removed when `bgap` is
       defined.
-    nbg : MaskedArray, optional
+    nbg: MaskedArray, optional
       The background area in pixels for each element in `bg`.
-    mbg : MaskedArray, optional
+    mbg: MaskedArray, optional
       The mean background spectrum.
-    bgvar : MaskedArray, optional
+    bgvar: MaskedArray, optional
       The background variance spectrum.
 
     """
@@ -1214,38 +1261,38 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
 
     Parameters
     ----------
-    im : ndarray or MaskedArray
+    im: ndarray or MaskedArray
       The image to trace.  If a `MaskedArray`, masked values will be
       ignored.
-    err : ndaarray
+    err: ndaarray
       The image uncertainties.  Set to None for unweighted fitting.
-    guess : array
+    guess: array
       The initial guesses for Gaussian fitting.  Fitting begins at the
       lowest index that is not masked.  Subsequent fits use the
       previous fit as a guess: (height, mu, sigma, [m, b]) = height,
-      position (mu), width (sigma), and linear background m*x + b.
-    rap : int, optional
-      The size of the aperture (radius) to use around the peak guess.
-    axis : int, optional
+      position(mu), width(sigma), and linear background m*x + b.
+    rap: int, optional
+      The size of the aperture(radius) to use around the peak guess.
+    axis: int, optional
       The axis along which to measure the peaks.
-    polyfit : bool, optional
+    polyfit: bool, optional
       Set to `True` to fit the resulting array with a polynomial.  The
       polynomial coefficients will be added to the output and are
       suitable for the `np.polyval` function.  After an initial fit,
       the residuals will be inspected and outliers rejected before
       performing an additional fit.
-    order : bool, optional
+    order: bool, optional
       The degree of the polynomial fit.
-    plot : bool, optional
+    plot: bool, optional
       Set to `True` to plot the result.
     **imshow_kwargs
       Any `matplotlib.imshow` keyword arguments for the plot.
 
     Returns
     -------
-    peaks : ndarray
+    peaks: ndarray
       Positions of the peaks.
-    p : ndarray, optional
+    p: ndarray, optional
       Polynomial coefficients of the trace when the `fit` parameter is
       enabled.
 
