@@ -27,6 +27,7 @@ __all__ = [
 import numpy as np
 import astropy.units as u
 from astropy.units import Quantity
+import synphot
 
 from . import __path__ as __mskpy_path__
 
@@ -163,6 +164,7 @@ def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
 def filter_trans(name):
     """Wavelength and filter transmission for a requested filter.
 
+
     Parameters
     ----------
     name : str
@@ -186,6 +188,13 @@ def filter_trans(name):
         * MIPS 160
         * IRS Red
         * IRS Blue
+        * PS1 open
+        * PS1 g
+        * PS1 r
+        * PS1 i
+        * PS1 z
+        * PS1 y
+        * PS1 w
         * FOR 5.4
         * FOR 6.4
         * FOR 6.6
@@ -204,12 +213,11 @@ def filter_trans(name):
         * WISE W3
         * WISE W4
 
+
     Returns
     -------
-    w : Quantity
-        Wavelength.
-    tr : ndarray
-        Filter transmission.
+    bp : `~synphot.SpectralElement`
+
 
     Raises
     ------
@@ -217,46 +225,58 @@ def filter_trans(name):
 
     """
 
-    from astropy.io import ascii
-
     # file name, [wavelength column, transmission column], wavelength units
     filters = {
-        '2mass j': ('/2mass/jrsr.tbl', [1, 2], u.um),
-        '2mass h': ('/2mass/hrsr.tbl', [1, 2], u.um),
-        '2mass ks': ('/2mass/krsr.tbl', [1, 2], u.um),
-        'mko j': ('/mko/nsfcam_jmk_trans.dat', [0, 1], u.um),
-        'mko h': ('/mko/nsfcam_hmk_trans.dat', [0, 1], u.um),
-        'mko ks': ('/mko/nsfcam_ksmk_trans.dat', [0, 1], u.um),
-        'mko k': ('/mko/nsfcam_kmk_trans.dat', [0, 1], u.um),
-        'mko kp': ('/mko/nsfcam_kpmk_trans.dat', [0, 1], u.um),
-        'mko lp': ('/mko/nsfcam_lpmk_trans.dat', [0, 1], u.um),
-        'mko mp': ('/mko/nsfcam_mpmk_trans.dat', [0, 1], u.um),
-        'irac ch1': ('/spitzer/080924ch1trans_full.txt', [0, 1], u.um),
-        'irac ch2': ('/spitzer/080924ch2trans_full.txt', [0, 1], u.um),
-        'irac ch3': ('/spitzer/080924ch3trans_full.txt', [0, 1], u.um),
-        'irac ch4': ('/spitzer/080924ch4trans_full.txt', [0, 1], u.um),
-        'mips 24': ('/spitzer/mips24.txt', [0, 1], u.um),
-        'mips 70': ('/spitzer/mips70.txt', [0, 1], u.um),
-        'mips 160': ('/spitzer/mips160.txt', [0, 1], u.um),
-        'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um),
-        'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um),
-        'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um),
-        'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um),
-        'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um),
-        'for 7.7': ('/sofia/OCLI_N07688-9A_1.txt', [1, 2], u.um),
-        'for 8.6': ('/sofia/OCLI_N08606-9_1.txt', [1, 2], u.um),
-        'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um),
-        'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um),
-        'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um),
-        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt', [1, 2], u.um),
-        'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um),
-        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt', [1, 2], u.um),
-        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt', [1, 2], u.um),
-        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt', [1, 2], u.um),
-        'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um),
-        'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um),
-        'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um),
-        'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um)
+        '2mass j': ('/2mass/jrsr.tbl', [1, 2], u.um, {}),
+        '2mass h': ('/2mass/hrsr.tbl', [1, 2], u.um, {}),
+        '2mass ks': ('/2mass/krsr.tbl', [1, 2], u.um, {}),
+        'mko j': ('/mko/nsfcam_jmk_trans.dat', [0, 1], u.um, {}),
+        'mko h': ('/mko/nsfcam_hmk_trans.dat', [0, 1], u.um, {}),
+        'mko ks': ('/mko/nsfcam_ksmk_trans.dat', [0, 1], u.um, {}),
+        'mko k': ('/mko/nsfcam_kmk_trans.dat', [0, 1], u.um, {}),
+        'mko kp': ('/mko/nsfcam_kpmk_trans.dat', [0, 1], u.um, {}),
+        'mko lp': ('/mko/nsfcam_lpmk_trans.dat', [0, 1], u.um, {}),
+        'mko mp': ('/mko/nsfcam_mpmk_trans.dat', [0, 1], u.um, {}),
+        'irac ch1': ('/spitzer/080924ch1trans_full.txt', [0, 1], u.um, {}),
+        'irac ch2': ('/spitzer/080924ch2trans_full.txt', [0, 1], u.um, {}),
+        'irac ch3': ('/spitzer/080924ch3trans_full.txt', [0, 1], u.um, {}),
+        'irac ch4': ('/spitzer/080924ch4trans_full.txt', [0, 1], u.um, {}),
+        'mips 24': ('/spitzer/mips24.txt', [0, 1], u.um, {}),
+        'mips 70': ('/spitzer/mips70.txt', [0, 1], u.um, {}),
+        'mips 160': ('/spitzer/mips160.txt', [0, 1], u.um, {}),
+        'ps1 open': ('/panstarrs/tonry12-transmission.txt', [0, 1], u.nm,
+                     {'skiprows': 26}),
+        'ps1 g': ('/panstarrs/tonry12-transmission.txt', [0, 2], u.nm,
+                  {'skiprows': 26}),
+        'ps1 r': ('/panstarrs/tonry12-transmission.txt', [0, 3], u.nm,
+                  {'skiprows': 26}),
+        'ps1 u': ('/panstarrs/tonry12-transmission.txt', [0, 4], u.nm,
+                  {'skiprows': 26}),
+        'ps1 z': ('/panstarrs/tonry12-transmission.txt', [0, 5], u.nm,
+                  {'skiprows': 26}),
+        'ps1 y': ('/panstarrs/tonry12-transmission.txt', [0, 6], u.nm,
+                  {'skiprows': 26}),
+        'ps1 w': ('/panstarrs/tonry12-transmission.txt', [0, 7], u.nm,
+                  {'skiprows': 26}),
+        'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um, {}),
+        'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um, {}),
+        'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um, {}),
+        'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um, {}),
+        'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um, {}),
+        'for 7.7': ('/sofia/OCLI_N07688-9A_1.txt', [1, 2], u.um, {}),
+        'for 8.6': ('/sofia/OCLI_N08606-9_1.txt', [1, 2], u.um, {}),
+        'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um, {}),
+        'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um, {}),
+        'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um, {}),
+        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt', [1, 2], u.um, {}),
+        'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um, {}),
+        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt', [1, 2], u.um, {}),
+        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt', [1, 2], u.um, {}),
+        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt', [1, 2], u.um, {}),
+        'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um, {}),
+        'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um, {}),
+        'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um, {}),
+        'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um, {})
     }
 
     try:
@@ -264,17 +284,14 @@ def filter_trans(name):
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    # table = ascii.read(_filterdir + '/' + fil[0], format='fixed_width_no_header')
-    # cols = fil[1]
-    # w = table.columns[cols[0]].data * u.um
-    # tr = table.columns[cols[1]].data
-
-    table = np.loadtxt(_filterdir + '/' + fil[0]).T
+    table = np.loadtxt(_filterdir + '/' + fil[0], **fil[3]).T
     cols = fil[1]
-    w = table[cols[0]] * u.um
+    w = table[cols[0]] * fil[2]
     tr = table[cols[1]]
 
-    return w, tr
+    bp = synphot.SpectralElement(synphot.Empirical1D, points=w,
+                                 lookup_table=tr)
+    return bp
 
 
 def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
@@ -380,6 +397,7 @@ def dw_atran(airmass, fw, ft, pw='2.5'):
                np.exp(-tb20 * np.sqrt(airmass) - tc20 * airmass)]
 
     return bandpass(tw, tt, fw=fw, ft=ft)[1]
+
 
 # update module docstring
 from .util import autodoc
