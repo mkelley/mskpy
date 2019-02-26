@@ -250,7 +250,7 @@ def filter_trans(name):
                   {'skiprows': 26}),
         'ps1 r': ('/panstarrs/tonry12-transmission.txt', [0, 3], u.nm,
                   {'skiprows': 26}),
-        'ps1 u': ('/panstarrs/tonry12-transmission.txt', [0, 4], u.nm,
+        'ps1 i': ('/panstarrs/tonry12-transmission.txt', [0, 4], u.nm,
                   {'skiprows': 26}),
         'ps1 z': ('/panstarrs/tonry12-transmission.txt', [0, 5], u.nm,
                   {'skiprows': 26}),

@@ -2224,7 +2224,6 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
         i = (_fw >= min(_sw)) * (_fw <= max(_sw))
         _fw = _fw[i]
         _ft = _ft[i]
-
         _w = _fw
         spl = interpolate.splrep(_sw, _sf, k=k, s=s)
         _sf = interpolate.splev(_w, spl)
@@ -2255,6 +2254,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     flux = davint(_w, _sf * weights, *wrange) / davint(_w, weights, *wrange)
     err = davint(_w, weights, *wrange) / davint(_w, 1.0 / _se2, *wrange)
     err = np.sqrt(err) * errscale
+
     if se is None:
         return wave, flux
     else:
