@@ -26,7 +26,9 @@ __all__ = [
 
 import numpy as np
 import astropy.units as u
+from astropy.io import fits
 from astropy.units import Quantity
+from astropy.table import Table
 import synphot
 
 from . import __path__ as __mskpy_path__
@@ -164,6 +166,7 @@ def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
 def filter_trans(name):
     """Wavelength and filter transmission for a requested filter.
 
+    UBV are Johnson, RI are Cousins, from STScI's CDBS.
 
     Parameters
     ----------
@@ -195,6 +198,17 @@ def filter_trans(name):
         * PS1 z
         * PS1 y
         * PS1 w
+        * U
+        * B
+        * V
+        * R
+        * I
+        * LSST u
+        * LSST g
+        * LSST r
+        * LSST i
+        * LSST z
+        * LSST y
         * FOR 5.4
         * FOR 6.4
         * FOR 6.6
@@ -260,6 +274,22 @@ def filter_trans(name):
                   {'skiprows': 26}),
         'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um, {}),
         'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um, {}),
+        'u': ('johnson/johnson_u_004_syn.fits',
+              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
+        'b': ('johnson/johnson_b_004_syn.fits',
+              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
+        'v': ('johnson/johnson_v_004_syn.fits',
+              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
+        'r': ('cousins/cousins_r_004_syn.fits',
+              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
+        'i': ('cousins/cousins_i_004_syn.fits',
+              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
+        'lsst u': ('lsst/total_u.dat', [0, 1], u.nm, {'skiprows': 7}),
+        'lsst g': ('lsst/total_g.dat', [0, 1], u.nm, {'skiprows': 7}),
+        'lsst r': ('lsst/total_r.dat', [0, 1], u.nm, {'skiprows': 7}),
+        'lsst i': ('lsst/total_i.dat', [0, 1], u.nm, {'skiprows': 7}),
+        'lsst z': ('lsst/total_z.dat', [0, 1], u.nm, {'skiprows': 7}),
+        'lsst y': ('lsst/total_y.dat', [0, 1], u.nm, {'skiprows': 7}),
         'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um, {}),
         'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um, {}),
         'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um, {}),
@@ -268,11 +298,15 @@ def filter_trans(name):
         'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um, {}),
         'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um, {}),
         'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um, {}),
-        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt', [1, 2], u.um, {}),
+        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt',
+                   [1, 2], u.um, {}),
         'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um, {}),
-        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt', [1, 2], u.um, {}),
-        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt', [1, 2], u.um, {}),
-        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt', [1, 2], u.um, {}),
+        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt',
+                   [1, 2], u.um, {}),
+        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt',
+                   [1, 2], u.um, {}),
+        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt',
+                   [1, 2], u.um, {}),
         'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um, {}),
         'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um, {}),
         'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um, {}),
@@ -284,7 +318,12 @@ def filter_trans(name):
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    table = np.loadtxt(_filterdir + '/' + fil[0], **fil[3]).T
+    fn = _filterdir + '/' + fil[0]
+    if fn.endswith('.fits'):
+        table = Table(fits.getdata(fn))
+    else:
+        table = np.loadtxt(fn, **fil[3]).T
+
     cols = fil[1]
     w = table[cols[0]] * fil[2]
     tr = table[cols[1]]
