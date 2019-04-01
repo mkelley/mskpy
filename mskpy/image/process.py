@@ -40,6 +40,7 @@ __all__ = [
     'subim',
 ]
 
+
 def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
                       **kwargs):
     """Align a set of images by centroid of a single source.
@@ -93,6 +94,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
 
     return align_by_offset(stack, dyx, **kwargs), dyx
 
+
 def align_by_offset(data, dyx, **kwargs):
     """Align a set of images by a given list of offsets.
 
@@ -141,6 +143,7 @@ def align_by_offset(data, dyx, **kwargs):
 
     return stack
 
+
 def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
                  time_key='DATE-OBS', method='interp', **kwargs):
     """Align a set of images using their world coordinate systems.
@@ -187,9 +190,9 @@ def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
         reproject = reproject_exact
 
     im, h0 = fits.getdata(files[0], header=True)
-    shape = (h['NAXIS2'], h['NAXIS1']) if shape is None else shape
+    shape = (h0['NAXIS2'], h0['NAXIS1']) if shape is None else shape
     wcs0 = WCS(h0) if wcs is None else wcs
-        
+
     if target is None:
         d = np.array((0, 0))
     else:
@@ -208,9 +211,11 @@ def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
         wcs = WCS(h)
         wcs.wcs.crval = wcs.wcs.crval + d
 
-        stack[i], cov[i] = reproject((im, wcs), wcs0, shape_out=shape, **kwargs)
+        stack[i], cov[i] = reproject(
+            (im, wcs), wcs0, shape_out=shape, **kwargs)
 
     return stack, cov
+
 
 def columnpull(column, index, bg, stdev):
     """Define a column pull detector artifact.
@@ -290,6 +295,7 @@ def combine(images, axis=0, func=np.mean, niter=0, lsig=3, hsig=3):
     else:
         return combine(images, axis=axis, func=func, niter=niter-1,
                        lsig=lsig, hsig=hsig)
+
 
 def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     """Clean cosmic rays from an image.
@@ -373,6 +379,7 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
 
     return clean
 
+
 def cutout(yx, half_size, shape=None):
     """Return a slice to cut out a subarray from an array.
 
@@ -386,7 +393,7 @@ def cutout(yx, half_size, shape=None):
     shape : tuple, optional
       If provided, then the slice will not extend beyond the lengths
       of the axes.
-    
+
     Returns
     -------
     s : slice
@@ -403,9 +410,9 @@ def cutout(yx, half_size, shape=None):
               max(yx[1] - half_size[1], 0):
               min(yx[1] + half_size[1] + 1, shape[1])]
     return s
-    
-def fixpix(im, mask, max_area=10):
 
+
+def fixpix(im, mask, max_area=10):
     """Replace masked values replaced with a linear interpolation.
 
     Probably only good for isolated bad pixels.
@@ -446,6 +453,7 @@ def fixpix(im, mask, max_area=10):
 
     return cleaned
 
+
 def mkflat(flat, **kwargs):
     """Flat field correction and bad pixel mask from an image.
 
@@ -477,6 +485,7 @@ def mkflat(flat, **kwargs):
     flat.mask += mask
 
     return flat
+
 
 def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
     """Generate a convolution kernel to match the PSFs of two images.
@@ -518,7 +527,7 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
 
     # rebin to match pixel scales?
     if ps != psr:
-        _psfr = zoom(psfr, psr / ps) # change the reference PSF
+        _psfr = zoom(psfr, psr / ps)  # change the reference PSF
     else:
         _psfr = psfr
 
@@ -545,6 +554,7 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
         K[r > mask] = 0
 
     return K / K.sum()
+
 
 def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
@@ -597,6 +607,7 @@ def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
 
     return s
 
+
 def subim(im, yx, half_box, expand=False, pad=0):
     """Extract a sub-image.
 
@@ -632,8 +643,8 @@ def subim(im, yx, half_box, expand=False, pad=0):
 
     y0 = int(np.around(yx[0]))
     x0 = int(np.around(yx[1]))
-    s = np.s_[max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
-              max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1])]
+    s = np.s_[max(y0 - half_box, 0): min(y0 + half_box + 1, im.shape[0]),
+              max(x0 - half_box, 0): min(x0 + half_box + 1, im.shape[1])]
 
     _subim = im[s]
     shape = (2 * half_box + 1, 2 * half_box + 1)
@@ -644,8 +655,9 @@ def subim(im, yx, half_box, expand=False, pad=0):
         subim[:_subim.shape[0], :_subim.shape[1]] = _subim
     else:
         subim = _subim
-        
+
     return subim
+
 
 # update module docstring
 from ..util import autodoc
