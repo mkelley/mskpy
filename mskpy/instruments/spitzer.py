@@ -961,37 +961,48 @@ class IRSCombine:
         self.header['start time'] = start_time
         self.header['stop time'] = stop_time
 
+        self.header['exposures'] = {
+            'comment': ('Exposure information from input files. '
+                        ' Some orders may be missing from final'
+                        ' spectrum (see: trim).  itime is total'
+                        ' time collecting photons in seconds.'),
+            'number': {},
+            'itime': {}
+        }
         for module, files in self.modules.items():
-            n = len(files)
-            k = module.upper() + ' exposures'
-            self.header[k] = (n, 'Number of exposures')
-            itime = sum([float(self.headers[f]['RAMPTIME']) for f in files])
-            k = module.upper() + ' itime'
-            self.header[k] = (itime, 'Total time collecting photons')
+            k = module.upper()
 
-        g = getgeom(self.header['naif id'], Spitzer, self.header['start time'])
+            n = len(files)
+            self.header['exposures']['number'][k] = n
+
+            itime = sum([float(self.headers[f]['RAMPTIME']) for f in files])
+            self.header['exposures']['itime'][k] = itime
+
+        g = getgeom(self.header['naif id'], Spitzer,
+                    self.header['start time'])
         self.geom = g
         self.header['rh'] = '{:.3f}'.format(g.rh)
         self.header['Delta'] = '{:.3f}'.format(g.delta)
         self.header['phase'] = '{:.1f}'.format(g.phase)
-        self.header['Sun angle'] = ('{:.1f}'.format(
-            g.sangle), 'Projected Sun angle (E of N)')
-        self.header['Velocity angle'] = ('{:.1f}'.format(
-            g.vangle), 'Projected target velocity angle (E of N)')
+        self.header['Sun angle'] = ['{:.1f}'.format(
+            g.sangle), 'Projected Sun angle (E of N)']
+        self.header['Velocity angle'] = ['{:.1f}'.format(
+            g.vangle), 'Projected target velocity angle (E of N)']
 
-        self.header['RA'] = (float(headers[first]['RA_SLT'])
-                             * u.deg, 'Initial slit center RA')
-        self.header['Dec'] = (float(headers[first]['DEC_SLT'])
-                              * u.deg, 'Initial slit center Dec')
-        self.header['position angle'] = (
-            float(headers[first]['PA_SLT']) * u.deg, 'Initial slit position angle (E of N)')
+        self.header['RA'] = [float(headers[first]['RA_SLT'])
+                             * u.deg, 'Initial slit center RA']
+        self.header['Dec'] = [float(headers[first]['DEC_SLT'])
+                              * u.deg, 'Initial slit center Dec']
+        self.header['position angle'] = [
+            float(headers[first]['PA_SLT']) * u.deg,
+            'Initial slit position angle (E of N)']
 
         c = SkyCoord(self.header['RA'][0],
                      self.header['Dec'][0], 1 * u.Mpc, frame='icrs')
-        self.header['lambda'] = (
-            c.heliocentrictrueecliptic.lon, 'Ecliptic longitude')
-        self.header['beta'] = (
-            c.heliocentrictrueecliptic.lat, 'Ecliptic latitude')
+        self.header['lambda'] = [
+            c.heliocentrictrueecliptic.lon, 'Ecliptic longitude']
+        self.header['beta'] = [
+            c.heliocentrictrueecliptic.lat, 'Ecliptic latitude']
 
         # self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
         xyz = [float(headers[first]['SPTZR_' + x]) * u.km for x in 'XYZ']
@@ -1274,6 +1285,8 @@ class IRSCombine:
         delete_keys = []
         for k in self.trimmed.keys():
             wrange = tr[k]
+            self.meta['trim'][k] = wrange
+
             if wrange[0] >= wrange[1]:
                 # delete this order
                 delete_keys.append(k)
@@ -1282,8 +1295,6 @@ class IRSCombine:
             i = between(self.trimmed[k]['wave'], wrange)
             for j in ('wave', 'fluxd', 'err'):
                 self.trimmed[k][j] = self.trimmed[k][j][i]
-
-            self.meta['trim'][k] = wrange
 
         for k in delete_keys:
             del self.trimmed[k]
