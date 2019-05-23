@@ -1757,6 +1757,8 @@ def main():
                         help='enter python debugger after execution')
     parser.add_argument('--no-skip', action='store_false', dest='skip',
                         help='Ignore "skip" configuration parameter.')
+    parser.add_argument('-n', type=int,
+                        help='reduce config item N, 0-based')
     parser.add_argument('--reduced-by', help='Name of a scientist.')
     parser.add_argument('--summary', action='store_true',
                         help='only show the data summary')
@@ -1767,8 +1769,11 @@ def main():
              if not line.startswith('#')]
     config_sets = json.loads(''.join(lines))['rx']
 
-    for config in config_sets:
+    for n, config in enumerate(config_sets):
         if config.get('skip', False) and args.skip:
+            continue
+
+        if (args.n is not None) and (n != args.n):
             continue
 
         files = glob(config['files'])
