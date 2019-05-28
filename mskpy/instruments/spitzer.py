@@ -821,7 +821,13 @@ class IRSCombine:
 
         line = ax.plot(self.nucleus['wave'], c * self.nucleus['fluxd'],
                        **kwargs)
-        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=r'$F_\nu$ (Jy)')
+
+        if u.Jy.is_equivalent(unit):
+            ylabel = r'$F_\nu$ ({})'.format(str(unit))
+        else:
+            ylabel = r'$F_\lambda$ ({})'.format(str(unit))
+
+        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=ylabel)
 
         return line
 
@@ -870,7 +876,13 @@ class IRSCombine:
             line = ax.errorbar(spec['wavelength'], c * spec['flux_density'],
                                c * spec['error'], label=label(f), **kwargs)[0]
             lines.append(line)
-        plt.setp(ax, xlabel='Wavelength (μm)', ylabel='DN')
+
+        if u.Jy.is_equivalent(unit):
+            ylabel = r'$F_\nu$ ({})'.format(str(unit))
+        else:
+            ylabel = r'$F_\lambda$ ({})'.format(str(unit))
+
+        plt.setp(ax, xlabel='Wavelength (μm)', ylabel=ylabel)
 
         return lines
 
