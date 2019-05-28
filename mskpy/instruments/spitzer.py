@@ -1844,6 +1844,7 @@ def main():
         rx.write(pfx + '.csv', meta=meta, overwrite=True)
 
         opts = config.get('plot', {})
+        figtype = opts.pop('figtype', 'png')
 
         fig = plt.figure(1)
         plt.clf()
@@ -1851,7 +1852,7 @@ def main():
         rx.plot('raw')
         plt.setp(plt.gca(), **opts)
         plt.draw()
-        plt.savefig(pfx + '-raw.png')
+        plt.savefig(pfx + '-raw.' + figtype)
 
         fig = plt.figure(2)
         plt.clf()
@@ -1863,7 +1864,7 @@ def main():
         nicelegend(loc='lower right')
         plt.setp(plt.gca(), **opts)
         plt.draw()
-        plt.savefig(pfx + '-coadded.png')
+        plt.savefig(pfx + '-coadded.' + figtype)
 
         fig = plt.figure(3)
         plt.clf()
@@ -1871,7 +1872,7 @@ def main():
         rx.plot_order_scaling()
         plt.setp(plt.gca(), **opts)
         plt.draw()
-        plt.savefig(pfx + '-scaling.png')
+        plt.savefig(pfx + '-scaling.' + figtype)
 
         fig = plt.figure(4)
         plt.clf()
@@ -1879,7 +1880,7 @@ def main():
         rx.plot()
         plt.setp(plt.gca(), **opts)
         plt.draw()
-        plt.savefig(pfx + '.png')
+        plt.savefig(pfx + '.' + figtype)
 
         if args.debug:
             import pdb
