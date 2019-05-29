@@ -3,6 +3,9 @@
 util --- Short and sweet functions, generic algorithms
 ======================================================
 
+Registers two astropy table readers: 'horizons csv' and 'mpc comet
+obs'.
+
 .. autosummary::
    :toctree: generated/
 
@@ -104,16 +107,22 @@ util --- Short and sweet functions, generic algorithms
    autodoc
    file2list
    horizons_csv
+   mpc_comet_obs
    spectral_density_sb
    timesten
    write_table
 
 """
 
-from functools import singledispatch
+import re
 import datetime
+from functools import singledispatch
+
 import numpy as np
-import astropy.time
+from astropy.time import Time
+from astropy.table import Table
+from astropy.io import ascii
+import astropy.io.registry as astropy_io_registry
 
 __all__ = [
     'archav',
@@ -2310,8 +2319,6 @@ def deresolve(func, wave, flux, err=None):
 
     """
 
-    import re
-
     if type(func) is str:
         if 'gaussian' in func.lower():
             sigma = float(re.findall('gaussian\(([^)]+)\)', func.lower())[0])
@@ -2600,7 +2607,6 @@ def cal2doy(cal, scale='utc'):
       Day of year.
 
     """
-    from astropy.time import Time
     t = cal2time(cal, scale=scale)
     if len(t) > 1:
         return [int(x.yday.split(':')[1]) for x in t]
@@ -2678,7 +2684,6 @@ def cal2time(cal, scale='utc'):
       Day of year.
 
     """
-    from astropy.time import Time
     return Time(cal2iso(cal), format='isot', scale=scale)
 
 
@@ -2699,7 +2704,6 @@ def date_len(date):
 
     """
 
-    from astropy.time import Time
     if isinstance(date, (list, tuple, np.ndarray)):
         return len(date)
     elif isinstance(date, Time):
@@ -2733,13 +2737,14 @@ def date2time(date, scale='utc'):
     """
     if (date is not None):
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return astropy.time.Time(datetime.datetime.utcnow(), scale=scale,
-                             format='datetime')
+    return Time(datetime.datetime.utcnow(), scale=scale,
+                format='datetime')
 
 
-@date2time.register(astropy.time.Time)
+@date2time.register(Time)
+@date2time.register(datetime.datetime)
 def _(date, scale='utc'):
-    return astropy.time.Time(date, scale=scale)
+    return Time(date, scale=scale)
 
 
 @date2time.register(int)
@@ -2753,17 +2758,12 @@ def _(date, scale='utc'):
     return cal2time(date, scale=scale)
 
 
-@date2time.register(datetime.datetime)
-def _(date, scale='utc'):
-    return astropy.time.Time(date, scale=scale)
-
-
 @date2time.register(list)
 @date2time.register(tuple)
 @date2time.register(np.ndarray)
 def _(date, scale='utc'):
     date = [date2time(d, scale=scale) for d in date]
-    return astropy.time.Time(date)
+    return Time(date)
 
 
 def dh2hms(dh, format="{:02d}:{:02d}:{:06.3f}"):
@@ -2920,7 +2920,6 @@ def jd2doy(jd, jd2=None, scale='utc'):
       Day of year.
 
     """
-    from astropy.time import Time
     t = Time(jd, val2=jd2, format='jd', scale=scale)
     if len(t) > 1:
         return [int(x.yday.split(':')[1]) for x in t]
@@ -2946,7 +2945,6 @@ def jd2time(jd, jd2=None, scale='utc'):
     t : astropy Time
 
     """
-    from astropy.time import Time
     return Time(jd, val2=jd2, format='jd', scale=scale)
 
 
@@ -3165,14 +3163,10 @@ def horizons_csv(table):
 
     """
 
-    from astropy.extern import six
-    from astropy.io import ascii
-
     def split(line):
-        import re
         return re.split('\s*,\s*', line.strip())
 
-    if isinstance(table, six.string_types):
+    if isinstance(table, str):
         inf = open(table, 'r')
     else:
         inf = table
@@ -3206,6 +3200,42 @@ def horizons_csv(table):
 
     tab.meta['header'] = ''.join(header)
     tab.meta['footer'] = footer
+
+    return tab
+
+
+def mpc_comet_obs(table):
+    """Read an Minor Planet Center comet observation file.
+
+    Only the first line from two-line entries, i.e., observations from
+    satellites, are returned.
+
+    Parameters
+    ----------
+    table : str, file-like, list
+      Input table as a file name, file-like object, list of strings,
+      or single newline-separated string.
+
+    Returns
+    -------
+    astropy.table.Table
+
+    """
+    tab = ascii.read(
+        '240P.txt',
+        col_starts=[0, 4,  5, 13, 14, 15, 32, 44, 65, 70, 77],
+        col_ends=[3, 4, 12, 13, 14, 31, 43, 56, 69, 70, 80],
+        names=['P', 'orbit', 'desg', 'note 1', 'note 2', 'date', 'ra',
+               'dec', 'm', 'type', 'obs'],
+        format='fixed_width_no_header'
+    )
+    tab = tab[tab['note 2'] != 's']
+
+    # reformat into astropy.time parseable string
+    dates = [d.replace(' ', '-') for d in tab['date']]
+    dates = ['{} {}'.format(d[:10], dh2hms(float(d[10:]) * 24))
+             for d in dates]
+    tab['date'] = dates
 
     return tab
 
@@ -3330,6 +3360,9 @@ def write_table(fn, tab, header, comments=[], **kwargs):
 
         tab.write(outf, format=format, **kwargs)
 
+
+astropy_io_registry.register_reader('mpc comet obs', Table, mpc_comet_obs)
+astropy_io_registry.register_reader('horizons csv', Table, horizons_csv)
 
 # summarize the module
 autodoc(globals())
