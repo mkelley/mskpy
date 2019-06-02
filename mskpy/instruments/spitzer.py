@@ -886,22 +886,28 @@ class IRSCombine:
 
         return lines
 
-    def read(self, files, **kwargs):
+    def read(self, files, cube=False, **kwargs):
         """Read all data and headers.
 
         Parameters
         ----------
         files : list
           The file names.
-        **kwargs
+
+        cube : bool, optional
+          Set to true if this was a spectral cube.  This will enable
+          alternate exposure info calculations, based on the spectral
+          mapping keywords.
+
+        sl, ll : dict, optional
           Constraints for which files to keep.  For example, use
           `sl=dict(column=[2], row=[3, 4, 5])` to keep those particular
           exposures from an IRS map.
 
         """
 
-        from collections import OrderedDict
-        from astropy.coordinates import SkyCoord
+        from collections import OrderedDict, defaultdict
+        from astropy.coordinates import SkyCoord, Angle
         import astropy.units as u
         from .. import spice
         from ..util import cal2time
@@ -981,14 +987,26 @@ class IRSCombine:
             'number': {},
             'itime': {}
         }
+        position_angles = defaultdict(list)
         for module, files in self.modules.items():
             k = module.upper()
 
             n = len(files)
-            self.header['exposures']['number'][k] = n
-
             itime = sum([float(self.headers[f]['RAMPTIME']) for f in files])
-            self.header['exposures']['itime'][k] = itime
+            if cube:
+                f = files[0]
+                self.header['exposures']['cube'] = True
+                scale = (int(self.headers[f]['STEPSPAR'])
+                         * int(self.headers[f]['STEPSPER'])
+                         * int(self.headers[f]['NCYCLES']))
+            else:
+                scale = 1
+            self.header['exposures']['number'][k] = n * scale
+            self.header['exposures']['itime'][k] = round(itime * scale, 2)
+
+            for f in files:
+                position_angles[module].append(
+                    float(self.headers[f]['PA_SLT']))
 
         g = getgeom(self.header['naif id'], Spitzer,
                     self.header['start time'])
@@ -1001,24 +1019,32 @@ class IRSCombine:
         self.header['Velocity angle'] = ['{:.1f}'.format(
             g.vangle), 'Projected target velocity angle (E of N)']
 
-        self.header['RA'] = [float(headers[first]['RA_SLT'])
-                             * u.deg, 'Initial slit center RA']
-        self.header['Dec'] = [float(headers[first]['DEC_SLT'])
-                              * u.deg, 'Initial slit center Dec']
-        self.header['position angle'] = [
-            float(headers[first]['PA_SLT']) * u.deg,
-            'Initial slit position angle (E of N)']
+        # double str because single str returns numpy.str_
+        self.header['RA'] = [
+            str(str(Angle(float(headers[first]['RA_SLT']), 'deg'))),
+            'Initial slit center RA']
+        self.header['Dec'] = [
+            str(str(Angle(float(headers[first]['DEC_SLT']), 'deg'))),
+            'Initial slit center Dec']
+
+        self.header['position angle'] = {
+            'comment': 'Slit position angle (E of N)'
+        }
+        for module, pa in position_angles.items():
+            self.header['position angle'][module] = (
+                '{:.2f}'.format(float(np.mean(pa)) * u.deg))
 
         c = SkyCoord(self.header['RA'][0],
                      self.header['Dec'][0], 1 * u.Mpc, frame='icrs')
         self.header['lambda'] = [
-            c.heliocentrictrueecliptic.lon, 'Ecliptic longitude']
+            str(str(c.heliocentrictrueecliptic.lon)), 'Ecliptic longitude']
         self.header['beta'] = [
-            c.heliocentrictrueecliptic.lat, 'Ecliptic latitude']
+            str(str(c.heliocentrictrueecliptic.lat)), 'Ecliptic latitude']
 
         # self.header['R_Spitzer'] = ([float(headers[first]['SPTZR_' + x]) for x in 'XYZ'] * u.km, 'Observatory heliocentric rectangular coordinates')
         xyz = [float(headers[first]['SPTZR_' + x]) * u.km for x in 'XYZ']
-        self.header['R_Spitzer'] = dict([(k, v) for k, v in zip('xyz', xyz)])
+        self.header['R_Spitzer'] = dict(
+            [(k, str(v)) for k, v in zip('xyz', xyz)])
 
     def delete_nucleus(self):
         """Delete the model nucleus."""
