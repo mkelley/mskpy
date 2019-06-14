@@ -86,11 +86,16 @@ EarthSys = getspiceobj('3', kernel='planets.bsp', GM=GM_earth_sys)
 Earth = getspiceobj('399', kernel='planets.bsp', GM=GM_planets[2])
 Moon = getspiceobj('301', kernel='planets.bsp', GM=GM_moon)
 Mars = getspiceobj('4', name='Mars', kernel='planets.bsp', GM=GM_planets[3])
-Jupiter = getspiceobj('5', name='Jupiter', kernel='planets.bsp', GM=GM_planets[4])
-Saturn = getspiceobj('6', name='Saturn', kernel='planets.bsp', GM=GM_planets[5])
-Uranus = getspiceobj('7', name='Uranus', kernel='planets.bsp', GM=GM_planets[6])
-Neptune = getspiceobj('8', name='Neptune', kernel='planets.bsp', GM=GM_planets[7])
-PlutoSys = getspiceobj('9', name='PlutoSys', kernel='planets.bsp', GM=GM_planets[8])
+Jupiter = getspiceobj('5', name='Jupiter',
+                      kernel='planets.bsp', GM=GM_planets[4])
+Saturn = getspiceobj('6', name='Saturn',
+                     kernel='planets.bsp', GM=GM_planets[5])
+Uranus = getspiceobj('7', name='Uranus',
+                     kernel='planets.bsp', GM=GM_planets[6])
+Neptune = getspiceobj('8', name='Neptune',
+                      kernel='planets.bsp', GM=GM_planets[7])
+PlutoSys = getspiceobj('9', name='PlutoSys',
+                       kernel='planets.bsp', GM=GM_planets[8])
 _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
                        moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
                        uranus=Uranus, neptune=Neptune, pluto=PlutoSys)
@@ -123,6 +128,13 @@ try:
     Kepler = getspiceobj('-227', kernel='kepler.bsp', name='Kepler')
     _loaded_objects['kepler'] = Kepler
     __all__.append('Kepler')
+except OSError:
+    pass
+
+try:
+    TESS = getspiceobj('-95', kernel='tess.txt', name='TESS')
+    _loaded_objects['tess'] = TESS
+    __all__.append('TESS')
 except OSError:
     pass
 
