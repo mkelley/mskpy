@@ -59,7 +59,7 @@ if __name__ == "__main__":
                     'mskpy.photometry'],
           data_files=files,
           scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
-                   'scripts/center-target', 'scripts/H2D'],
+                   'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext'],
           requires=['numpy', 'scipy', 'astropy'],
           ext_modules=[ext1],
           cmdclass={'test': PyTest, 'install': my_install},

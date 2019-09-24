@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+
+import os
+import argparse
+from astropy.io import fits
+import pyds9
+
+parser = argparse.ArgumentParser()
+parser.add_argument('files', nargs='*')
+parser.add_argument('--scale', default='zscale', help='image scale')
+parser.add_argument('--cmap', '-c', default='viridis')
+parser.add_argument('--ext', default=0, help='load this extension')
+
+args = parser.parse_args()
+
+ds9 = pyds9.DS9('ds9-ext')
+ds9.set('scale mode {}'.format(args.scale))
+ds9.set('cmap {}'.format(args.cmap))
+
+for i, f in enumerate(args.files):
+    with fits.open(f) as hdu:
+        new_hdu = fits.HDUList()
+        if args.ext not in hdu:
+            print('{} missing extension {}'.format(f, args.ext))
+
+        new_hdu.append(fits.PrimaryHDU())
+        new_hdu.append(fits.ImageHDU(
+            hdu[args.ext].data, hdu[args.ext].header,
+            name=os.path.basename(f)))
+
+        ds9.set('frame {}'.format(i + 1))
+        ds9.set_pyfits(new_hdu)
