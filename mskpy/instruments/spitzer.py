@@ -637,7 +637,7 @@ class IRSCombine:
                         e[i] = np.sqrt(sum(err2[mc[2], i])) / len(mc[2])
                     else:
                         f[i] = np.mean(fluxd[:, i])
-                        e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
+                        e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[0]
 
                 f.mask[e == 0] == True
                 e.mask[e == 0] == True
