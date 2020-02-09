@@ -1,9 +1,9 @@
-mskpy v3.0.8-dev
+mskpy v3.0.9
 ============
 
 MSK's personal Python library, mostly for astronomy work.
 
-Requires: python3 (3.5+ recommended), numpy, scipy, astropy v2.0+, FORTRAN compiler.
+Requires: python3 (3.5+ recommended), numpy, scipy, astropy v2.0+, pytz, FORTRAN compiler.
 
 Recommended: spiceypy (v1.1.0), matplotlib (v2), pyds9, photutils (for `gcentroid`).
 
@@ -54,6 +54,7 @@ There are five optional kernels:
   - kepler.bsp : an ephemeris kernel for the Kepler Telescope, https://archive.stsci.edu/pub/k2/spice/
   - deepimpact.txt : an ephemeris meta-kernel for Deep Impact Flyby, ftp://naif.jpl.nasa.gov/pub/naif/
   - naif-names.txt : your own body to ID code mappings.  See "Use of an External Mapping Definition Kernel" in the `NAIF ID Integer Codes <https://naif.jpl.nasa.gov/pub/naif/toolkit_docs/C/req/naif_ids.html>`_ document.
+  - tess.txt : an ephemeris meta-kernel for the TESS spacecraft.
 
 
 Examples

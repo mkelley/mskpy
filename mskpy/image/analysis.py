@@ -11,6 +11,7 @@ image.analysis --- Analyze (astronomical) images.
    apphot
    apphot_by_wcs
    azavg
+   azmed
    bgfit
    bgphot
    centroid
@@ -42,6 +43,7 @@ __all__ = [
     'apphot',
     'apphot_by_wcs',
     'azavg',
+    'azmed',
     'bgfit',
     'bgphot',
     'centroid',
@@ -303,6 +305,74 @@ def apphot_by_wcs(im, centers, wcs, rap, centroid=False,
         return yx, n, f
 
 
+def azmed(im, yx, raps=None, **kwargs):
+    """Create an aziumthally medianed image.
+
+    A radial profile is generated and interpolated back onto the final
+    image.
+
+    Parameters
+    ----------
+    im : array
+      The image to process.
+    yx : array
+      `y, x` point around which to determine the azimuthal median.
+    raps : int or array
+      The number of radial steps or the edges of radial bins used to
+      derive the profile.  The default bins will be logarithmicly
+      stepped (base 2) from 1 to the largest radial distance in the
+      image.
+    **kwargs :
+      Keyword arguments to pass to `scipy.interpolate.interp1d` for
+      creating the final image.  Default parameters are `kind='zero'`,
+      `bounds_error=False`.
+
+    Returns
+    -------
+    am : ndarray
+      The azimthual median image.
+
+    Notes
+    -----
+
+    Apertures without any pixels are removed from the azimuthal
+    median before interpolation.
+
+    """
+
+    from scipy.interpolate import interp1d
+    from ..util import takefrom
+
+    kind = kwargs.pop('kind', 'zero')
+    bounds_error = kwargs.pop('bounds_error', False)
+
+    r = core.rarray(im.shape, yx, subsample=10)
+
+    if raps is None:
+        maxr = int(r.max()) + 1
+        raps = np.logspace(0, np.log2(maxr), int(np.log2(maxr) * 2), base=2)
+    elif isinstance(raps, int):
+        maxr = int(r.max()) + 1
+        raps = np.logspace(0, np.log2(maxr), raps, base=2)
+
+    n, f = zip(*[bgphot(im, yx, an)[:2]
+                 for an in zip(np.r_[0, raps[:-1]], raps)])
+    n = np.array(n)
+    f = np.array(f)
+    i = n != 0
+    n, f, raps = [x[i] for x in (n, f, raps)]
+
+    f /= n
+    f = np.r_[f, f[-1]]
+    raps = np.r_[0, raps]
+
+    am = interp1d(raps, f, kind=kind, bounds_error=bounds_error,
+                  **kwargs)
+    am = am(r).reshape(im.shape)
+
+    return am
+
+
 def azavg(im, yx, raps=None, subsample=4, **kwargs):
     """Create an aziumthally averaged image.
 
@@ -356,7 +426,8 @@ def azavg(im, yx, raps=None, subsample=4, **kwargs):
         raps = np.logspace(0, np.log2(maxr), raps, base=2)
 
     n, f = anphot(im, yx, raps, subsample=subsample)
-    n, f, raps = takefrom((n, f, raps), n != 0)
+    i = n != 0
+    n, f, raps = [x[i] for x in (n, f, raps)]
 
     f /= n
     f = np.r_[f, f[-1]]

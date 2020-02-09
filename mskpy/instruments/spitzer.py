@@ -637,7 +637,7 @@ class IRSCombine:
                         e[i] = np.sqrt(sum(err2[mc[2], i])) / len(mc[2])
                     else:
                         f[i] = np.mean(fluxd[:, i])
-                        e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[1]
+                        e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[0]
 
                 f.mask[e == 0] == True
                 e.mask[e == 0] == True
@@ -1682,13 +1682,16 @@ def moving_wcs_fix(files, ref=None):
         fits.update(f, im, h)
 
 
-def spice_read(filename):
+def spice_read(filename, drop_fainter_order=True):
     """Read in an IRS spectrum and header from a SPICE file.
 
     Parameters
     ----------
     filename : string
       The name of the file to read.
+    drop_fainter_order : bool, optional
+      For AORs observing with the Center field of view, drop the
+      fainter order.
 
     Returns
     -------
@@ -1702,6 +1705,7 @@ def spice_read(filename):
     """
 
     from astropy.io import ascii
+    from ..util import between
 
     IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
                               '\\char COMMENT')
@@ -1735,6 +1739,21 @@ def spice_read(filename):
         module += '1'
     elif '2nd_Order' in h['FOVNAME']:
         module += '2'
+    else:
+        # AOR used slit center, try to guess which was the primary order
+        ranges = dict(sl1=(9, 11), sl2=(6, 7), ll1=(25, 30), ll2=(16, 18))
+        f1 = np.median(spec['flux_density'][between(
+            spec['wavelength'], ranges[module + '1'])])
+        f2 = np.median(spec['flux_density'][between(
+            spec['wavelength'], ranges[module + '2'])])
+        if f1 > f2:
+            module += '1'
+            if drop_fainter_order:
+                spec = spec[spec['order'] == 1]
+        else:
+            module += '2'
+            if drop_fainter_order:
+                spec = spec[spec['order'] > 1]
 
     return spec, h, module
 
@@ -1767,7 +1786,7 @@ def irs_summary(files):
             tab.add_row([f, h['DATE_OBS'], module, h['EXPID'], h['DCENUM'],
                          h['COLUMN'] if 'COLUMN' in h else -1,
                          h['ROW'] if 'ROW' in h else -1,
-                         np.median(spec['flux_density'])])
+                         np.median(spec['flux_density'][i])])
         except Exception as e:
             print('Error processing {}'.format(f))
             raise e
@@ -1814,7 +1833,10 @@ def main():
         if (args.n is not None) and (n != args.n):
             continue
 
-        files = glob(config['files'])
+        if isinstance(config['files'], list):
+            files = sum([glob(g) for g in config['files']], [])
+        else:
+            files = glob(config['files'])
         if len(files) == 0:
             raise ValueError("No data to read.")
 
