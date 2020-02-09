@@ -1031,7 +1031,7 @@ class IRSCombine:
             'comment': 'Slit position angle (E of N)'
         }
         for module, pa in position_angles.items():
-            self.header['position angle'][module] = (
+            self.header['position angle'][module.upper()] = (
                 '{:.2f}'.format(float(np.mean(pa)) * u.deg))
 
         c = SkyCoord(self.header['RA'][0],
