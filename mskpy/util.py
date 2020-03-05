@@ -122,6 +122,7 @@ import numpy as np
 from astropy.time import Time
 from astropy.table import Table
 from astropy.io import ascii
+import astropy.units as u
 import astropy.io.registry as astropy_io_registry
 
 __all__ = [
@@ -933,14 +934,12 @@ def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
     from scipy.optimize import leastsq
 
     def chi(p, wave, fluxd, err):
-        import astropy.units as u
         scale, T = p
         model = scale * planck(wave, T, unit=fluxd.unit / u.sr) * u.sr
         chi = (fluxd - model) / err
         return chi.decompose().value
 
     def dchi(p, wave, fluxd, err):
-        import astropy.units as u
         scale, T = p
         d = np.empty((2, len(wave)))
 
@@ -1263,8 +1262,8 @@ def whist(x, y, w, errors=True, **keywords):
     return m, err, n, edges
 
 
-def delta_at_rh(rh, selong):
-    """Earth-target distance and phase angle at heliocentric distance and solar elongation.
+def delta_at_rh(rh, selong, observer=1 * u.au):
+    """Target distance and phase angle at heliocentric distance and solar elongation.
 
     Parameters
     ----------
@@ -1272,6 +1271,8 @@ def delta_at_rh(rh, selong):
       Heliocentric distance.
     selong : Quantity, Angle, or float
       Solar elongation.  If a float, it must be in radians.
+    observer : Quantity or float, optional
+      Observer-sun distance.
 
     Returns
     -------
@@ -1280,25 +1281,35 @@ def delta_at_rh(rh, selong):
 
     """
 
-    import astropy.units as u
+    delta_unit = rh.unit if isinstance(rh, u.Quantity) else 1
+    phase_unit = selong.unit if isinstance(selong, u.Quantity) else 1
 
-    if isinstance(rh, u.Quantity):
-        _rh = rh.value
-        distance_unit = rh.unit
+    rh = u.Quantity(rh, 'au')
+    observer = u.Quantity(observer, 'au')
+    selong = u.Quantity(selong, 'rad')
+
+    delta = np.zeros_like(rh)
+    for i in range(len(rh)):
+        d = np.roots((
+            1,
+            -2 * observer.value * np.cos(selong),
+            (observer**2 - rh[i]**2).value
+        ))
+        j = 0 if d[0] >= 0 else 1
+        delta[i] = d[j] * u.au
+
+    phase = np.arccos((rh**2 + delta**2 - observer**2)
+                      / 2 / rh / delta)
+
+    if delta_unit == 1:
+        delta = delta.value
+
+    if phase_unit == 1:
+        phase = phase.value
     else:
-        _rh = rh
-        distance_unit = 1
+        phase = phase.to(phase_unit)
 
-    if isinstance(selong, u.Quantity):
-        angle_unit = u.rad.to(selong.unit) * selong.unit
-    else:
-        angle_unit = 1
-
-    cth = np.cos(u.Quantity(selong, u.rad).value)
-    delta = (cth + np.sqrt(cth**2 + _rh**2))
-    phi = np.arccos((delta**2 + _rh**2 - 1) / 2 / delta / _rh)
-
-    return delta * distance_unit, phi * angle_unit
+    return delta, phase
 
 
 def ec2eq(lam, bet):
@@ -1592,8 +1603,6 @@ def state2orbit(R, V):
         M = mean anomaly at date [radians]
 
     """
-
-    import astropy.units as u
 
     mu = 1.32712440018e11  # km3/s2
     AU = u.au.to(u.kilometer)
@@ -2202,7 +2211,6 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     """
 
     from scipy import interpolate
-    import astropy.units as u
     from . import calib
 
     # local copies
@@ -2408,16 +2416,13 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
 
     """
 
-    import astropy.units as u
-    from astropy.units import Quantity
-
     assert deriv in [None, 'T', 't']
 
     # prevent over/underflow warnings
     oldseterr = np.seterr(all='ignore')
 
     # wave in m
-    if isinstance(wave, Quantity):
+    if isinstance(wave, u.Quantity):
         wave = wave.si.value
     else:
         wave = wave * 1e-6
@@ -2842,8 +2847,6 @@ def drange(start, stop, num=50):
 
     """
 
-    import astropy.units as u
-
     endpoints = date2time((start, stop))
     interval = np.diff(endpoints)[0].jd
     return endpoints[0] + np.linspace(0, interval, num) * u.day
@@ -2997,11 +3000,10 @@ def asAngle(x, unit=None):
 
     """
 
-    from astropy.units import Quantity
     from astropy.coordinates import Angle
 
     if not isinstance(x, Angle):
-        if isinstance(x, Quantity):
+        if isinstance(x, u.Quantity):
             a = Angle(x.value, x.unit)
         else:
             a = Angle(x, unit)
@@ -3026,8 +3028,7 @@ def asQuantity(x, unit, **keywords):
 
     """
 
-    from astropy.units import Quantity
-    if not isinstance(x, Quantity):
+    if not isinstance(x, u.Quantity):
         q = x * unit
     else:
         q = x
@@ -3057,8 +3058,6 @@ def asValue(x, unit_in, unit_out):
 
     """
 
-    import astropy.units as u
-    from astropy.units import Quantity
     from astropy.coordinates import Angle
 
 #    if isinstance(x, Angle):
@@ -3070,7 +3069,7 @@ def asValue(x, unit_in, unit_out):
 #            raise ValueError("Cannot convert Angle to units of {}".format(
 #                    unit_out))
 #    elif isinstance(x, Quantity):
-    if isinstance(x, (Angle, Quantity)):
+    if isinstance(x, (Angle, u.Quantity)):
         y = x.to(unit_out).value
     else:
         y = (x * unit_in).to(unit_out).value
@@ -3262,7 +3261,6 @@ def spectral_density_sb(s):
     """
 
     import astropy.constants as const
-    import astropy.units as u
 
     c_Aps = const.c.si.value * 10**10
 
