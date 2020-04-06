@@ -155,9 +155,11 @@ class IRAC(Camera):
         from ..util import davint, takefrom
 
         nu0 = (const.c.si / self.wave).to(u.teraHertz).value
-        K = np.zeros(len(channels))
+        K = []
         for ch in channels:
-            tw, tr = filter_trans('IRAC CH{:}'.format(ch))
+            bp = filter_trans('IRAC CH{:}'.format(ch))
+            tw = bp.waveset
+            tr = bp(tw)
             nu = (const.c / tw).to(u.teraHertz).value
 
             sfnu = sf(tw).to(u.Jy, u.spectral_density(tw)).value
@@ -165,12 +167,12 @@ class IRAC(Camera):
             i = ch - 1  # self.wave index
             sfnu /= sf(self.wave[i]).to(u.Jy,
                                         u.spectral_density(self.wave[i])).value
+            j = nu.argsort()
+            sfnu, tr, nu = [x[j] for x in (sfnu, tr, nu)]
+            K.append((davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
+                    / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1])))
 
-            sfnu, tr, nu = takefrom((sfnu, tr, nu), nu.argsort())
-            K[i] = (davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
-                    / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1]))
-
-        return K
+        return np.array(K)
 
 
 def warm_aperture_correction(rap, bgan):
