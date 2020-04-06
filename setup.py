@@ -49,7 +49,7 @@ if __name__ == "__main__":
     files = find_data_files()
 
     setup(name='mskpy',
-          version='3.0.9',
+          version='3.0.10',
           description='General purpose and astronomy related tools',
           author="Michael S. P. Kelley",
           author_email="msk@astro.umd.edu",
@@ -59,8 +59,9 @@ if __name__ == "__main__":
                     'mskpy.photometry'],
           data_files=files,
           scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
-                   'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext'],
-          requires=['numpy', 'scipy', 'astropy'],
+                   'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext',
+                   'scripts/ads'],
+          install_requires=['numpy', 'scipy', 'astropy', 'spiceypy>1.1', 'pytz'],
           ext_modules=[ext1],
           cmdclass={'test': PyTest, 'install': my_install},
           license='BSD',
