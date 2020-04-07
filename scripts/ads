@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+import argparse
+import ads
+
+parser = argparse.ArgumentParser(description='NASA ADS query tool')
+parser.add_argument('--first-author')
+parser.add_argument('--author', nargs='*', help='may be repeated')
+parser.add_argument('--year')
+parser.add_argument('--refereed', action='store_true')
+parser.add_argument('--abstract')
+parser.add_argument('--title')
+
+args = vars(parser.parse_args())
+
+query = dict()
+for k in ['first_author', 'author', 'year', 'abstract', 'title']:
+    if args.get(k) is not None:
+        query[k] = args.get(k)
+if len(query) == 0:
+    raise ValueError('No search terms specified.')
+
+if args['refereed']:
+    query['property'] = 'refereed'
+
+bibcodes = [article.bibcode for article in ads.SearchQuery(**query)]
+if len(bibcodes) == 0:
+    print('No articles found.')
+else:
+    bibtex = ads.ExportQuery(bibcodes=bibcodes, format='bibtex').execute()
+    print(bibtex)
