@@ -12,26 +12,32 @@ calib --- Tools for photometric and spectroscopic calibrations
    filter_trans
    solar_flux
    wehrli
+   sun
 
 """
 
+from .util import autodoc
 __all__ = [
     'cohen_standard',
     'dw_atran',
     'e490',
     'filter_trans',
     'solar_flux',
-    'wehrli'
+    'wehrli',
+    'sun_w18'
 ]
 
+import os
 import numpy as np
 import astropy.units as u
 from astropy.io import fits
 from astropy.units import Quantity
 from astropy.table import Table
 import synphot
+from sbpy.calib import Sun
 
 from . import __path__ as __mskpy_path__
+from .config import config
 
 # Solar spectra downloaded from
 #   http://rredc.nrel.gov/solar/spectra/am0/
@@ -438,7 +444,14 @@ def dw_atran(airmass, fw, ft, pw='2.5'):
     return bandpass(tw, tt, fw=fw, ft=ft)[1]
 
 
+with fits.open(os.path.join(config.get('calib', 'solar_spectra_path'), 'willmer18-sun_composite.fits')) as hdu:
+    sun_w18 = Sun.from_array(
+        hdu[1].data['WAVE'] * u.AA,
+        hdu[1].data['FLUX'] * u.erg / u.cm**2 / u.s / u.AA,
+        description='Willmer (2018) composite solar spectrum',
+        bibcode='2018ApJS..236...47W')
+del Sun
+
 # update module docstring
-from .util import autodoc
 autodoc(globals())
 del autodoc

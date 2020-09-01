@@ -25,6 +25,8 @@ _defaults = (
         [os.path.expanduser("~"), 'data', 'kernels'])),
     ('calib', 'cohen_path', os.path.sep.join(
         [os.path.expanduser("~"), 'data', 'mid-ir'])),
+    ('calib', 'solar_spectra_path', os.path.sep.join(
+        [os.path.expanduser("~"), 'data', 'calibration', 'solar-spec'])),
     ('spex', 'spextool_path', os.path.sep.join(
         [os.path.expanduser("~"), 'local', 'idl', 'irtf', 'Spextool'])),
     ('irs', 'rogue_masks_path', os.path.sep.join([os.path.expanduser(
