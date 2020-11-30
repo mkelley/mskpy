@@ -13,6 +13,7 @@ proper_motion
 
 """
 
+from ..util import autodoc
 __all__ = ['Geom', 'proper_motion']
 
 from datetime import datetime
@@ -20,6 +21,8 @@ from collections import Mapping
 import numpy as np
 from astropy.time import Time
 import astropy.units as u
+from sbpy.data import Ephem
+
 
 class Geom(Mapping):
     """Observing geometry parameters for Solar System objects.
@@ -114,7 +117,8 @@ class Geom(Mapping):
             self._rt = rt
 
         if (self._ro.shape[-1] != 3) or (self._ro.ndim > 2):
-            raise ValueError("Incorrect shape for ro.  Must be (3,) or (N, 3).")
+            raise ValueError(
+                "Incorrect shape for ro.  Must be (3,) or (N, 3).")
 
         if self._rt.shape != self._ro.shape:
             raise ValueError("The shapes of ro and ro must agree.")
@@ -346,12 +350,12 @@ class Geom(Mapping):
             sangle = np.zeros(len(self))
             for i in range(len(self)):
                 sangle[i] = pva(-self._rt[i], self._rot[i],
-                                 ra[i].to(u.deg).value,
+                                ra[i].to(u.deg).value,
                                 dec[i].to(u.deg).value)
         else:
             sangle = pva(-self._rt, self._rot, ra.to(u.deg).value,
-                          dec.to(u.deg).value)
-            
+                         dec.to(u.deg).value)
+
         return Angle(sangle * u.deg)
 
     @property
@@ -397,6 +401,15 @@ class Geom(Mapping):
                            / deltam / self.delta.to(u.km).value)
         return Angle(np.degrees(lelong) * u.deg)
 
+    def to_ephem(self):
+        """Convert to sbpy Ephem object."""
+        g = dict()
+        for k in ['rh', 'delta', 'phase', 'signedphase', 'obsrh', 'so', 'st',
+                  'lam', 'bet', 'ra', 'dec', 'sangle', 'vangle', 'selong',
+                  'lelong']:
+            g[k] = self[k]
+        return Ephem.from_dict(g)
+
     def reduce(self, func, units=False):
         """Apply a function to each vector.
 
@@ -429,7 +442,7 @@ class Geom(Mapping):
                     g[k] = v.value  # nothing to do
                 if units:
                     g[k] *= v.unit
-            
+
         if self['date'] is None:
             g['date'] = None
         else:
@@ -585,6 +598,7 @@ class Geom(Mapping):
             raminmax = ''
             decminmax = ''
             jdminmax = ''
+
             def minmax(p, f):
                 return ''
 
@@ -633,6 +647,7 @@ class Geom(Mapping):
            "Projected velocity vector (deg):", g['vangle'].degree,
            minmax('vangle', '8.3f'))))
 
+
 def proper_motion(g0, g1):
     """Proper motion from two `Geom` instances.
 
@@ -661,7 +676,7 @@ def proper_motion(g0, g1):
 
     return mu, phi
 
+
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
