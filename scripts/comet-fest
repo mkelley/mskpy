@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import sys
 import argparse
 import numpy as np
@@ -10,10 +10,12 @@ from mskpy import ephem, between, Coma, Asteroid
 
 today = Time.now()
 
+
 class ListAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         v = [float(x) for x in values.split(',')]
         setattr(namespace, self.dest, v)
+
 
 parser = argparse.ArgumentParser(description='Generate an ephemeris.')
 parser.add_argument('target', type=str, nargs='+',
@@ -74,7 +76,7 @@ if len(args.kernel) > 0:
 
 if (len(args.target) == 1
     and args.target[0].isdigit()
-    and len(args.target[0]) < 6):
+        and len(args.target[0]) < 6):
     # asteroid designation
     target = ephem.getspiceobj(int(args.target[0]) + 2000000)
 else:
@@ -97,7 +99,7 @@ else:
 if args.afrho is None and args.D is None:
     print('Nothing to do.')
     sys.exit()
-    
+
 names = ['wave']
 data = [wave]
 total = 0
@@ -123,7 +125,7 @@ if args.afrho is not None:
 
     total = total + refl + thrm
 
-if args.D is not None: 
+if args.D is not None:
     asteroid = Asteroid(target.state, args.D * u.km, args.Ap, eta=args.eta)
 
     _args = (observer, args.date, wave)
