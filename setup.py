@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from numpy.distutils.core import setup, Extension, Command
+from numpy.distutils.core import setup, Extension
 from distutils.command.install import install
 
 
@@ -9,23 +9,23 @@ class my_install(install):
         import mskpy.config
 
 
-class PyTest(Command):
-    user_options = []
+# class PyTest(Command):
+#     user_options = []
 
-    def initialize_options(self):
-        pass
+#     def initialize_options(self):
+#         pass
 
-    def finalize_options(self):
-        pass
+#     def finalize_options(self):
+#         pass
 
-    def run(self):
-        import sys
-        import subprocess
-        errno = subprocess.call([sys.executable, 'setup.py', 'build_ext',
-                                 '--inplace'])
-        errno = subprocess.call([sys.executable, 'setup.py', 'build'])
-        errno = subprocess.call(['ipython', 'runtests.py', 'tests/'])
-        raise SystemExit(errno)
+#     def run(self):
+#         import sys
+#         import subprocess
+#         errno = subprocess.call([sys.executable, 'setup.py', 'build_ext',
+#                                  '--inplace'])
+#         errno = subprocess.call([sys.executable, 'setup.py', 'build'])
+#         errno = subprocess.call(['ipython', 'runtests.py', 'tests/'])
+#         raise SystemExit(errno)
 
 
 def find_data_files():
@@ -61,9 +61,10 @@ if __name__ == "__main__":
           scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
                    'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext',
                    'scripts/ads'],
-          install_requires=['numpy', 'scipy', 'astropy', 'spiceypy>1.1', 'pytz'],
+          install_requires=['numpy', 'scipy',
+                            'astropy', 'spiceypy>1.1', 'pytz'],
           ext_modules=[ext1],
-          cmdclass={'test': PyTest, 'install': my_install},
+          #cmdclass={'test': PyTest, 'install': my_install},
           license='BSD',
           classifiers=[
               'Intended Audience :: Science/Research',
