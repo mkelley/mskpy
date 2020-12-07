@@ -170,7 +170,7 @@ class IRAC(Camera):
             j = nu.argsort()
             sfnu, tr, nu = [x[j] for x in (sfnu, tr, nu)]
             K.append((davint(nu, sfnu * tr * nu0[i] / nu, nu[0], nu[-1])
-                    / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1])))
+                      / davint(nu, tr * (nu0[i] / nu)**2, nu[0], nu[-1])))
 
         return np.array(K)
 
@@ -1228,7 +1228,7 @@ class IRSCombine:
 
         print('IRSCombine generated and subtracted a model nucleus.')
 
-    def slitloss_correct(self):
+    def slitloss_correct(self, modules=['sl1', 'sl2', 'sl3', 'll1', 'll2', 'll3']):
         import os.path
         from astropy.io import ascii
         from ..config import config
@@ -1243,22 +1243,28 @@ class IRSCombine:
             spec = self.spectra
 
         self.slitloss_corrected = dict()
+        corrected_modules = []
         for k in spec.keys():
-            fn = 'b{}_slitloss_convert.tbl'.format(module2channel[k[:2]])
-            tab = ascii.read(os.path.join(path, 'cal', calset, fn))
-            slcf = np.interp(spec[k]['wave'], tab['wavelength'],
-                             tab['correction'])
+            if k in modules:
+                corrected_modules.append(k)
+                fn = 'b{}_slitloss_convert.tbl'.format(module2channel[k[:2]])
+                tab = ascii.read(os.path.join(path, 'cal', calset, fn))
+                slcf = np.interp(spec[k]['wave'], tab['wavelength'],
+                                 tab['correction'])
 
-            self.slitloss_corrected[k] = dict()
-            for kk, vv in spec[k].items():
-                self.slitloss_corrected[k][kk] = vv
-            self.slitloss_corrected[k]['fluxd'] *= slcf
-            e = np.maximum(self.slitloss_corrected[k]['err'] * slcf,
-                           self.minimum_uncertainty)
-            self.slitloss_corrected[k]['err'] = e
+                self.slitloss_corrected[k] = dict()
+                for kk, vv in spec[k].items():
+                    self.slitloss_corrected[k][kk] = vv
+                self.slitloss_corrected[k]['fluxd'] *= slcf
+                e = np.maximum(self.slitloss_corrected[k]['err'] * slcf,
+                               self.minimum_uncertainty)
+                self.slitloss_corrected[k]['err'] = e
+            else:
+                self.slitloss_corrected[k] = spec[k]
 
         self.meta['slitloss_correct'] = [
-            'Slit loss corrected for uniform sources using IRS pipeline correction.']
+            'Slit loss corrected for uniform sources using IRS pipeline correction: {}'
+            .format(','.join(corrected_modules))]
 
     def shape_correct(self, correction):
         """Correct the shape of the coma spectra.
@@ -1875,7 +1881,7 @@ def main():
         rx.trim(**config.get('trim', {}))
 
         if "slitloss_correct" in config:
-            rx.slitloss_correct()
+            rx.slitloss_correct(**config.get('slitloss_correct', {}))
 
         opts = config.get('subtract_nucleus', {})
         try:
