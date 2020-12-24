@@ -19,15 +19,30 @@ spitzer --- Spitzer instruments.
 
 """
 
+import os.path
+from collections import OrderedDict, defaultdict
 import numpy as np
+from scipy.interpolate import splev, splrep
+import scipy.ndimage as nd
 import astropy.units as u
+from astropy.table import Table
+from astropy.io import fits, ascii
+import astropy.constants as const
+from astropy.coordinates import SkyCoord, Angle
 
 try:
     from ..ephem import Spitzer
 except ImportError:
     Spitzer = None
 
+from ..util import (autodoc, davint, deriv, meanclip, minmax, nearest,
+                    cal2time, between, linefit, spherical_coord_rotate)
+from ..config import config
+from ..models import NEATM
 from .instrument import Instrument, Camera, LongSlitSpectrometer
+from ..calib import filter_trans
+from ..image import apphot, bgphot, fixpix
+from ..ephem import getgeom
 
 __all__ = ['irsclean', 'irsclean_files', 'irs_summary',
            'IRAC', 'IRS', 'IRSCombine']
@@ -149,11 +164,6 @@ class IRAC(Camera):
 
         """
 
-        from scipy import interpolate
-        import astropy.constants as const
-        from ..calib import filter_trans
-        from ..util import davint, takefrom
-
         nu0 = (const.c.si / self.wave).to(u.teraHertz).value
         K = []
         for ch in channels:
@@ -207,11 +217,6 @@ def warm_aperture_correction(rap, bgan):
     Out[42]: array([  2.02430430e+08,   1.29336376e+08])
 
     """
-
-    import os.path
-    from ..config import config
-    from astropy.io import fits
-    from ..image import apphot, bgphot
 
     f0 = np.array([2.02430430e+08,   1.29336376e+08])
 
@@ -464,8 +469,6 @@ class IRSCombine:
     """
 
     def __init__(self, files=[], minimum_uncertainty=0.0001, **kwargs):
-        from collections import OrderedDict
-
         self.minimum_uncertainty = minimum_uncertainty
 
         self.raw = None
@@ -504,10 +507,6 @@ class IRSCombine:
         return self.raw
 
     def aploss_correct(self):
-        import os.path
-        from astropy.io import ascii
-        from ..config import config
-
         path = config.get('irs', 'spice_path')
         h = list(self.headers.values())[0]
         calset = h['CAL_SET'].strip("'").strip('.A')
@@ -568,7 +567,6 @@ class IRSCombine:
           quadrature.
 
         """
-        from ..util import deriv, meanclip
 
         assert isinstance(scales, dict)
         if scales is None:
@@ -759,7 +757,6 @@ class IRSCombine:
         """
 
         import matplotlib.pyplot as plt
-        from ..util import minmax
 
         assert self.order_scales is not None, "scale_orders must first be run."
 
@@ -907,13 +904,7 @@ class IRSCombine:
           exposures from an IRS map.
 
         """
-
-        from collections import OrderedDict, defaultdict
-        from astropy.coordinates import SkyCoord, Angle
-        import astropy.units as u
         from .. import spice
-        from ..util import cal2time
-        from ..ephem import getgeom, Spitzer
 
         self.headers = dict()
         self.raw = dict()
@@ -1073,9 +1064,6 @@ class IRSCombine:
 
         """
 
-        from collections import OrderedDict
-        from ..util import between, linefit
-
         assert self.coadded is not None, "Spectra must first be coadded (even if there is only one spectrum per module)."
 
         stitching_order = ['sl2', 'sl3', 'sl1',
@@ -1153,8 +1141,6 @@ class IRSCombine:
 
         """
 
-        from ..util import between, meanclip
-
         ranges = dict(sl1=sl1, sl2=sl2, ll1=ll1, ll2=ll2)
 
         self.scales = dict()
@@ -1192,11 +1178,6 @@ class IRSCombine:
 
         """
 
-        from scipy.interpolate import splev, splrep
-        from astropy.table import Table
-        from ..models import NEATM
-        from ..ephem import Spitzer
-
         if self.nucleus is not None:
             self.delete_nucleus()
 
@@ -1228,11 +1209,44 @@ class IRSCombine:
 
         print('IRSCombine generated and subtracted a model nucleus.')
 
-    def slitloss_correct(self, modules=['sl1', 'sl2', 'sl3', 'll1', 'll2', 'll3']):
-        import os.path
-        from astropy.io import ascii
-        from ..config import config
+    def subtract_other_nucleus(self, wave, fluxd, comment=None):
+        """Subtract the provided model nucleus.
 
+        Delete this model with `self.delete_nucleus`.
+
+        Parameters
+        ----------
+        wave : Quantity
+            Model wavelengths.
+
+        fluxd : Quantity
+            Model flux density.
+
+        """
+
+        if self.nucleus is not None:
+            self.delete_nucleus()
+
+        self.nucleus = Table((wave, fluxd), names=['wave', 'fluxd'])
+        self.nucleus['wave'].meta['unit'] = 'um'
+        self.nucleus['fluxd'].meta['unit'] = 'Jy'
+        self.nucleus.meta['comment'] = comment
+
+        self.meta['subtract_nucleus'] = 'other'
+
+        model = splrep(self.nucleus['wave'].data, self.nucleus['fluxd'].data)
+        spec = self.spectra
+        self.coma = dict()
+        for k, v in spec.items():
+            self.coma[k] = {}
+            for kk, vv in spec[k].items():
+                self.coma[k][kk] = vv.copy()
+            f = splev(self.coma[k]['wave'], model)
+            self.coma[k]['fluxd'] -= f
+
+        print('IRSCombine subtracted an externally provided model nucleus.')
+
+    def slitloss_correct(self, modules=['sl1', 'sl2', 'sl3', 'll1', 'll2', 'll3']):
         path = config.get('irs', 'spice_path')
         h = list(self.headers.values())[0]
         calset = h['CAL_SET'].strip("'").strip('.A')
@@ -1282,9 +1296,6 @@ class IRSCombine:
 
         """
 
-        import os.path
-        from astropy.io import ascii
-
         assert self.coma is not None
         if self.slitloss_corrected is not None:
             spec = self.slitloss_corrected
@@ -1317,8 +1328,6 @@ class IRSCombine:
           Keep wavelengths within these ranges.
 
         """
-
-        from ..util import between
 
         assert self.coadded is not None, 'Must run `coadd()` first.'
 
@@ -1359,10 +1368,6 @@ class IRSCombine:
           Overwrite existing files.
 
         """
-
-        from scipy.interpolate import splev, splrep
-        from astropy.table import Table
-        from ..util import write_table
 
         assert self.coadded is not None, "Spectra must be processed at least through `coadd()`."
 
@@ -1418,8 +1423,6 @@ class IRSCombine:
           The orders and wavelengths to remove, e.g., `ll2=[15.34, 15.42]`.
 
         """
-
-        from ..util import nearest
 
         for order, waves in kwargs.items():
             assert order in self.coadded
@@ -1478,9 +1481,6 @@ def irsclean(im, h, bmask=None, maskval=28672,
       The cleaned mask.
 
     """
-
-    import scipy.ndimage as nd
-    from ..image import fixpix
 
     cleaner = fixpix if func is None else func
 
@@ -1553,8 +1553,6 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
 
     """
 
-    from astropy.io import fits
-
     def file_generator(in_list, optional_list, replace_string):
         for i in range(len(in_list)):
             if optional_list is True:
@@ -1570,8 +1568,6 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                 yield f, fits.getdata(f)
 
     def rmask_file_generator(in_list, optional_list):
-        import os.path
-        from ..config import config
         path = config.get('irs', 'rogue_masks_path')
         for i in range(len(in_list)):
             if optional_list is True:
@@ -1579,7 +1575,7 @@ def irsclean_files(files, outfiles, uncs=True, bmasks=True,
                 if h['CAMPAIGN'] in campaign2rogue:
                     f = 'b{}_rmask_{}.fits'.format(
                         h['CHNLNUM'], campaign2rogue[h['CAMPAIGN']])
-                    f = os.path.join((path, f))
+                    f = os.path.join(path, f)
                 else:
                     f = None
             elif np.iterable(optional_list):
@@ -1650,9 +1646,6 @@ def moving_wcs_fix(files, ref=None):
 
     """
 
-    from astropy.io import fits
-    from ..util import spherical_coord_rotate
-
     assert np.iterable(files), "files must be an array of file names"
 
     ra_ref0, dec_ref0 = ref
@@ -1711,9 +1704,6 @@ def spice_read(filename, drop_fainter_order=True):
       The module name of the primary field of view, e.g., sl1.
 
     """
-
-    from astropy.io import ascii
-    from ..util import between
 
     IGNORE_HEADER_PREFIXES = ('\\char HISTORY',
                               '\\char COMMENT')
@@ -1778,9 +1768,6 @@ def irs_summary(files):
 
     """
 
-    from astropy.table import Table
-    from ..util import between
-
     tab = Table(names=['file', 'date', 'module', 'expid', 'dce',
                        'column', 'row', 'fluxd'],
                 dtype=['S256', 'S32', 'S4', int, int, int, int, float])
@@ -1809,7 +1796,6 @@ def main():
     from glob import glob
     import json
     import matplotlib.pyplot as plt
-    from astropy.io import ascii
     from ..graphics import nicelegend
     from mskpy import hms2dh
 
@@ -1883,6 +1869,10 @@ def main():
         if "slitloss_correct" in config:
             rx.slitloss_correct(**config.get('slitloss_correct', {}))
 
+        if config.get('subtract_nucleus') is not None and config.get('subtract_other_nucleus') is not None:
+            raise ValueError(
+                'Only one of subtract_nucleus and subtract_other_nucleus may be specified.')
+
         opts = config.get('subtract_nucleus', {})
         try:
             R = u.Quantity(opts.pop('R'))
@@ -1891,6 +1881,15 @@ def main():
             rx.subtract_nucleus(R, Ap, **opts)
         except (AssertionError, KeyError):
             pass
+
+        opts = config.get('subtract_other_nucleus')
+        if opts is not None:
+            if not all([k in opts.keys() for k in ['wave', 'fluxd']]):
+                raise KeyError(
+                    'subtract_other_nucleus requires wave (μm) and fluxd (Jy)')
+            wave = u.Quantity(opts.pop('wave'), 'um')
+            fluxd = u.Quantity(opts.pop('fluxd'), 'Jy')
+            rx.subtract_other_nucleus(wave, fluxd, **opts)
 
         opts = config.get('scale_orders', {})
         if len(opts) > 0:
@@ -1951,6 +1950,5 @@ if __name__ == "__main__":
 
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
