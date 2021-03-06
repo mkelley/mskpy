@@ -14,6 +14,8 @@
 
 2017-04-05: New --subframe option.
 
+2020-03-06: Dither context images to mitigate LMI's bad column.
+
 - Michael S. P. Kelley, UMD
 
 """
@@ -36,11 +38,13 @@ sets = {
     'RC-BC': [('RC', 120), ('BC', 120)]
 }
 
+
 def to_list(_type=str):
     if _type == str:
         return lambda s: [x.strip() for x in s.split(',')]
     else:
         return lambda s: [_type(x) for x in s.split(',')]
+
 
 def exposures(n, group, pattern, scale, offset, filters, itimes, subframe):
     from itertools import cycle
@@ -48,7 +52,7 @@ def exposures(n, group, pattern, scale, offset, filters, itimes, subframe):
     # empty filters is allowed, but we still need the cycling
     if len(filters) == 0:
         filters = ['']
-        
+
     filter = cycle(filters + filters[::-1])
     itime = cycle(itimes + itimes[::-1])
     position = cycle(pattern)
@@ -70,6 +74,7 @@ def exposures(n, group, pattern, scale, offset, filters, itimes, subframe):
                 yield dict(filter=f, itime=t, x=x, y=y, subframe=subframe,
                            comment='Position {}'.format(k))
 
+
 def dither(n, scale, offset, pattern, filters, itimes, group,
            context_itime, context, subframe):
     from itertools import product
@@ -86,7 +91,7 @@ def dither(n, scale, offset, pattern, filters, itimes, group,
 
     if context:
         yield line.format(itime=context_itime, filter='SL-r', subframe=subframe,
-                          x=offset[0], y=offset[1], comment="Context")
+                          x=offset[0], y=offset[1] + 2, comment="Context")
 
     for exposure in exposures(n, group, pattern, scale, offset, filters,
                               itimes, subframe):
@@ -94,10 +99,11 @@ def dither(n, scale, offset, pattern, filters, itimes, group,
 
     if context:
         yield line.format(itime=context_itime, filter='SL-r', subframe=subframe,
-                          x=offset[0], y=offset[1], comment="Context")
+                          x=offset[0] - 2, y=offset[1], comment="Context")
 
 
-parser = argparse.ArgumentParser(description='Generate a DCT/LMI dither macro.')
+parser = argparse.ArgumentParser(
+    description='Generate a DCT/LMI dither macro.')
 
 parser.add_argument('title', type=str, default=None, nargs='*',
                     help='Image title.')
@@ -140,7 +146,7 @@ if args.set is not None:
 else:
     filters = args.filters
     itimes = args.itimes
-    
+
 if args.no_filter:
     filter_col = 'false'
     filters = []
@@ -153,11 +159,13 @@ subframe_col = 'true' if args.subframe is not None else 'false'
 assert len(itimes) > 0, "No itimes given."
 
 if len(filters) > len(itimes):
-    assert len(itimes) == 1, "Either 1 or {0} itimes expected, but found {1}.".format(len(filters), len(itimes))
+    assert len(itimes) == 1, "Either 1 or {0} itimes expected, but found {1}.".format(
+        len(filters), len(itimes))
     itimes = [itimes[0]] * len(filters)
 
 if len(filters) > 0:
-    assert len(itimes) == len(filters), "{0} itimes expected, but found {1}.".format(len(filters), len(itimes))
+    assert len(itimes) == len(filters), "{0} itimes expected, but found {1}.".format(
+        len(filters), len(itimes))
 
 # handle --offset
 assert len(args.offset) == 2, "Offset must have length 2: xi, eta."
@@ -204,4 +212,4 @@ print("""#
 # {0} frames
 # {1} s = {2:.0f} min integration time
 # {3} s = {4:.0f} min estimated wall time""".format(
-        nf, it, it / 60., wt, wt / 60.))
+    nf, it, it / 60., wt, wt / 60.))
