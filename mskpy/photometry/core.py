@@ -15,6 +15,7 @@ core --- Core code for photometry.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -22,8 +23,10 @@ __all__ = [
     'airmass_app',
     'airmass_loc',
     'cal_airmass',
+    'cal_color',
     'cal_color_airmass',
 ]
+
 
 def airmass_app(z_true, h):
     """Apparent airmass.
@@ -50,6 +53,7 @@ def airmass_app(z_true, h):
          - 0.0008083 * (sec - 1)**3)
     return X.value
 
+
 def airmass_loc(z_true):
     """Airmass based on local zenith angle.
 
@@ -66,6 +70,7 @@ def airmass_loc(z_true):
     H = 22.
     X = (R + H) / np.sqrt((R + H)**2 - (R * np.sin(z_true))**2)
     return X.value
+
 
 def cal_airmass(m, munc, M, X, guess=(25., -0.1),
                 covar=False):
@@ -98,7 +103,7 @@ def cal_airmass(m, munc, M, X, guess=(25., -0.1),
     """
 
     from scipy.optimize import leastsq
-    
+
     def chi(A, m, munc, M, X):
         model = M - A[0] + A[1] * X
         chi = (np.array(m) - model) / np.array(munc)
@@ -114,6 +119,7 @@ def cal_airmass(m, munc, M, X, guess=(25., -0.1),
         return fit, cov
     else:
         return fit, err
+
 
 def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
                       covar=False):
@@ -132,7 +138,7 @@ def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
     X : array
       Airmass.
     guess : array, optional
-      An intial guess for the fitting algorithm.
+      An initial guess for the fitting algorithm.
     covar : bool, optional
       Set to `True` to return the covariance matrix.
 
@@ -148,7 +154,7 @@ def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
     """
 
     from scipy.optimize import leastsq
-    
+
     def chi(A, m, munc, M, color, X):
         model = M - A[0] + A[1] * X + A[2] * color
         chi = (np.array(m) - model) / np.array(munc)
@@ -166,8 +172,56 @@ def cal_color_airmass(m, munc, M, color, X, guess=(25., -0.1, -0.01),
         return fit, err
 
 
+def cal_color(m, munc, M, color, guess=(25., -0.01),
+              covar=False):
+    """Calibraton coefficients, based on color index.
+
+    Parameters
+    ----------
+    m : array
+      Instrumental (uncalibrated) magnitude.
+    munc : array
+      Uncertainties on m.
+    M : array
+      Calibrated magnitude.
+    color : array
+      Calibrated color index, e.g., V - R.
+    guess : array, optional
+      An initial guess for the fitting algorithm.
+    covar : bool, optional
+      Set to `True` to return the covariance matrix.
+
+    Results
+    -------
+    A : ndarray
+      The photometric zero point and color correction slope. [mag,
+      mag/color index]
+
+    unc or cov : ndarray
+      Uncertainties on each parameter, based on least-squares fitting,
+      or the covariance matrix, if `covar` is `True`.
+
+    """
+
+    from scipy.optimize import leastsq
+
+    def chi(A, m, munc, M, color):
+        model = M - A[0] + A[1] * color
+        chi = (np.array(m) - model) / np.array(munc)
+        return chi
+
+    output = leastsq(chi, guess, args=(m, munc, M, color),
+                     full_output=True, epsfcn=1e-3)
+    fit = output[0]
+    cov = output[1]
+    err = np.sqrt(np.diag(cov))
+
+    if covar:
+        return fit, cov
+    else:
+        return fit, err
+
+
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
-
