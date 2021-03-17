@@ -14,7 +14,7 @@
 
 2017-04-05: New --subframe option.
 
-2020-03-06: Dither context images to mitigate LMI's bad column.
+2021-03-06: Dither context images to mitigate LMI's bad column.
 
 - Michael S. P. Kelley, UMD
 
