@@ -20,6 +20,7 @@ graphics --- Helper functions for making plots.
 
 """
 
+from .util import autodoc
 __all__ = [
     'arrows',
     'axcolor',
@@ -37,7 +38,12 @@ __all__ = [
     'tplot_setup'
 ]
 
+import os
+from tempfile import NamedTemporaryFile
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 
 def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
            offset=1.3, inset=0, fontsize='medium', arrowprops=dict(),
@@ -76,13 +82,15 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
       List of items returned from `annotate`.
 
     """
-    import matplotlib.pyplot as plt
 
     ax = kwargs.pop('axes', plt.gca())
 
     if type(arrowprops) == dict:
         arrowprops['arrowstyle'] = arrowprops.pop('arrowstyle', '<-')
         arrowprops['shrinkB'] = arrowprops.pop('shrinkB', 0)
+
+    if labels is None:
+        labels = [''] * len(angles)
 
     alist = []
     for i in range(len(angles)):
@@ -95,6 +103,7 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
                               **kwargs)]
     return alist
 
+
 def axcolor(color):
     """Sets the color of all future axis lines and labels.
 
@@ -104,11 +113,12 @@ def axcolor(color):
       Any acceptable matplotlib color.
 
     """
-    import matplotlib.pyplot as plt
+
     plt.rc('xtick', color=color)
     plt.rc('ytick', color=color)
     plt.rc('axes', edgecolor=color)
     plt.rc('axes', labelcolor=color)
+
 
 def circle(x, y, r, ax=None, segments=100, **kwargs):
     """Draw a circle.
@@ -125,7 +135,6 @@ def circle(x, y, r, ax=None, segments=100, **kwargs):
       `matplotlib.plot` keywords.
 
     """
-    import matplotlib.pyplot as plt
 
     if ax is None:
         ax = plt.gca()
@@ -145,9 +154,10 @@ def circle(x, y, r, ax=None, segments=100, **kwargs):
         yy = r * np.cos(th) + y
         ax.plot(xx, yy, **kwargs)
 
+
 def harrows(header, xy, length, **kwargs):
     """Draw arrows based on the given FITS header.
-    
+
     Parameters
     ----------
     header : astropy.fits.Header or string
@@ -172,6 +182,7 @@ def harrows(header, xy, length, **kwargs):
     rot = getrot(header)[1]
     return arrows(xy, length, rot=rot, **kwargs)
 
+
 def jdaxis2date(axis, fmt):
     """Format a Julian Date axis tick labels as calendar date.
 
@@ -191,6 +202,7 @@ def jdaxis2date(axis, fmt):
     jd = axis.get_ticklocs()
     return axis.set_ticklabels(
         [jd2time(t).datetime.strftime(fmt) for t in jd])
+
 
 def ksplot(x, xmax=None, ax=None, **kwargs):
     """Graphical version of the Kolmogorov-Smirnov test.
@@ -215,8 +227,6 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
 
     """
 
-    import matplotlib.pyplot as plt
-
     xx = np.sort(x)
     yy = np.ones(xx.size).cumsum() / xx.size
 
@@ -232,6 +242,7 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
         ax = plt.gca()
 
     return ax.plot(xx, yy, ls=ls, **kwargs)
+
 
 def nicelegend(*args, **kwargs):
     """A pretty legend for publications.
@@ -255,8 +266,6 @@ def nicelegend(*args, **kwargs):
 
     """
 
-    import matplotlib.pyplot as plt
-
     axis = kwargs.pop('axis', None)
 
     kwargs['numpoints'] = kwargs.pop('numpoints', 1)
@@ -272,7 +281,7 @@ def nicelegend(*args, **kwargs):
 
 
 def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
-             mew=1.25, lw=2.0, ms=7.0, **kwargs):
+              mew=1.25, lw=2.0, ms=7.0, **kwargs):
     """Clean up a plot for publication (matplotlib 1.x).
 
     Parameters
@@ -290,8 +299,6 @@ def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
 
     """
 
-    import matplotlib.pyplot as plt
-    
     if ax is None:
         for ax in plt.gcf().get_axes():
             niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs,
@@ -333,6 +340,7 @@ def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
         plt.sca(ax)
         plt.tight_layout()
 
+
 def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
              set_axis_formatter=True, **kwargs):
     """Clean up a plot for publication.
@@ -353,9 +361,6 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
 
     """
 
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    
     if ax is None:
         for ax in plt.gcf().get_axes():
             niceplot(ax, tight_layout=tight_layout, tick_fs=tick_fs,
@@ -372,7 +377,7 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
             minortick_fs = sizes[max(0, sizes.index(tick_fs) - 1)]
     else:
         minortick_fs = tick_fs / np.sqrt(2)
-            
+
     ax.tick_params(axis='both', which='major', labelsize=tick_fs)
     ax.tick_params(axis='both', which='minor', labelsize=minortick_fs)
 
@@ -397,7 +402,7 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
     if len(kwargs) > 0:
         plt.setp(lines, **kwargs)
 
-    #lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
+    # lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
     #    ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
     #plt.setp(lines, mew=1.25)
 
@@ -407,6 +412,7 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
     if tight_layout:
         plt.sca(ax)
         plt.tight_layout()
+
 
 def noborder(fig=None):
     """Remove the figure border.
@@ -420,11 +426,10 @@ def noborder(fig=None):
 
     """
 
-    import matplotlib.pyplot as plt
-
     if fig is None:
         fig = plt.gcf()
     fig.subplots_adjust(left=0, right=1, bottom=0, top=1, wspace=0, hspace=0)
+
 
 def remaxes(ax=None):
     """Remove the axis lines.
@@ -436,11 +441,10 @@ def remaxes(ax=None):
 
     """
 
-    import matplotlib.pyplot as plt
-
     if ax is None:
         ax = plt.gca()
     plt.setp(ax, frame_on=False, xticks=[], yticks=[])
+
 
 def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
     """Remove interior ticklabels from a multiaxis plot.
@@ -458,14 +462,12 @@ def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
 
     """
 
-    import matplotlib.pyplot as plt
-
     if fig is None:
         fig = plt.gcf()
 
     if axes is None:
         axes = fig.axes
-        
+
     for ax in axes:
         if top:
             if not ax.is_first_row():
@@ -479,6 +481,7 @@ def rem_interior_ticklabels(fig=None, axes=None, top=False, right=False):
         else:
             if not ax.is_first_col():
                 ax.set_yticklabels([])
+
 
 def savepdf2pdf(filename, **kwargs):
     """Save figure as pdf, then process with pdf2pdf.
@@ -494,9 +497,6 @@ def savepdf2pdf(filename, **kwargs):
       Any `matplotlib.pyplot.savefig` keywords.
 
     """
-    import os
-    import matplotlib.pyplot as plt
-    from tempfile import NamedTemporaryFile
 
     assert isinstance(filename, str)
 
@@ -507,7 +507,8 @@ def savepdf2pdf(filename, **kwargs):
 
     os.system('pdf2pdf {} {}'.format(name, filename))
     os.system('rm {}'.format(name))
-                
+
+
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     """Plot data on a ternary plot.
 
@@ -547,14 +548,12 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
 
     """
 
-    import matplotlib.pyplot as plt
-        
     if setup:
         tplot_setup()
     linestyle = kwargs.pop('linestyle', kwargs.pop('ls', 'none'))
 
-    x = lambda b, c: np.array(b) + np.array(c) / 2.0
-    y = lambda c: np.array(c) * 0.86603
+    def x(b, c): return np.array(b) + np.array(c) / 2.0
+    def y(c): return np.array(c) * 0.86603
 
     if (erra is not None) or (errb is not None) or (errc is not None):
         points = []
@@ -587,12 +586,13 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
             points.append(plt.plot(np.c_[x(lb, lc), x(ub, uc)].T,
                                    np.c_[y(lc), y(uc)].T,
                                    '-', color='0.5'))
-        
+
         points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs))
     else:
         points = plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs)
 
-    return points        
+    return points
+
 
 def tplot_setup(alabel=None, blabel=None, clabel=None,
                 axes=dict(color='k', linestyle='-'),
@@ -617,10 +617,8 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
 
     """
 
-    import matplotlib.pyplot as plt
-
-    x = lambda b, c: np.array(b) + np.array(c) / 2.0
-    y = lambda c: np.array(c) * 0.86603
+    def x(b, c): return np.array(b) + np.array(c) / 2.0
+    def y(c): return np.array(c) * 0.86603
 
     if axes is not None:
         b = [0, 1, 0, 0]
@@ -656,7 +654,7 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
              60, 60, 60, 60, 60]
         for i in range(len(b)):
             plt.annotate(l[i], (x(b[i], c[i]) + dx[i], y(c[i]) + dy[i]),
-                       ha='center', va='center', rotation=a[i])
+                         ha='center', va='center', rotation=a[i])
 
     if alabel is not None:
         plt.text(x(0.5, 0), y(0) - 0.05, alabel, ha='center',
@@ -675,7 +673,7 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
     plt.setp(plt.gca(), ylim=(-0.1, 1), xlim=(-0.01, 1.01))
     return ax
 
+
 # update module docstring
-from .util import autodoc
 autodoc(globals())
 del autodoc

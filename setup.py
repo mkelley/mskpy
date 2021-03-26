@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+from setuptools.command.install import install
 from numpy.distutils.core import setup, Extension
-from distutils.command.install import install
 
 
 class my_install(install):
