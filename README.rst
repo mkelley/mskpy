@@ -269,117 +269,117 @@ Photometry
 
 Example calibration of HB filter photometry:
 
-  ```python
-  import numpy as np
-  import astropy.units as u
-  from astropy.io import ascii
-  from astropy.table import Table
-  from mskpy import photometry
-  
-  phot = ascii.read('''
-  # standard star photometry
-  # m : apparent magnitude (Farnham et al. 2000)
-  # m_inst : instrumental magnitude
-  # z : zenith angle in degrees
-  # 
-  filter   m    m_inst m_inst unc   z    airmass
-  ------ ----- ------- ---------- ------ -------
-      RC 7.766 -13.877      0.004 59.932   1.989
-      RC 7.766 -13.902      0.003 48.062   1.494
-      RC 7.448 -14.236      0.001 42.090   1.346
-      RC 7.448 -14.211      0.003 42.553   1.356
-      BC  7.68 -14.482      0.007 59.565   1.968
-      BC  7.68 -14.604      0.006 47.767   1.486
-      BC 7.784 -14.518      0.005 42.690   1.359
-      BC 7.784 -14.543      0.005 41.977   1.344
-      CN 7.619 -13.936      0.008 60.297   2.011
-      CN 7.619 -14.137      0.007 48.360   1.503
-      CN 7.748 -14.096      0.003 42.210   1.349
-      CN 7.748 -14.071      0.006 42.422   1.353
-      OH 7.414  -8.746      0.037 60.691   2.036
-      OH 7.414  -9.731      0.014 48.685   1.512
-      OH 7.536  -9.955      0.009 42.339   1.351
-      OH 7.536  -9.942      0.012 42.289   1.351
-  ''')
+```python
+import numpy as np
+import astropy.units as u
+from astropy.io import ascii
+from astropy.table import Table
+from mskpy import photometry
 
-  h = 2361 * u.m  # elevation of LDT
+phot = ascii.read('''
+# standard star photometry
+# m : apparent magnitude (Farnham et al. 2000)
+# m_inst : instrumental magnitude
+# z : zenith angle in degrees
+# 
+filter   m    m_inst m_inst unc   z    airmass
+------ ----- ------- ---------- ------ -------
+    RC 7.766 -13.877      0.004 59.932   1.989
+    RC 7.766 -13.902      0.003 48.062   1.494
+    RC 7.448 -14.236      0.001 42.090   1.346
+    RC 7.448 -14.211      0.003 42.553   1.356
+    BC  7.68 -14.482      0.007 59.565   1.968
+    BC  7.68 -14.604      0.006 47.767   1.486
+    BC 7.784 -14.518      0.005 42.690   1.359
+    BC 7.784 -14.543      0.005 41.977   1.344
+    CN 7.619 -13.936      0.008 60.297   2.011
+    CN 7.619 -14.137      0.007 48.360   1.503
+    CN 7.748 -14.096      0.003 42.210   1.349
+    CN 7.748 -14.071      0.006 42.422   1.353
+    OH 7.414  -8.746      0.037 60.691   2.036
+    OH 7.414  -9.731      0.014 48.685   1.512
+    OH 7.536  -9.955      0.009 42.339   1.351
+    OH 7.536  -9.942      0.012 42.289   1.351
+''')
 
-  # first, calibrate the easy filters
-  cal = []
-  for filt in ('CN', 'BC', 'RC'):
-      data = phot[phot['filter'] == filt]
+h = 2361 * u.m  # elevation of LDT
 
-      # calibrate magnitude with extinction proportional to airmass
-      fit, fit_unc = photometry.cal_airmass(
-          data['m_inst'], data['m_inst unc'], data['m'], data['airmass'])
+# first, calibrate the easy filters
+cal = []
+for filt in ('CN', 'BC', 'RC'):
+    data = phot[phot['filter'] == filt]
 
-      # best fit for each data point:
-      model = (data['m'] - fit[0] + fit[1] * data['airmass'])
+    # calibrate magnitude with extinction proportional to airmass
+    fit, fit_unc = photometry.cal_airmass(
+        data['m_inst'], data['m_inst unc'], data['m'], data['airmass'])
 
-      # residuals from best fit:
-      residuals = model - data['m_inst']
+    # best fit for each data point:
+    model = (data['m'] - fit[0] + fit[1] * data['airmass'])
 
-      # save results
-      cal.append({
-          'filter': filt,
-          'N': len(data),
-          'magzp': fit[0],
-          'magzp unc': fit_unc[0],
-          'Ex': fit[1],
-          'Ex unc': fit_unc[1],
-          'toz': np.ma.masked,  # ozone parameter not calculated
-          'toz unc': np.ma.masked,
-          'mean res': np.mean(residuals),
-          'stdev res': np.std(residuals, ddof=1),
-          'standard error': np.std(residuals, ddof=1) / np.sqrt(len(data))
-      })
+    # residuals from best fit:
+    residuals = model - data['m_inst']
 
-  # OH extinction has multiple components, here we use BC to help isolate the ozone component
-  data = phot[phot['filter'] == 'OH']
-  bc = cal[1]
+    # save results
+    cal.append({
+        'filter': filt,
+        'N': len(data),
+        'magzp': fit[0],
+        'magzp unc': fit_unc[0],
+        'Ex': fit[1],
+        'Ex unc': fit_unc[1],
+        'toz': np.ma.masked,  # ozone parameter not calculated
+        'toz unc': np.ma.masked,
+        'mean res': np.mean(residuals),
+        'stdev res': np.std(residuals, ddof=1),
+        'standard error': np.std(residuals, ddof=1) / np.sqrt(len(data))
+    })
 
-  # see cal_oh for explanation of parameters and return values
-  fit, fit_unc = photometry.hb.cal_oh(
-      data['m_inst'], data['m_inst unc'], data['m'], data['z'] * u.deg,
-      'b', 'b', bc['Ex'], h)
+# OH extinction has multiple components, here we use BC to help isolate the ozone component
+data = phot[phot['filter'] == 'OH']
+bc = cal[1]
 
-  # use best-fit ozone parameter and BC extinction to calculate total extinction in OH
-  ext_oh = photometry.hb.ext_total_oh(fit[1], data['z'] * u.deg, 'b', 'b',
-                                      bc['Ex'], h)
-  model = data['m'] - fit[0] + ext_oh
-  residuals = model - data['m_inst']
+# see cal_oh for explanation of parameters and return values
+fit, fit_unc = photometry.hb.cal_oh(
+    data['m_inst'], data['m_inst unc'], data['m'], data['z'] * u.deg,
+    'b', 'b', bc['Ex'], h)
 
-  # save results
-  cal.append({
-      'filter': 'OH',
-      'N': len(data),
-      'magzp': fit[0],
-      'magzp unc': fit_unc[0],
-      'Ex': np.ma.masked,  # not calculated for OH
-      'Ex unc': np.ma.masked,
-      'toz': fit[1],
-      'toz unc': fit_unc[1],
-      'mean res': np.mean(residuals),
-      'stdev res': np.std(residuals, ddof=1),
-      'standard error': np.std(residuals, ddof=1) / np.sqrt(len(data))
-  })
+# use best-fit ozone parameter and BC extinction to calculate total extinction in OH
+ext_oh = photometry.hb.ext_total_oh(fit[1], data['z'] * u.deg, 'b', 'b',
+                                    bc['Ex'], h)
+model = data['m'] - fit[0] + ext_oh
+residuals = model - data['m_inst']
+
+# save results
+cal.append({
+    'filter': 'OH',
+    'N': len(data),
+    'magzp': fit[0],
+    'magzp unc': fit_unc[0],
+    'Ex': np.ma.masked,  # not calculated for OH
+    'Ex unc': np.ma.masked,
+    'toz': fit[1],
+    'toz unc': fit_unc[1],
+    'mean res': np.mean(residuals),
+    'stdev res': np.std(residuals, ddof=1),
+    'standard error': np.std(residuals, ddof=1) / np.sqrt(len(data))
+})
 
 
-  cal = Table(cal)
-  for col in cal.colnames[2:]:
-      cal[col].format = '{:.3f}'
-      cal.pprint_all()
-  ```
+cal = Table(cal)
+for col in cal.colnames[2:]:
+    cal[col].format = '{:.3f}'
+    cal.pprint_all()
+```
 
-  Results:
-  ```
-  filter  N  magzp  magzp unc   Ex  Ex unc  toz  toz unc mean res stdev res standard error
-  ------ --- ------ --------- ----- ------ ----- ------- -------- --------- --------------
-      CN   4 22.423     0.018 0.434  0.013    --      --   -0.005     0.012          0.006
-      BC   4 22.651     0.019 0.248  0.013    --      --    0.000     0.009          0.004
-      RC   4 21.766     0.009 0.063  0.006    --      --   -0.005     0.011          0.006
-      OH   4 20.292     0.082    --     -- 0.393   0.021    0.003     0.019          0.009
-  ```
+Results:
+```
+filter  N  magzp  magzp unc   Ex  Ex unc  toz  toz unc mean res stdev res standard error
+------ --- ------ --------- ----- ------ ----- ------- -------- --------- --------------
+    CN   4 22.423     0.018 0.434  0.013    --      --   -0.005     0.012          0.006
+    BC   4 22.651     0.019 0.248  0.013    --      --    0.000     0.009          0.004
+    RC   4 21.766     0.009 0.063  0.006    --      --   -0.005     0.011          0.006
+    OH   4 20.292     0.082    --     -- 0.393   0.021    0.003     0.019          0.009
+```
 
 Contributions
 =============
