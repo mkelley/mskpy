@@ -370,6 +370,7 @@ Example calibration of HB filter photometry::
       cal.pprint_all()
 
 Results::
+
   filter  N  magzp  magzp unc   Ex  Ex unc  toz  toz unc mean res stdev res standard error
   ------ --- ------ --------- ----- ------ ----- ------- -------- --------- --------------
       CN   4 22.423     0.018 0.434  0.013    --      --   -0.005     0.012          0.006
