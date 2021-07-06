@@ -267,22 +267,23 @@ corrections to Q/I, U/I and total polarization.
 Photometry
 ----------
 
-Example calibration of HB filter photometry::
+Example calibration of HB filter photometry:
 
-  >>> import numpy as np
-  >>> import astropy.units as u
-  >>> from astropy.io import ascii
-  >>> from astropy.table import Table
-  >>> from mskpy import photometry
-  >>> 
-  >>> phot = ascii.read('''
-  >>> # standard star photometry
-  >>> # m : apparent magnitude (Farnham et al. 2000)
-  >>> # m_inst : instrumental magnitude
-  >>> # z : zenith angle in degrees
-  >>> # 
-  >>> filter   m    m_inst m_inst unc   z    airmass
-  >>> ------ ----- ------- ---------- ------ -------
+```python
+import numpy as np
+import astropy.units as u
+from astropy.io import ascii
+from astropy.table import Table
+from mskpy import photometry
+ 
+phot = ascii.read('''
+# standard star photometry
+# m : apparent magnitude (Farnham et al. 2000)
+# m_inst : instrumental magnitude
+# z : zenith angle in degrees
+# 
+filter   m    m_inst m_inst unc   z    airmass
+------ ----- ------- ---------- ------ -------
   >>>     RC 7.766 -13.877      0.004 59.932   1.989
   >>>     RC 7.766 -13.902      0.003 48.062   1.494
   >>>     RC 7.448 -14.236      0.001 42.090   1.346
@@ -374,6 +375,7 @@ Example calibration of HB filter photometry::
       BC   4 22.651     0.019 0.248  0.013    --      --    0.000     0.009          0.004
       RC   4 21.766     0.009 0.063  0.006    --      --   -0.005     0.011          0.006
       OH   4 20.292     0.082    --     -- 0.393   0.021    0.003     0.019          0.009
+  ```
 
 Contributions
 =============
