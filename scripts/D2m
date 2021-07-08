@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Diameter/radius to magnitude."""
+
+import os
+import sys
+import argparse
+import numpy as np
+import astropy.units as u
+from astropy.coordinates import Angle
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    if 'R2m' in os.path.basename(sys.argv[0]):
+        parser.add_argument(
+            'R', type=u.Quantity,
+            help='radius and unit, e.g., "1 km"')
+    else:
+        parser.add_argument(
+            'D', type=u.Quantity,
+            help='diameter and unit, e.g., "1 km"')
+
+    parser.add_argument(
+        '--rh', type=u.Quantity, default='1 au',
+        help='heliocentric distance and unit, default "1 au"')
+    parser.add_argument(
+        '--delta', type=u.Quantity, default='1 au',
+        help='target-observer distance and unit, default "1 au"')
+
+    phase_group = parser.add_mutually_exclusive_group()
+    phase_group.add_argument(
+        '--observer', type=u.Quantity, default='1 au',
+        help='observer\'s heliocentric distance and unit for phase angle calculation, default "1 au"')
+    phase_group.add_argument(
+        '--phase', type=u.Quantity,
+        help='phase angle and unit (overrides --observer)')
+
+    phase_function_group = parser.add_mutually_exclusive_group()
+    phase_function_group.add_argument(
+        '--beta', type=u.Quantity, default='0.04 mag/deg',
+        help='phase function slope and unit (mag/angle)')
+    phase_function_group.add_argument(
+        '-G', type=float,
+        help='G-parameter from HG photometric mode (overrides --beta)')
+
+    return parser.parse_args()
+
+
+def phase_angle(args):
+    if args.phase is not None:
+        return args.phase
+
+    cos_phase = (
+        (args.rh**2 + args.delta**2 - args.observer**2)
+        / (2 * args.rh * args.delta)
+    )
+
+    return Angle(np.arccos(cos_phase))
+
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    phase = phase_angle(args)
