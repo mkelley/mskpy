@@ -10,6 +10,7 @@ hst --- Hubble instruments.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -21,6 +22,7 @@ except ImportError:
 from .instrument import Instrument, Camera, LongSlitSpectrometer
 
 __all__ = ['WFC3UVIS']
+
 
 class WFC3UVIS(Camera):
     """Wide Field Camera 3 UV Visible
@@ -78,6 +80,5 @@ class WFC3UVIS(Camera):
 
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

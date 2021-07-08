@@ -54,6 +54,7 @@ it is for `Time` instances), we assume the scale is UTC.
 
 """
 
+from ..util import autodoc
 import astropy.units as u
 
 from . import core
@@ -79,29 +80,33 @@ GM_ast = [62.375, 13.271, 17.253]  # Ceres, Pallas, Vesta
 GM_moon = 4902.801
 GM_earth_sys = 403503.233
 
-Sun = getspiceobj('Sun', kernel='planets.bsp', GM=GM_sun)
-Mercury = getspiceobj('Mercury', kernel='planets.bsp', GM=GM_planets[0])
-Venus = getspiceobj('Venus', kernel='planets.bsp', GM=GM_planets[1])
-EarthSys = getspiceobj('3', kernel='planets.bsp', GM=GM_earth_sys)
-Earth = getspiceobj('399', kernel='planets.bsp', GM=GM_planets[2])
-Moon = getspiceobj('301', kernel='planets.bsp', GM=GM_moon)
-Mars = getspiceobj('4', name='Mars', kernel='planets.bsp', GM=GM_planets[3])
-Jupiter = getspiceobj('5', name='Jupiter',
-                      kernel='planets.bsp', GM=GM_planets[4])
-Saturn = getspiceobj('6', name='Saturn',
-                     kernel='planets.bsp', GM=GM_planets[5])
-Uranus = getspiceobj('7', name='Uranus',
-                     kernel='planets.bsp', GM=GM_planets[6])
-Neptune = getspiceobj('8', name='Neptune',
-                      kernel='planets.bsp', GM=GM_planets[7])
-PlutoSys = getspiceobj('9', name='PlutoSys',
-                       kernel='planets.bsp', GM=GM_planets[8])
-_loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
-                       moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
-                       uranus=Uranus, neptune=Neptune, pluto=PlutoSys)
-__all__.extend(['Sun', 'Earth', 'Moon'])
-
 # load 'em if you got 'em
+try:
+    Sun = getspiceobj('Sun', kernel='planets.bsp', GM=GM_sun)
+    Mercury = getspiceobj('Mercury', kernel='planets.bsp', GM=GM_planets[0])
+    Venus = getspiceobj('Venus', kernel='planets.bsp', GM=GM_planets[1])
+    EarthSys = getspiceobj('3', kernel='planets.bsp', GM=GM_earth_sys)
+    Earth = getspiceobj('399', kernel='planets.bsp', GM=GM_planets[2])
+    Moon = getspiceobj('301', kernel='planets.bsp', GM=GM_moon)
+    Mars = getspiceobj(
+        '4', name='Mars', kernel='planets.bsp', GM=GM_planets[3])
+    Jupiter = getspiceobj('5', name='Jupiter',
+                          kernel='planets.bsp', GM=GM_planets[4])
+    Saturn = getspiceobj('6', name='Saturn',
+                         kernel='planets.bsp', GM=GM_planets[5])
+    Uranus = getspiceobj('7', name='Uranus',
+                         kernel='planets.bsp', GM=GM_planets[6])
+    Neptune = getspiceobj('8', name='Neptune',
+                          kernel='planets.bsp', GM=GM_planets[7])
+    PlutoSys = getspiceobj('9', name='PlutoSys',
+                           kernel='planets.bsp', GM=GM_planets[8])
+    _loaded_objects = dict(sun=Sun, mercury=Mercury, venus=Venus, earth=Earth,
+                           moon=Moon, mars=Mars, jupiter=Jupiter, saturn=Saturn,
+                           uranus=Uranus, neptune=Neptune, pluto=PlutoSys)
+    __all__.extend(['Sun', 'Earth', 'Moon'])
+except OSError:
+    pass
+
 try:
     Earth_L2 = getspiceobj('392', kernel='L2.bsp', name='Earth L2')
     _loaded_objects['earth_l2'] = Earth_L2
@@ -139,6 +144,5 @@ except OSError:
     pass
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

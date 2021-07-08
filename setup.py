@@ -61,7 +61,7 @@ if __name__ == "__main__":
           scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
                    'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext',
                    'scripts/ads'],
-          install_requires=['numpy', 'scipy',
+          install_requires=['numpy', 'scipy', 'synphot>1.0',
                             'astropy', 'spiceypy>1.1', 'pytz'],
           ext_modules=[ext1],
           #cmdclass={'test': PyTest, 'install': my_install},

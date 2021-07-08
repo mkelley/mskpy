@@ -10,6 +10,7 @@ spitzer --- Spitzer instruments.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -21,6 +22,7 @@ except ImportError:
 from .instrument import Camera, LongSlitSpectrometer
 
 __all__ = ['FLITECAM']
+
 
 class FLITECAM(object):
     """FLITECAM.
@@ -61,7 +63,7 @@ class FLITECAM(object):
                 np.mean(v) * u.um, self.shape, self.ps, 2.1, dlam,
                 self.location)
 
+
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

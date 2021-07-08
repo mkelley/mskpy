@@ -10,6 +10,7 @@ vis --- Visual-band instruments.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -21,6 +22,7 @@ except ImportError:
 from .instrument import Instrument, Camera
 
 __all__ = ['OptiPol']
+
 
 class OptiPol(Camera):
     """University of Minnesota's optical imaging polarimeter.
@@ -109,9 +111,8 @@ class OptiPol(Camera):
         utb = self.read(ufile, dark=dark, flats=uflats)
 
         return HalfWavePlate((qtb[0], utb[0], qtb[1], utb[1]))
-        
+
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

@@ -13,6 +13,7 @@ irtf --- NASA IRTF instruments.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -31,24 +32,26 @@ __all__ = [
     'SpeXPrism60',
 ]
 
+
 class BASS(CircularApertureSpectrometer):
     """Broadband Array Spectrograph System."""
 
     def __init__(self):
         waves = [
-            3.02961,   3.13797,   3.24272,   3.34419,   3.63162,   3.7225 ,
+            3.02961,   3.13797,   3.24272,   3.34419,   3.63162,   3.7225,
             3.89791,   3.98272,   4.06576,   4.53217,   4.74822,   4.81809,
             4.88695,   4.95486,   5.02185,   5.28133,   5.34423,   7.27842,
             7.46219,   7.64154,   7.98818,   8.15597,   8.32038,   8.48161,
             8.63982,   8.79519,   8.94787,   9.09798,   9.24565,   9.39101,
-            9.53414,   9.67516,   9.81416,   9.95121,  10.0864 ,  10.2198 ,
-            10.4815 ,  10.6099 ,  10.7368 ,  10.8623 ,  10.9862 ,  11.1089 ,
-            11.2301 ,  11.3501 ,  11.5863 ,  11.7026 ,  11.8178 ,  11.9318 ,
-            12.0448 ,  12.1567 ,  12.2677 ,  12.3776 ,  12.4865 ,  12.5945 ,
-            12.7016 ,  12.8078 ,  12.9131 ,  13.0176 ,  13.1212 ,  13.224  
+            9.53414,   9.67516,   9.81416,   9.95121,  10.0864,  10.2198,
+            10.4815,  10.6099,  10.7368,  10.8623,  10.9862,  11.1089,
+            11.2301,  11.3501,  11.5863,  11.7026,  11.8178,  11.9318,
+            12.0448,  12.1567,  12.2677,  12.3776,  12.4865,  12.5945,
+            12.7016,  12.8078,  12.9131,  13.0176,  13.1212,  13.224
         ] * u.um
         CircularApertureSpectrometer.__init__(
             self, waves, 2.0 * u.arcsec, Earth)
+
 
 class MIRSI(Instrument):
     """Mid-Infrared Spectrometer and Imager.
@@ -242,6 +245,7 @@ class MIRSI(Instrument):
         sw,  sf = calib.cohen_standard(star, unit=unit)
         return self.fluxd(sw, sf, wave)
 
+
 class SpeX(LongSlitSpectrometer):
     """SpeX.
 
@@ -291,7 +295,7 @@ class SpeX(LongSlitSpectrometer):
         h = inf[0].header.copy()
         inf.close()
         return h
-    
+
     def sed(self, *args, **kwargs):
         """Spectral energy distribution of a target.
 
@@ -371,7 +375,7 @@ class SpeX(LongSlitSpectrometer):
         atf = path.sep.join([config.get('spex', 'spextool_path'), 'data',
                              'atrans.fits'])
         atran = fits.getdata(atf)
-        bw =  np.diff(tar_w) / 2.0
+        bw = np.diff(tar_w) / 2.0
         bins = np.r_[tar_w[0] - bw[0], tar_w[1:] - bw, tar_w[-1] + bw[-1]]
         n = np.histogram(atran[0] + dat, bins=bins)[0].astype(float)
         h = np.histogram(atran[0] + dat, bins=bins, weights=atran[1])
@@ -386,10 +390,11 @@ class SpeX(LongSlitSpectrometer):
         tar_e /= atc
         return tar_w, tar_f, tar_e
 
+
 class SpeXPrism60(SpeX):
     """Reduce uSpeX 60" prism data."""
 
-    config = { # Based on Spextool v4.1
+    config = {  # Based on Spextool v4.1
         'lincor max': 35000,
         'y range': [625, 1225],  # generous boundaries
         'x range': [1040, 1901],
@@ -406,25 +411,25 @@ class SpeXPrism60(SpeX):
 
         calpath = C.get('spex', 'spextool_path') + '/instruments/uspex/data/'
         self.bpm = fits.getdata(calpath + 'uSpeX_bdpxmk.fits')
-        
+
         self.lincoeff = fits.getdata(calpath + 'uSpeX_lincorr.fits')
-        
+
         self.bias = fits.getdata(calpath + 'uSpeX_bias.fits')
         self.bias = (fits.getdata(calpath + 'uSpeX_bias.fits')
                      / self.getheader(calpath + 'uSpeX_bias.fits')['DIVISOR'])
-        
+
         self.linecal = fits.getdata(calpath + 'Prism_LineCal.fits')
         # Prism_LineCal header is bad and will throw a warning
         self.linecal_header = self.getheader(calpath + 'Prism_LineCal.fits')
-        
+
         self.lines = ascii.read(calpath + 'lines.dat', names=('wave', 'type'))
-        
+
         self.mask = ~self.bpm.astype(bool)
         self.mask[:, :self.config['x range'][0]] = 1
         self.mask[:, self.config['x range'][1]:] = 1
         self.mask[:self.config['bottom']] = 1
         self.mask[self.config['top']:] = 1
-        
+
         self.flat = None
         self.flat_var = None
         self.flat_h = None
@@ -437,9 +442,9 @@ class SpeXPrism60(SpeX):
         self.rap = None
         self.bgap = None
         self.bgorder = None
-        
+
         SpeX.__init__(self, *args, **kwargs)
-    
+
     def _edges(self, im, order=2, plot=False):
         """Find the edges of the spectrum using a flat.
 
@@ -471,15 +476,16 @@ class SpeXPrism60(SpeX):
         x = image.xarray(im.shape)
 
         binf = 4
-        rebin = lambda im: np.mean(
+
+        def rebin(im): return np.mean(
             im.reshape((im.shape[0], binf, im.shape[1] / binf)),
             1).astype(int)
-        
+
         rim = rebin(im)
         ry = rebin(y)
         rx = rebin(x)
 
-        # find where signal falls to 0.75 x center        
+        # find where signal falls to 0.75 x center
         i = int(np.mean(self.config['y range']))
         fcen = rim[i]
 
@@ -491,7 +497,7 @@ class SpeXPrism60(SpeX):
         # scale back up to 2048
         bguess = np.repeat(bguess, binf)
         tguess = np.repeat(tguess, binf)
-        
+
         # find actual edge by centroiding (center of mass) on Sobel
         # filtered image
         def center(yg, y, sim):
@@ -614,20 +620,22 @@ class SpeXPrism60(SpeX):
                     assert all([h['BEAM'] == 'B' for h in headers[1::4]]), msg
                     assert all([h['BEAM'] == 'B' for h in headers[2::4]]), msg
                     assert all([h['BEAM'] == 'A' for h in headers[3::4]]), msg
-                
+
                 # fancy slicing, stacking, and reshaping to get:
                 #   [0 - 1, 3 - 2, 4 - 5, 7 - 6, ...]
                 stack_A = stack[::4] - stack[1::4]  # A - B
                 var_A = var[::4] + var[1::4]
-                headers_A = [[a, b] for a, b in zip(headers[::4], headers[1::4])]
+                headers_A = [[a, b]
+                             for a, b in zip(headers[::4], headers[1::4])]
                 if len(files) > 2:
-                    stack_B = stack[3::4] - stack[2::4] # -(B - A)
+                    stack_B = stack[3::4] - stack[2::4]  # -(B - A)
                     stack = np.ma.vstack((stack_A, stack_B))
 
                     var_B = var[2::4] + var[3::4]
                     var = np.ma.vstack((var_A, var_B))
 
-                    headers_B = [[a, b] for a, b in zip(headers[3::4], headers[2::4])]
+                    headers_B = [[a, b]
+                                 for a, b in zip(headers[3::4], headers[2::4])]
                     headers = [None] * (len(headers_A) + len(headers_B))
                     headers[::2] = headers_A
                     headers[1::2] = headers_B
@@ -652,7 +660,7 @@ class SpeXPrism60(SpeX):
         crtn = (1 - h['TABLE_SE'] * (h['NDR'] - 1)
                 / 3.0 / h['ITIME'] / h['NDR'])
         t_exp = h['ITIME'] * h['CO_ADDS']
-        
+
         im_p = data[1].data / h['DIVISOR']
         im_s = data[2].data / h['DIVISOR']
         data.close()
@@ -682,14 +690,14 @@ class SpeXPrism60(SpeX):
             assert self.flat is not None, "Flat correction requested but flat not loaded."
             im /= self.flat
             h.add_history('Flat corrected.')
-            
+
         # total DN
         var = (np.abs(im * h['DIVISOR'])
                * crtn
                / h['CO_ADDS']**2
                / h['ITIME']**2
                / self.config['gain']
-               + read_var) # / h['DIVISOR']**2 / h['ITIME']**2
+               + read_var)  # / h['DIVISOR']**2 / h['ITIME']**2
         # counts / s
         im = im / h['ITIME']
         im.mask += self.mask
@@ -710,7 +718,7 @@ class SpeXPrism60(SpeX):
           Set to `True` to overwrite previous calibration files.
 
         """
-        
+
         import re
         import os
         import os.path
@@ -750,7 +758,7 @@ class SpeXPrism60(SpeX):
                     continue
             else:
                 last_n = n
-            
+
             if len(fset) == 5:
                 if path is None:
                     _path = 'cal-' + h['DATE_OBS'].replace('-', '')
@@ -805,7 +813,7 @@ class SpeXPrism60(SpeX):
             fits.writeto(fn, self.wavecal, self.wavecal_h,
                          output_verify='silentfix', clobber=overwrite)
         # done with arcs
-    
+
     def load_flat(self, files):
         """Generate or read in a flat.
 
@@ -851,7 +859,8 @@ class SpeXPrism60(SpeX):
             c[i] = splev(x, splrep(x[j], y))
 
         h.add_history('Flat generated from: ' + ' '.join(files))
-        h.add_history('Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
+        h.add_history(
+            'Images were scaled to the median flux value, then median combined.  The variance was computed then normalized by the number of images.')
 
         self.flat = (flat / c).data
         self.flat_var = (var / c).data
@@ -887,7 +896,7 @@ class SpeXPrism60(SpeX):
             self.wavecal = np.ma.MaskedArray(wavecal, mask=mask)
             self.wavecal_h = h
             return
-        
+
         arc = self.read(fn, flatcor=False)[0]
 
         slit = h['SLIT']
@@ -930,7 +939,7 @@ class SpeXPrism60(SpeX):
 
         i = (xcor_offset != 0) * (r < 1)
         p = np.polyfit(y[i], xcor_offset[i], 2)
-        
+
         # update wave cal with solution
         for i in range(self.config['bottom'], self.config['top']):
             x = self.wavecal[i, xr] - np.polyval(p, y[i])
@@ -966,7 +975,7 @@ class SpeXPrism60(SpeX):
         ----------
         im : ndarray or MaskedArray
           The 2D spectral image or an array of 2D images.
-        
+
         Returns
         -------
         profile : MaskedArray
@@ -1023,7 +1032,7 @@ class SpeXPrism60(SpeX):
         i = between(x, profile.argmax() + np.r_[-rap, rap])
         c = nd.center_of_mass(profile[i]) + x[i][0]
         self.peaks.append(c[0])
-        
+
         if mode.upper() == 'AB':
             i = between(x, profile.argmin() + np.r_[-rap, rap])
             c = nd.center_of_mass(-profile[i]) + x[i][0]
@@ -1043,12 +1052,12 @@ class SpeXPrism60(SpeX):
                 if ex_rap is not None:
                     i = between(x, p + np.r_[-1, 1] * ex_rap)
                     ax.plot(x[i], profile[i], color='b', lw=3)
-                                  
+
                 if bgap is not None:
                     for s in [-1, 1]:
                         i = between(x, np.sort(p + s * np.r_[bgap]))
                         ax.plot(x[i], profile[i], color='c', lw=3)
-                                  
+
             fig.canvas.draw()
             fig.show()
 
@@ -1178,7 +1187,7 @@ class SpeXPrism60(SpeX):
         profile = self._profile(im)
         if profile.ndim == 1:
             profile = profile[np.newaxis]
-        
+
         if bgap is None:
             spec = image.spextract(im, self.peaks, rap, trace=trace,
                                    subsample=5)[1]
@@ -1210,7 +1219,8 @@ class SpeXPrism60(SpeX):
             h = h[::2]
             for i in range(len(s)):
                 h[i].add_history('AB beam combined (sum)')
-                h[i]['ITOT'] = h[i]['ITIME'] + h_other[i]['ITIME'], 'Total integration time (sec)'
+                h[i]['ITOT'] = h[i]['ITIME'] + \
+                    h_other[i]['ITIME'], 'Total integration time (sec)'
 
                 b = i * 2 + 1
 
@@ -1234,7 +1244,8 @@ class SpeXPrism60(SpeX):
                      (self.peaks - self.config['bottom']) * ps]
             h[i]['APPOSO01'] = appos[0], 'Aperture positions (arcsec) for order 01'
             if abcombine:
-                h[i]['ABAPS'] = ','.join(appos), 'Aperture positions before AB combination.'
+                h[i]['ABAPS'] = ','.join(
+                    appos), 'Aperture positions before AB combination.'
             h[i]['AP01RAD'] = rap * ps, 'Aperture radius in arcseconds'
             h[i]['APREF'] = self.config['bottom'], 'Aperture position reference pixel'
             h[i]['BGORDER'] = bgorder, 'Background polynomial fit degree'
@@ -1242,8 +1253,10 @@ class SpeXPrism60(SpeX):
                 h[i]['BGSTART'] = 0
                 h[i]['BGWIDTH'] = 0
             else:
-                h[i]['BGSTART'] = bgap[0] * ps, 'Background start radius in arcseconds'
-                h[i]['BGWIDTH'] = np.ptp(bgap) * ps, 'Background width in arcseconds'
+                h[i]['BGSTART'] = bgap[0] * \
+                    ps, 'Background start radius in arcseconds'
+                h[i]['BGWIDTH'] = np.ptp(
+                    bgap) * ps, 'Background width in arcseconds'
             h[i]['MODENAME'] = 'Prism', 'Spectroscopy mode'
             h[i]['NAPS'] = 1, 'Number of apertures'
             h[i]['NORDERS'] = 1, 'Number of orders'
@@ -1261,7 +1274,7 @@ class SpeXPrism60(SpeX):
             h[i]['YUNITS'] = 'DN / s', 'Units of the Y axis'
             h[i]['XTITLE'] = '!7k!5 (!7l!5m)', 'IDL X title'
             h[i]['YTITLE'] = 'f (!5DN s!u-1!N)', 'IDL Y title'
-            
+
         if (self.spec is None) or (self.spec is not None and not append):
             self.wave = wave
             self.spec = spec
@@ -1308,7 +1321,7 @@ class SpeXPrism60(SpeX):
             n = re.findall('.*-([0-9]+).[ab].fits', self.h[i]['IRAFNAME'],
                            re.IGNORECASE)[0]
             fn = os.sep.join((path, fnformat.format(data='spec', n=n)))
-    
+
             x = np.c_[self.wave[i].filled(np.nan),
                       self.spec[i].filled(np.nan),
                       np.sqrt(self.var[i]).filled(np.nan),
@@ -1319,9 +1332,8 @@ class SpeXPrism60(SpeX):
             fn = os.sep.join((path, fnformat.format(data='profile', n=n)))
             tab = Table(data=[self.profile[i]], names=['profile'])
             tab.write(fn + '.csv', format='ascii.ecsv')
-            
+
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

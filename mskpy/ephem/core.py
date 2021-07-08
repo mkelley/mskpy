@@ -13,13 +13,16 @@ core --- Basic functions, mostly time, for ephem.
 
 """
 
+from ..util import autodoc
 from datetime import datetime
 
+import warnings
 import numpy as np
 import spiceypy as spice
 from spiceypy.utils.support_types import SpiceyError
 
 _spice_setup = False
+
 
 def _setup_spice():
     """Load some kernels into memory.
@@ -34,7 +37,7 @@ def _setup_spice():
 
     Additionally, naif-names.txt, your own body to ID code mappings,
     is loaded if it exists.
-    
+
     Parameters
     ----------
     None
@@ -48,14 +51,25 @@ def _setup_spice():
 
     global _spice_setup
 
-    load_kernel("naif.tls")
-    load_kernel("pck.tpc")
-    load_kernel("planets.bsp")
+    try:
+        load_kernel("naif.tls")
+        load_kernel("pck.tpc")
+        load_kernel("planets.bsp")
+    except OSError:
+        warnings.warn(
+            UserWarning(
+                "One or more required SPICE kernels are missing: naif.tls,"
+                " pck.tpc, planets.bsp.  Ephemeris support will be limited."
+            )
+        )
+
     try:
         load_kernel("naif-names.txt")
     except OSError:
         pass
+
     _spice_setup = True
+
 
 def cal2et(date):
     """Convert calendar date to SPICE ephemeris time.
@@ -86,6 +100,7 @@ def cal2et(date):
         return [cal2et(x) for x in t]
 
     return spice.utc2et(cal2iso(date))
+
 
 def date2et(date):
     """Variety of date formats to ephemeris time.
@@ -123,6 +138,7 @@ def date2et(date):
 
     return et
 
+
 def et2jd(et):
     """Ephemeris time to Julian date, UTC.
 
@@ -139,6 +155,7 @@ def et2jd(et):
     """
 
     return spice.et2utc(et, "J", 14)[3:]
+
 
 def jd2et(jd):
     """Convert Julian date to SPICE ephemeris time.
@@ -173,6 +190,7 @@ def jd2et(jd):
 
     return spice.utc2et(jd)
 
+
 def time2et(t):
     """Convert astropy `Time` to SPICE ephemeris time.
 
@@ -201,12 +219,13 @@ def time2et(t):
 
     return spice.utc2et(t.utc.iso)
 
+
 def find_kernel(obj):
     """Find a planetary ephemeris kernel, based on object name.
 
     First searches the current directory, then the path set in the
     mskpy config file.
-    
+
     Three steps are taken to find the appropriate kernel:
 
     1) Try the object name with the suffix '.bsp'.
@@ -259,6 +278,7 @@ def find_kernel(obj):
 
     raise ValueError("Cannot find kernel (" + kernel + ")")
 
+
 def load_kernel(filename):
     """Load the named kernel into memory.
 
@@ -295,7 +315,7 @@ def load_kernel(filename):
     except SpiceyError:
         spice.furnsh(filename)
 
+
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc

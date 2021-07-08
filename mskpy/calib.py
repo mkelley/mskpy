@@ -444,13 +444,18 @@ def dw_atran(airmass, fw, ft, pw='2.5'):
     return bandpass(tw, tt, fw=fw, ft=ft)[1]
 
 
-with fits.open(os.path.join(config.get('calib', 'solar_spectra_path'), 'willmer18-sun_composite.fits')) as hdu:
-    sun_w18 = Sun.from_array(
-        hdu[1].data['WAVE'] * u.AA,
-        hdu[1].data['FLUX'] * u.erg / u.cm**2 / u.s / u.AA,
-        description='Willmer (2018) composite solar spectrum',
-        bibcode='2018ApJS..236...47W')
+try:
+    with fits.open(os.path.join(config.get('calib', 'solar_spectra_path'), 'willmer18-sun_composite.fits')) as hdu:
+        sun_w18 = Sun.from_array(
+            hdu[1].data['WAVE'] * u.AA,
+            hdu[1].data['FLUX'] * u.erg / u.cm**2 / u.s / u.AA,
+            description='Willmer (2018) composite solar spectrum',
+            bibcode='2018ApJS..236...47W')
+except FileNotFoundError:
+    pass
+
 del Sun
+
 
 # update module docstring
 autodoc(globals())
