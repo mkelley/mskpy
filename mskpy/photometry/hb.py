@@ -24,6 +24,7 @@ hb --- Hale-Bopp filter set photometric calibration
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.units as u
 
@@ -54,90 +55,91 @@ all_filters = filters | set(['R', 'V', 'SDSS-R', 'SDSSr'])
 
 cw = {  # center wavelengths
     'OH': u.Quantity(0.3097, 'um'),
-      'NH': u.Quantity(0.3361, 'um'),
-      'UC': u.Quantity(0.3449, 'um'),
-      'CN': u.Quantity(0.3869, 'um'),
-      'C3': u.Quantity(0.4063, 'um'),
-     'CO+': u.Quantity(0.4266, 'um'),
-      'BC': u.Quantity(0.4453, 'um'),
-      'C2': u.Quantity(0.5135, 'um'),
-      'GC': u.Quantity(0.5259, 'um'),
+    'NH': u.Quantity(0.3361, 'um'),
+    'UC': u.Quantity(0.3449, 'um'),
+    'CN': u.Quantity(0.3869, 'um'),
+    'C3': u.Quantity(0.4063, 'um'),
+    'CO+': u.Quantity(0.4266, 'um'),
+    'BC': u.Quantity(0.4453, 'um'),
+    'C2': u.Quantity(0.5135, 'um'),
+    'GC': u.Quantity(0.5259, 'um'),
     'H2O+': u.Quantity(0.7028, 'um'),
-      'RC': u.Quantity(0.7133, 'um'),
-       'R': u.Quantity(0.641,  'um'),  # Bessell 1998
-       'V': u.Quantity(0.545,  'um'),  # Bessell 1998
-  'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
-   'SDSSr': u.Quantity(0.6222, 'um'),
+    'RC': u.Quantity(0.7133, 'um'),
+    'R': u.Quantity(0.641,  'um'),  # Bessell 1998
+    'V': u.Quantity(0.545,  'um'),  # Bessell 1998
+    'SDSS-R': u.Quantity(0.6222, 'um'),  # Smith et al. 2002
+    'SDSSr': u.Quantity(0.6222, 'um'),
 }
 
 cw_50 = {  # 50% power width
     'OH': u.Quantity(58, 'AA'),
-      'NH': u.Quantity(54, 'AA'),
-      'UC': u.Quantity(79, 'AA'),
-      'CN': u.Quantity(56, 'AA'),
-      'C3': u.Quantity(58, 'AA'),
-     'CO+': u.Quantity(64, 'AA'),
-      'BC': u.Quantity(61, 'AA'),
-      'C2': u.Quantity(119, 'AA'),
-      'GC': u.Quantity(56, 'AA'),
+    'NH': u.Quantity(54, 'AA'),
+    'UC': u.Quantity(79, 'AA'),
+    'CN': u.Quantity(56, 'AA'),
+    'C3': u.Quantity(58, 'AA'),
+    'CO+': u.Quantity(64, 'AA'),
+    'BC': u.Quantity(61, 'AA'),
+    'C2': u.Quantity(119, 'AA'),
+    'GC': u.Quantity(56, 'AA'),
     'H2O+': u.Quantity(164, 'AA'),
-      'RC': u.Quantity(58, 'AA')
+    'RC': u.Quantity(58, 'AA')
 }
 
 # Table VI of Farnham et al. 2000
 F_0 = {  # Zero magnitude flux density
     'OH': u.Quantity(10.560e-8, 'W/(m2 um)'),
-      'NH': u.Quantity(8.420e-8, 'W/(m2 um)'),
-      'CN': u.Quantity(8.6e-8,   'W/(m2 um)'),
-      'C3': u.Quantity(8.160e-8, 'W/(m2 um)'),
-     'CO+': u.Quantity(7.323e-8, 'W/(m2 um)'),
-      'C2': u.Quantity(3.887e-8, 'W/(m2 um)'),
+    'NH': u.Quantity(8.420e-8, 'W/(m2 um)'),
+    'CN': u.Quantity(8.6e-8,   'W/(m2 um)'),
+    'C3': u.Quantity(8.160e-8, 'W/(m2 um)'),
+    'CO+': u.Quantity(7.323e-8, 'W/(m2 um)'),
+    'C2': u.Quantity(3.887e-8, 'W/(m2 um)'),
     'H2O+': u.Quantity(1.380e-8, 'W/(m2 um)'),
-      'UC': u.Quantity(7.802e-8, 'W/(m2 um)'),
-      'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
-      'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
-      'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
-       'R': u.Quantity(2.177e-8, 'W/(m2 um)'),  # Bessell 1998
-       'V': u.Quantity(3.631e-8, 'W/(m2 um)'),  # Bessell 1998
-  'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)'),  # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
-   'SDSSr': u.Quantity(2.812e-8, 'W/(m2 um)'),
+    'UC': u.Quantity(7.802e-8, 'W/(m2 um)'),
+    'BC': u.Quantity(6.210e-8, 'W/(m2 um)'),
+    'GC': u.Quantity(3.616e-8, 'W/(m2 um)'),
+    'RC': u.Quantity(1.316e-8, 'W/(m2 um)'),
+    'R': u.Quantity(2.177e-8, 'W/(m2 um)'),  # Bessell 1998
+    'V': u.Quantity(3.631e-8, 'W/(m2 um)'),  # Bessell 1998
+    # Smith et al. 2002 for zeropoint in Jy and effective wavelength 6222 Å.
+    'SDSS-R': u.Quantity(2.812e-8, 'W/(m2 um)'),
+    'SDSSr': u.Quantity(2.812e-8, 'W/(m2 um)'),
 }
 
 MmBC_sun = {  # M - BC for the Sun
     'OH':  1.791,
-      'NH':  1.188,
-      'CN':  1.031,
-      'C3':  0.497,
-     'CO+':  0.338,
-      'C2': -0.423,
+    'NH':  1.188,
+    'CN':  1.031,
+    'C3':  0.497,
+    'CO+':  0.338,
+    'C2': -0.423,
     'H2O+': -1.249,
-      'UC':  1.101,
-      'BC':  0.000,
-      'GC': -0.507,
-      'RC': -1.276,
-       'V': -0.53,  # From solar mags, below
-       'R': -0.90,  # From solar mags, below
-  'SDSS-R': -0.70,  # From solar mags, below
-   'SDSSr': -0.70,
+    'UC':  1.101,
+    'BC':  0.000,
+    'GC': -0.507,
+    'RC': -1.276,
+    'V': -0.53,  # From solar mags, below
+    'R': -0.90,  # From solar mags, below
+    'SDSS-R': -0.70,  # From solar mags, below
+    'SDSSr': -0.70,
 }
 
 gamma_XX_XX = {
     'OH': u.Quantity(1.698e-2, '1/AA'),
-      'NH': u.Quantity(1.907e-2, '1/AA'),
-      'CN': u.Quantity(1.812e-2, '1/AA'),
-      'C3': u.Quantity(3.352e-2, '1/AA'),
-     'CO+': u.Quantity(1.549e-2, '1/AA'),
-      'C2': u.Quantity(5.433e-3, '1/AA'),
+    'NH': u.Quantity(1.907e-2, '1/AA'),
+    'CN': u.Quantity(1.812e-2, '1/AA'),
+    'C3': u.Quantity(3.352e-2, '1/AA'),
+    'CO+': u.Quantity(1.549e-2, '1/AA'),
+    'C2': u.Quantity(5.433e-3, '1/AA'),
     'H2O+': u.Quantity(5.424e-3, '1/AA')
 }
 
 gamma_prime_XX_XX = {
     'OH': 0.98,
-      'NH': 0.99,
-      'CN': 0.99,
-      'C3': 0.19,
-     'CO+': 0.99,
-      'C2': 0.66,
+    'NH': 0.99,
+    'CN': 0.99,
+    'C3': 0.19,
+    'CO+': 0.99,
+    'C2': 0.66,
     'H2O+': 1.00
 }
 
@@ -152,17 +154,17 @@ Msun = {
     'NH': -25.046,
     'CN': -25.203,
     'C3': -25.737,
-   'CO+': -25.896,
+    'CO+': -25.896,
     'C2': -26.657,
-  'H2O+': -27.483,
+    'H2O+': -27.483,
     'UC': -25.133,
     'BC': -26.234,  # -2.5 * log10(2.4685e19 / 1.276e17 / 6.210e-9)
     'GC': -26.741,
     'RC': -27.510,
-     'V': -26.76,  # Bessell 1998
-     'R': -27.13,  # Bessell 1998, (V-R)sun=0.370 (Colina et al. 1996)
+    'V': -26.76,  # Bessell 1998
+    'R': -27.13,  # Bessell 1998, (V-R)sun=0.370 (Colina et al. 1996)
     'SDSS-R': -26.93,  # R to r' via Smith et al. 2002 + Bessel 1998
- 'SDSSr': -26.93,
+    'SDSSr': -26.93,
 }
 
 S0 = {  # Solar flux density at 1 AU, F_0 * 10**(-0.4 * Msun)
@@ -170,17 +172,17 @@ S0 = {  # Solar flux density at 1 AU, F_0 * 10**(-0.4 * Msun)
     'NH': u.Quantity(878.4, 'W/(m2 um)'),
     'CN': u.Quantity(1036.8, 'W/(m2 um)'),
     'C3': u.Quantity(1608.8, 'W/(m2 um)'),
-   'CO+': u.Quantity(1671.4, 'W/(m2 um)'),
+    'CO+': u.Quantity(1671.4, 'W/(m2 um)'),
     'C2': u.Quantity(1788.2, 'W/(m2 um)'),
-  'H2O+': u.Quantity(1358.6, 'W/(m2 um)'),
+    'H2O+': u.Quantity(1358.6, 'W/(m2 um)'),
     'UC': u.Quantity(881.9, 'W/(m2 um)'),
     'BC': u.Quantity(1935.0, 'W/(m2 um)'),
     'GC': u.Quantity(1797.3, 'W/(m2 um)'),
     'RC': u.Quantity(1328.2, 'W/(m2 um)'),
-     'V': u.Quantity(1836.4, 'W/(m2 um)'),
-     'R': u.Quantity(1548.3, 'W/(m2 um)'),
+    'V': u.Quantity(1836.4, 'W/(m2 um)'),
+    'R': u.Quantity(1548.3, 'W/(m2 um)'),
     'SDSS-R': u.Quantity(1663.5, 'W/(m2 um)'),
- 'SDSSr': u.Quantity(1663.5, 'W/(m2 um)')
+    'SDSSr': u.Quantity(1663.5, 'W/(m2 um)')
 }
 
 
@@ -257,9 +259,6 @@ def continuum_color(w0, m0, m0_unc, w1, m1, m1_unc):
     0.1 μm (or 1000 Å).  It is used by Farnham et al. (2000) to
     estimate continuum flux densities.
 
-    Distinguishing between the central filter and the other filter is
-    not important, except for computing the uncertainty.
-
     Parameters
     ----------
     w0 : string
@@ -324,7 +323,7 @@ def continuum_colors(m, unc=None):
         return continuum_colors(m, unc=unc)[0]
 
     continuum_filters = m.keys()
-                               #[f for f in m if f in ['UC', 'BC', 'GC', 'RC']]
+    #[f for f in m if f in ['UC', 'BC', 'GC', 'RC']]
     continuum_filters.sort(key=cw.get)
     Rm = OrderedDict()
     Rm_unc = OrderedDict()
@@ -388,6 +387,11 @@ def estimate_continuum(base_filter, m, unc=None, Rm=None, Rm_unc=None):
         return estimate_continuum(base_filter, m, unc=unc, Rm=Rm)[0]
 
     if Rm is None:
+        raise UserWarning(
+            'Problematic code... stop.  This calculates Rm from all the'
+            ' filter-base_filter combinations, but then that same color'
+            ' will be used below.'
+        )
         if len(m) == 1:
             Rm = dict.fromkeys(m, 0 * u.mag / u.Unit('0.1 um'))
             Rm_unc = dict.fromkeys(m, 0 * u.mag / u.Unit('0.1 um'))
@@ -892,7 +896,7 @@ def S2Rm(w0, w1, S, S_unc=None):
 
     return Rm
 
+
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
