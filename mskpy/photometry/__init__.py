@@ -23,6 +23,7 @@ import numpy as np
 import astropy.units as u
 
 from .core import *
+from .outbursts import *
 from . import hb
 
 __all__ = [

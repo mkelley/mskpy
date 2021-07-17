@@ -15,6 +15,7 @@ import numpy as np
 from scipy.cluster import hierarchy
 import astropy.units as u
 from astropy.time import Time
+from astropy.stats import sigma_clip
 from sbpy.activity import phase_HalleyMarcus
 from ..util import linefit
 
@@ -221,8 +222,13 @@ class CometaryTrends:
         Returns
         -------
         color: Color
+            The color results or ``None`` if it cannot be calculated.
 
         """
+
+        if len(self.filt) < 2:
+            logging.warning('No colors measured.')
+            return None
 
         b = self.filt == blue
         r = self.filt == red
@@ -317,6 +323,68 @@ class CometaryTrends:
             H += 2.5 * np.log10(Phi(self.eph['phase'])) * unit
 
         return H
+
+    def ostat(self, k=4, dt=14, sigma=2, **kwargs):
+        """Compute the outburst statistic for each photometry point.
+
+        ostat is calculated for each masked point, but the masked points are
+        not included in the photometric baseline calculation.
+
+
+        Parameters
+        ----------
+        k : float, optional
+            Heliocentric distance slope on apparent magnitude for the baseline
+            estimate.
+
+        dt : float, optional
+            Number of days of history to use for the baseline estimate.
+
+        sigma : float, optional
+            Number of sigmas to clip the data.
+
+        **kwargs
+            Additional keyword arguments are passed to ``H()``.
+
+
+        Returns
+        -------
+        o : array
+            The outburst statistic.
+
+        """
+
+        Hy = (
+            self.H(**kwargs)
+            - 2.5 * (k - 2) * np.log10(self.eph['rh'].to_value('au')) * u.mag
+        )
+
+        o = np.ma.zeros(len(Hy))
+        for i in range(len(Hy)):
+            j = (
+                (self.eph['date'] < self.eph['date'][i])
+                * (self.eph['date'] > (self.eph['date'][i] - dt * u.day))
+            )
+            if j.sum() < 1:
+                o[i] = np.ma.masked
+                continue
+
+            # reject outliers, calculate weighted mean
+            good = j * ~Hy.mask
+            if np.sum(good) > 2:
+                m = sigma_clip(Hy[good].data, sigma=sigma)
+            else:
+                m = Hy[good]
+            m -= Hy[i]  # normalize to data point being tested
+            m_unc = self.m_unc[good]
+
+            baseline, sw = np.ma.average(m, weights=m_unc**-2,
+                                         returned=True)
+            baseline_unc = sw**-0.5
+            unc = max(np.sqrt(baseline_unc**2 + self.m_unc[i]**2).value, 0.1)
+            o[i] = np.round(baseline.value / unc, 1)
+
+        return o
 
     def dmdt(self, nucleus=None):
         """Fit apparent magnitude constant slope versus time.
