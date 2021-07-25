@@ -26,6 +26,8 @@ mskpy --- MSK's personal library for astronomy and stuff.
 
 """
 
+from ._astropy_init import *   # noqa
+
 from . import config
 
 from . import image
@@ -46,7 +48,8 @@ try:
     _spiceypy = True
 except ImportError:
     _spiceypy = False
-    raise UserWarning("MSKPY: spiceypy not available.  ephem, asteroid, and comet modules will not be loaded.")
+    raise UserWarning(
+        "MSKPY: spiceypy not available.  ephem, asteroid, and comet modules will not be loaded.")
 
 if _spiceypy:
     from . import ephem
@@ -63,7 +66,8 @@ try:
     _matplotlib = True
 except ImportError:
     _matplotlib = False
-    raise UserWarning("MSKPY: matplotlib not available.  Graphics module will not be loaded.")
+    raise UserWarning(
+        "MSKPY: matplotlib not available.  Graphics module will not be loaded.")
 
 if _matplotlib:
     from . import graphics
@@ -73,4 +77,3 @@ from astropy.io import registry
 from astropy.table import Table
 registry.register_reader('horizons.csv', Table, util.horizons_csv)
 del registry, Table
-
