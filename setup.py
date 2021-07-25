@@ -6,22 +6,10 @@
 
 import os
 import sys
-from glob import glob
 
 from setuptools import setup
 
 from extension_helpers import get_extensions
-
-from numpy.distutils.core import Extension, setup
-
-extensions = get_extensions()
-extensions.append(
-    Extension(
-        name='mskpy.lib.davint',
-        sources=glob('src/davint/*.f')
-    )
-)
-
 
 # First provide helpful messages if contributors try and run legacy commands
 # for tests or docs.
@@ -89,4 +77,4 @@ except Exception:
 
 setup(use_scm_version={'write_to': os.path.join('mskpy', 'version.py'),
                        'write_to_template': VERSION_TEMPLATE},
-      ext_modules=extensions)
+      ext_modules=get_extensions())

@@ -1,24 +1,71 @@
 *~
+
+# Compiled files
 *.py[cod]
-
-# C extensions
+*.a
+*.o
 *.so
+__pycache__
 
-# Packages
+# Ignore .c files by default to avoid including generated code. If you want to
+# add a non-generated .c extension, use `git add -f filename.c`.
+*.c
+
+# Other generated files
+*/version.py
+*/cython_version.py
+htmlcov
+.coverage
+MANIFEST
+.ipynb_checkpoints
+
+# Sphinx
+docs/api
+docs/_build
+
+# Eclipse editor project files
+.project
+.pydevproject
+.settings
+
+# Pycharm editor project files
+.idea
+
+# Floobits project files
+.floo
+.flooignore
+
+# Visual Studio Code project files
+.vscode
+
+# Packages/installer info
 *.egg
 *.egg-info
 dist
 build
 eggs
+.eggs
 parts
 bin
 var
 sdist
 develop-eggs
 .installed.cfg
+distribute-*.tar.gz
 lib
 !mskpy/lib
 lib64
+
+# Other
+.cache
+.tox
+.*.sw[op]
+*~
+.project
+.pydevproject
+.settings
+pip-wheel-metadata/
+.venv
 
 # Installer logs
 pip-log.txt
@@ -28,19 +75,7 @@ pip-log.txt
 .tox
 nosetests.xml
 
-# Translations
-*.mo
-
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-
-# other generated files
-MANIFEST
-
-.cache
-.vscode
-.venv
+# Mac OSX
+.DS_Store
 
 mskpy/version.py
