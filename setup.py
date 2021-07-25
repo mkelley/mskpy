@@ -1,76 +1,92 @@
 #!/usr/bin/env python
-from setuptools.command.install import install
-from numpy.distutils.core import setup, Extension
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+
+# NOTE: The configuration for the package, including the name, version, and
+# other information are set in the setup.cfg file.
+
+import os
+import sys
+from glob import glob
+
+from setuptools import setup
+
+from extension_helpers import get_extensions
+
+from numpy.distutils.core import Extension, setup
+
+extensions = get_extensions()
+extensions.append(
+    Extension(
+        name='mskpy.lib.davint',
+        sources=glob('src/davint/*.f')
+    )
+)
 
 
-class my_install(install):
-    def run(self):
-        install.run(self)
-        import mskpy.config
+# First provide helpful messages if contributors try and run legacy commands
+# for tests or docs.
 
+TEST_HELP = """
+Note: running tests is no longer done using 'python setup.py test'. Instead
+you will need to run:
 
-# class PyTest(Command):
-#     user_options = []
+    tox -e test
 
-#     def initialize_options(self):
-#         pass
+If you don't already have tox installed, you can install it with:
 
-#     def finalize_options(self):
-#         pass
+    pip install tox
 
-#     def run(self):
-#         import sys
-#         import subprocess
-#         errno = subprocess.call([sys.executable, 'setup.py', 'build_ext',
-#                                  '--inplace'])
-#         errno = subprocess.call([sys.executable, 'setup.py', 'build'])
-#         errno = subprocess.call(['ipython', 'runtests.py', 'tests/'])
-#         raise SystemExit(errno)
+If you only want to run part of the test suite, you can also use pytest
+directly with::
 
+    pip install -e .[test]
+    pytest
 
-def find_data_files():
-    import os
-    filelist = []
-    for root, dirnames, files in os.walk('mskpy/data/'):
-        dirlist = []
-        for f in files:
-            for suffix in ['.dat', '.txt', '.tbl', '.fits']:
-                if f.endswith(suffix):
-                    dirlist.append(os.path.join(root, f))
-        if len(dirlist) > 0:
-            filelist.append((root, dirlist))
-    return filelist
+For more information, see:
 
+  http://docs.astropy.org/en/latest/development/testguide.html#running-tests
+"""
 
-if __name__ == "__main__":
-    from glob import glob
+if 'test' in sys.argv:
+    print(TEST_HELP)
+    sys.exit(1)
 
-    ext1 = Extension('mskpy.lib.davint', glob('src/davint/*.f'))
-    files = find_data_files()
+DOCS_HELP = """
+Note: building the documentation is no longer done using
+'python setup.py build_docs'. Instead you will need to run:
 
-    setup(name='mskpy',
-          version='3.1.0-dev',
-          description='General purpose and astronomy related tools',
-          author="Michael S. P. Kelley",
-          author_email="msk@astro.umd.edu",
-          url="https://github.com/mkelley/mskpy",
-          packages=['mskpy', 'mskpy.lib', 'mskpy.models', 'mskpy.image',
-                    'mskpy.ephem', 'mskpy.instruments', 'mskpy.observing',
-                    'mskpy.photometry'],
-          data_files=files,
-          scripts=['scripts/ephemeris', 'scripts/transit', 'scripts/comet-fest',
-                   'scripts/center-target', 'scripts/H2D', 'scripts/ds9-ext',
-                   'scripts/ads'],
-          install_requires=['numpy', 'scipy', 'synphot>1.0',
-                            'astropy', 'spiceypy>1.1', 'pytz'],
-          ext_modules=[ext1],
-          #cmdclass={'test': PyTest, 'install': my_install},
-          license='BSD',
-          classifiers=[
-              'Intended Audience :: Science/Research',
-              "License :: OSI Approved :: BSD License",
-              'Operating System :: OS Independent',
-              "Programming Language :: Python :: 3",
-              'Topic :: Scientific/Engineering :: Astronomy'
-          ]
-          )
+    tox -e build_docs
+
+If you don't already have tox installed, you can install it with:
+
+    pip install tox
+
+You can also build the documentation with Sphinx directly using::
+
+    pip install -e .[docs]
+    cd docs
+    make html
+
+For more information, see:
+
+  http://docs.astropy.org/en/latest/install.html#builddocs
+"""
+
+if 'build_docs' in sys.argv or 'build_sphinx' in sys.argv:
+    print(DOCS_HELP)
+    sys.exit(1)
+
+VERSION_TEMPLATE = """
+# Note that we need to fall back to the hard-coded version if either
+# setuptools_scm can't be imported or setuptools_scm can't determine the
+# version, so we catch the generic 'Exception'.
+try:
+    from setuptools_scm import get_version
+    version = get_version(root='..', relative_to=__file__)
+except Exception:
+    version = '{version}'
+""".lstrip()
+
+setup(use_scm_version={'write_to': os.path.join('mskpy', 'version.py'),
+                       'write_to_template': VERSION_TEMPLATE},
+      ext_modules=extensions)
