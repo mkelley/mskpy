@@ -378,7 +378,7 @@ class CometaryTrends:
                 continue
 
             # reject outliers, calculate weighted mean
-            good = j * ~Hy.mask * np.isfinite(Hy)
+            good = j * ~Hy.mask * np.isfinite(Hy.data)
             if np.sum(good) > 2:
                 m = sigma_clip(Hy[good].data, sigma=sigma)
             else:
