@@ -235,7 +235,7 @@ class CometaryTrends:
         """
 
         if len(self.filt) < 2:
-            self.logger.info('No colors measured.')
+            self.logger.info('Not enough filters.')
             return None
 
         b = self.filt == blue
@@ -277,7 +277,7 @@ class CometaryTrends:
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
         if len(bmr) == 0:
-            self.logger.warning('No colors measured.')
+            self.logger.info('No colors measured.')
             return None
 
         bmr = u.Quantity(bmr)
