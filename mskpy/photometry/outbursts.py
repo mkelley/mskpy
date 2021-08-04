@@ -235,7 +235,7 @@ class CometaryTrends:
         """
 
         if len(self.filt) < 2:
-            self.logger.warning('No colors measured.')
+            self.logger.info('No colors measured.')
             return None
 
         b = self.filt == blue
@@ -378,7 +378,7 @@ class CometaryTrends:
                 continue
 
             # reject outliers, calculate weighted mean
-            good = j * ~Hy.mask
+            good = j * ~Hy.mask * np.isfinite(Hy)
             if np.sum(good) > 2:
                 m = sigma_clip(Hy[good].data, sigma=sigma)
             else:

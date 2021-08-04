@@ -40,5 +40,5 @@ nosetests.xml
 MANIFEST
 
 .cache
-
+.vscode
 .venv
