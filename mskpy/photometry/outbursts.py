@@ -16,7 +16,6 @@ from scipy.cluster import hierarchy
 import astropy.units as u
 from astropy.time import Time
 from astropy.stats import sigma_clip
-from sbpy.activity import phase_HalleyMarcus
 from ..util import linefit
 
 dmdtFit = namedtuple(
@@ -63,6 +62,9 @@ class CometaryTrends:
     fit_mask : array, optional
         ``True`` for elements to ignore when fitting (e.g., outbursts).
 
+    logger : Logger, optional
+        Use this logger for messaging.
+
     **kwargs
         Any ``CometaryTrends`` property.
 
@@ -93,7 +95,8 @@ class CometaryTrends:
 
     """
 
-    def __init__(self, eph, m, m_unc, filt=None, fit_mask=None, **kwargs):
+    def __init__(self, eph, m, m_unc, filt=None, fit_mask=None, logger=None,
+                 **kwargs):
         # store parameters and properties
         self.eph = eph
         self.m = m
@@ -106,6 +109,11 @@ class CometaryTrends:
         self.colors = kwargs.get('colors', {})
         self.fit_filter = kwargs.get('fit_filter')
         self.color_transform = kwargs.get('color_transform', False)
+
+        if logger is None:
+            self.logger = logging.getLogger('CometaryTrends')
+        else:
+            self.logger = logger
 
         # parameter check
         if not all((isinstance(m, u.Quantity), isinstance(m_unc, u.Quantity))):
@@ -227,7 +235,7 @@ class CometaryTrends:
         """
 
         if len(self.filt) < 2:
-            logging.warning('No colors measured.')
+            self.logger.warning('No colors measured.')
             return None
 
         b = self.filt == blue
@@ -237,7 +245,7 @@ class CometaryTrends:
             self.eph['date'].mjd[:, np.newaxis],
             max_dt, criterion='distance'
         )
-        logging.info(f'{clusters.max()} clusters found.')
+        self.logger.info(f'{clusters.max()} clusters found.')
 
         mjd = []
         bmr = []
@@ -269,7 +277,7 @@ class CometaryTrends:
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
         if len(bmr) == 0:
-            logging.warning('No colors measured.')
+            self.logger.warning('No colors measured.')
             return None
 
         bmr = u.Quantity(bmr)
