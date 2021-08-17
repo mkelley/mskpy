@@ -232,6 +232,11 @@ def filter_trans(name):
         * WISE W2
         * WISE W3
         * WISE W4
+        * SDSS u'
+        * SDSS g'
+        * SDSS r'
+        * SDSS i'
+        * SDSS z'
 
 
     Returns
@@ -316,7 +321,12 @@ def filter_trans(name):
         'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um, {}),
         'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um, {}),
         'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um, {}),
-        'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um, {})
+        'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um, {}),
+        "sdss u'": ('/usno40/usno_u.res', [0, 3], u.AA, {'comments': '\\'}),
+        "sdss g'": ('/usno40/usno_g.res', [0, 3], u.AA, {'comments': '\\'}),
+        "sdss r'": ('/usno40/usno_r.res', [0, 3], u.AA, {'comments': '\\'}),
+        "sdss i'": ('/usno40/usno_i.res', [0, 3], u.AA, {'comments': '\\'}),
+        "sdss z'": ('/usno40/usno_z.res', [0, 3], u.AA, {'comments': '\\'}),
     }
 
     try:
