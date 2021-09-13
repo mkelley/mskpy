@@ -217,8 +217,7 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
     ax : matplotlib.axes
       Plot to this axis.
     **kwargs
-      `matplotlib.plot` keywords for the dataset.  The default
-      linestyle is "steps-post".
+      `matplotlib.plot` keywords for the dataset.
 
     Returns
     -------
@@ -237,11 +236,10 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
         xx = np.r_[xx[0], xx, xmax]
         yy = np.r_[0, yy, 1]
 
-    ls = kwargs.pop('ls', kwargs.pop('linestyle', 'steps-post'))
     if ax is None:
         ax = plt.gca()
 
-    return ax.plot(xx, yy, ls=ls, **kwargs)
+    return ax.step(xx, yy, where='post', **kwargs)
 
 
 def nicelegend(*args, **kwargs):
