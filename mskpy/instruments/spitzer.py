@@ -662,7 +662,7 @@ class IRSCombine:
                         fluxd.shape[0], module[:-1], order))
 
     def plot(self, name='spectra', ax=None, errorbar=True,
-             label=str.upper, unit=u.Jy, lambda_scale=False, **kwargs):
+             label=str.upper, unit=u.Jy, **kwargs):
         """Plot spectra.
 
         The plot is not cleared, and the x and y labels are changed.
@@ -679,12 +679,10 @@ class IRSCombine:
         ax : matplotlib Axes, optional
           Plot to this axis.
         label : function or string, optional
-          A label generator.  Accepts a single paramter, the order
+          A label generator.  Accepts a single parameter, the order
           being plotted.
         unit : astropy Unit, optional
           Convert to these units first.
-        lambda_scale : bool, optional
-          Multiply by wavelength before plotting.
         **kwargs
           Additional keyword arguments are passed to `matplotlib`'s
           `errorbar`.
@@ -699,18 +697,13 @@ class IRSCombine:
         import matplotlib.pyplot as plt
 
         if name == 'raw':
-            return self.plot_raw(ax=ax, label=label, unit=unit,
-                                 lambda_scale=lambda_scale, **kwargs)
+            return self.plot_raw(ax=ax, label=label, unit=unit, **kwargs)
         elif name == 'nucleus':
-            return self.plot_nucleus(ax=ax, label=label, unit=unit,
-                                     lambda_scale=lambda_scale, **kwargs)
-
-        if lambda_scale:
-            assert unit.is_equivalent(
-                'W/(m2 um)'), "lambda_scale only makes sense for units of flux per wavelength"
+            return self.plot_nucleus(ax=ax, label=label, unit=unit, **kwargs)
 
         if ax is None:
             ax = plt.gca()
+        rax = ax.twinx()
 
         if not callable(label):
             def _label(k): return label
@@ -720,10 +713,13 @@ class IRSCombine:
         lines = []
         spectra = getattr(self, name, None)
         assert spectra is not None, '{} does not exist.'.format(name)
+        w = []
+        s = []
         for k, spec in spectra.items():
             c = u.Jy.to(unit, 1, u.spectral_density(spec['wave'] * u.um))
-            if lambda_scale:
-                c *= spec['wave']
+            w.append(spec['wave'])
+            s.append(c * spec['fluxd'])
+
             if errorbar:
                 line = ax.errorbar(spec['wave'], c * spec['fluxd'],
                                    c * spec['err'], label=_label(k),
@@ -733,13 +729,21 @@ class IRSCombine:
                                label=_label(k), **kwargs)
             lines.append(line)
         plt.setp(ax, xlabel='Wavelength (μm)')
-        if lambda_scale:
-            plt.setp(ax, ylabel=r'$\lambda F_\lambda$ ({})'.format(unit * u.um))
+
+        w = np.concatenate(w)
+        s = np.concatenate(s)
+        if unit.is_equivalent('W/(m2 um)'):
+            plt.setp(ax, ylabel=r'$F_\lambda$ ({})'.format(unit))
+            scale = w / w.mean()
+            label = '~λF_λ'
         else:
-            if unit.is_equivalent('W/(m2 um)'):
-                plt.setp(ax, ylabel=r'$F_\lambda$ ({})'.format(unit))
-            else:
-                plt.setp(ax, ylabel=r'$F_\nu$ ({})'.format(unit))
+            plt.setp(ax, ylabel=r'$F_\nu$ ({})'.format(unit))
+            scale = w.mean() / w
+            label = '~νF_ν'
+
+        if name == 'spectra':
+            rax.scatter(w, s * scale, label=label,
+                        marker='.', color='0.5', alpha=0.66)
 
         return lines
 
