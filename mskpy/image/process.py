@@ -17,11 +17,13 @@ image.process --- Process (astronomical) images.
    fixpix
    mkflat
    psfmatch
+   slide
    stripes
    subim
 
 """
 
+from ..util import autodoc
 import numpy as np
 from . import core, analysis
 
@@ -36,6 +38,7 @@ __all__ = [
     'fixpix',
     'mkflat',
     'psfmatch',
+    'slide',
     'stripes',
     'subim',
 ]
@@ -556,6 +559,43 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
     return K / K.sum()
 
 
+def slide(im, angle, axis=0, reversed=False):
+    """Slide rows of pixel based on distance to the origin.
+
+    Pixels are moved along the y-axis (axis=0) based on distance
+    along the x-axis (axis=1).
+
+
+    Parameters
+    ----------
+    im : ndarray
+        Data to process, probably 2D.  May be a numpy MaskedArray.
+
+    angle : float
+        Angle along which pixels will be moved to the axis origin.
+
+    reversed : bool, optional
+        Slide the pixels from the axis origin to the angle line.
+
+
+    Result
+    ------
+    slid : ndarray
+
+    """
+
+    slid = np.ma.empty_like(im)
+    ta = np.tan(np.radians(angle))
+    direction = -1 if reversed else 1
+    for i in range(im.shape[1]):
+        d = direction * int(i * ta)
+        slid[:, i] = np.roll(im[:, i], d, axis=0)
+        if hasattr(im, 'mask'):
+            slid.mask[:, i] = np.roll(im.mask[:, i], d, axis=0)
+
+    return slid
+
+
 def stripes(im, axis=0, stat=np.ma.median, image=False, **keywords):
     """Find and compute column/row stripe artifacts in an image.
 
@@ -660,6 +700,5 @@ def subim(im, yx, half_box, expand=False, pad=0):
 
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
