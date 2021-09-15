@@ -19,7 +19,7 @@ from astropy.stats import sigma_clip
 from ..util import linefit
 
 dmdtFit = namedtuple(
-    'dmdtFit', ['m0', 'dmdt', 'm0_unc', 'dmdt_unc', 'rms', 'rchisq']
+    'dmdtFit', ['m0', 'dmdt', 'm0_unc', 'dmdt_unc', 'rms', 'rchisq', 'k']
 )
 dHdtFit = namedtuple(
     'dHdtFit', ['H0', 'dHdt', 'H0_unc', 'dHdt_unc', 'rms', 'rchisq']
@@ -394,7 +394,7 @@ class CometaryTrends:
 
         return o
 
-    def dmdt(self, nucleus=None):
+    def dmdt(self, nucleus=None, k=1):
         """Fit apparent magnitude constant slope versus time.
 
         ``eph`` requires ``'date'``.
@@ -405,6 +405,9 @@ class CometaryTrends:
         nucleus : Quantity
             Subtract this nucleus before fitting, assumed to be in the same
             filter as ``self.m``.
+
+        k : float, optional
+            Scale time by ``t^k``.
 
 
         Returns
@@ -418,6 +421,7 @@ class CometaryTrends:
             Data points used in the fit.
 
         fit: DmDt
+            Fit results.
 
         """
 
@@ -435,9 +439,9 @@ class CometaryTrends:
             # subtraction may introduce nans
             mask += ~np.isfinite(m)
 
-        r = linefit(dt.value[~mask], m.data.value[~mask],
+        r = linefit(dt.value[~mask]**k, m.data.value[~mask],
                     self.m_unc.value[~mask], (0.05, 15))
-        trend = (r[0][1] + r[0][0] * dt.value) * unit
+        trend = (r[0][1] + r[0][0] * dt.value**k) * unit
 
         # restore nucleus?
         if nucleus is not None:
@@ -445,11 +449,12 @@ class CometaryTrends:
 
         residuals = self.m - trend
 
-        fit = dmdtFit(r[0][1] * unit, r[0][0] * unit / u.day,
-                      r[1][1] * unit, r[1][0] * unit / u.day,
+        fit = dmdtFit(r[0][1] * unit, r[0][0] * unit / u.day**k,
+                      r[1][1] * unit, r[1][0] * unit / u.day**k,
                       np.std(residuals[~mask].data),
                       np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
-                      / np.sum(~mask))
+                      / np.sum(~mask),
+                      k)
 
         return dt, trend, ~mask, fit
 
