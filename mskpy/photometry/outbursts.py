@@ -13,22 +13,17 @@ from collections import namedtuple
 import logging
 import numpy as np
 from scipy.cluster import hierarchy
+from scipy.optimize import leastsq
 import astropy.units as u
 from astropy.time import Time
 from astropy.stats import sigma_clip
 from ..util import linefit
 
 dmdtFit = namedtuple(
-    'dmdtFit', ['m0', 'dmdt', 'm0_unc', 'dmdt_unc', 'rms', 'rchisq', 'k']
+    'dmdtFit', ['m0', 'dmdt', 'm0_unc', 'dmdt_unc', 'rms', 'rchisq']
 )
-dHdtFit = namedtuple(
-    'dHdtFit', ['H0', 'dHdt', 'H0_unc', 'dHdt_unc', 'rms', 'rchisq']
-)
-mrhFit = namedtuple(
-    'mrhFit', ['m0', 'k', 'm0_unc', 'k_unc', 'rms', 'rchisq']
-)
-HrhFit = namedtuple(
-    'HrhFit', ['m0', 'k', 'm0_unc', 'k_unc', 'rms', 'rchisq']
+ExpFit = namedtuple(
+    'ExpFit', ['dm', 'tau', 'dm_unc', 'tau_unc', 'rms', 'rchisq']
 )
 
 Color = namedtuple(
@@ -394,10 +389,32 @@ class CometaryTrends:
 
         return o
 
-    def dmdt(self, nucleus=None, k=1):
-        """Fit apparent magnitude constant slope versus time.
+    def _fit_setup(self, nucleus=None, absolute=False, **kwargs):
+        dt = self.eph['date'].mjd * u.day
+        dt -= dt.min()
+
+        if absolute:
+            m = self.H(nucleus=nucleus, **kwargs)
+            m.mask = self.fit_m.mask
+        else:
+            m = self.fit_m
+            if nucleus is not None:
+                m = np.ma.MaskedArray(
+                    self.linear_subtract(m.data, nucleus),
+                    mask=m.mask
+                )
+                # subtraction may introduce nans
+                m.mask += ~np.isfinite(m)
+
+        return dt, m
+
+    def dmdt(self, nucleus=None, k=1, absolute=False, **kwargs):
+        """Fit magnitude versus time as a function of ``t**k``.
 
         ``eph`` requires ``'date'``.
+
+        ``absolute`` requires ``'rh'``, ``'delta'``, and ``'phase'`` in
+        ``eph``.
 
 
         Parameters
@@ -408,6 +425,12 @@ class CometaryTrends:
 
         k : float, optional
             Scale time by ``t^k``.
+
+        absolute : boo, optional
+            Fix absolute magnitude via ``self.H()``.
+
+        **kwargs
+            Additional keyword arguments pass to ``self.H()``.
 
 
         Returns
@@ -420,24 +443,14 @@ class CometaryTrends:
         fit_mask: np.array
             Data points used in the fit.
 
-        fit: DmDt
+        fit: dmdtFit
             Fit results.
 
         """
 
-        dt = self.eph['date'].mjd * u.day
-        dt -= dt.min()
-
-        m = self.fit_m
+        dt, m = self._fit_setup(nucleus=nucleus, absolute=absolute, **kwargs)
         unit = m.data.unit
         mask = m.mask
-        if nucleus is not None:
-            m = np.ma.MaskedArray(
-                self.linear_subtract(m.data, nucleus),
-                mask=m.mask
-            )
-            # subtraction may introduce nans
-            mask += ~np.isfinite(m)
 
         r = linefit(dt.value[~mask]**k, m.data.value[~mask],
                     self.m_unc.value[~mask], (0.05, 15))
@@ -453,71 +466,80 @@ class CometaryTrends:
                       r[1][1] * unit, r[1][0] * unit / u.day**k,
                       np.std(residuals[~mask].data),
                       np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
-                      / np.sum(~mask),
-                      k)
+                      / np.sum(~mask))
 
         return dt, trend, ~mask, fit
 
-    # def dHdt(self, fixed_angular_size, filt=None, color_transform=True, Phi=phase_HalleyMarcus):
-    #     """Fit absolute magnitude constant slope versus time.
+    def exp(self, baseline, absolute=False, **kwargs):
+        """Fit magnitude versus time as a function of ``e**(k*t)``.
 
-    #     ``eph`` requires date, rh, delta, phase.
+        ``eph`` requires ``'date'``.
 
-    #     Parameters
-    #     ----------
-    #     fixed_angular_size: bool
-    #         Aperture is fixed in angular size.  See ``self.H()``.
+        ``absolute`` requires ``'rh'``, ``'delta'``, and ``'phase'`` in
+        ``eph``.
 
-    #     filt: str, optional
-    #         Fit only this filter.
 
-    #     color_transform: bool, optional
-    #         If fitting only one filter, set to ``True`` to allow
-    #         color transformations via ``self.color``.
+        Parameters
+        ----------
+        baseline : Quantity
+            Fit the exponential with respect to this baseline trend (may
+            include the nucleus).  Must be absolute magnitude if ``absolute``
+            is true.
 
-    #     Phi: function, optional
-    #         Use this phase function.
+        absolute : boo, optional
+            Fix absolute magnitude via ``self.H()``.
 
-    #     Returns
-    #     -------
-    #     dt: np.array
+        **kwargs
+            Additional keyword arguments pass to ``self.H()``.
 
-    #     trend: np.array
 
-    #     fit_mask: np.array
-    #         Data points used in the fit.
+        Returns
+        -------
+        dt: np.array
 
-    #     fit: DmDt
+        trend: np.array
+            Including the nucleus.
 
-    #     """
+        fit_mask: np.array
+            Data points used in the fit.
 
-    #     dt = self.eph['date'].mjd * u.day
-    #     dt -= dt.min()
+        fit: ExpFit
+            Fit results.
 
-    #     if filt is None:
-    #         H = self.H(fixed_angular_size, Phi=Phi)
-    #     elif color_transform:
-    #         H = self.H(fixed_angular_size, filt=filt,
-    #                    color_transform=color_transform, Phi=Phi)
-    #     else:
-    #         H = self.H(fixed_angular_size, Phi=Phi) * (self.filt == filt)
-    #         H[self.filt != filt] = np.nan
+        """
 
-    #     i = ~self.fit_mask * np.isfinite(H)
+        dt, m = self._fit_setup(absolute=absolute, **kwargs)
+        dm = m - baseline
+        unit = m.data.unit
+        mask = m.mask
+        print(m)
 
-    #     r = linefit(dt[i].value, H[i].value, self.m_unc[i].value,
-    #                 (0.05, 15))
+        def model(dt, peak, tau):
+            lc = peak * np.exp(-dt / tau)
+            lc[dt < 0] = 0
+            return lc
 
-    #     dm = self.H(fixed_angular_size, Phi=Phi) - self.m
-    #     trend = (r[0][1] + r[0][0] * dt.value) * H.unit - dm
-    #     residuals = self.m - trend
+        def chi(p, dt, dm, m_unc):
+            m = model(dt, *p)
+            return (dm - m) / m_unc
 
-    #     fit = dHdtFit(r[0][1] * H.unit, r[0][0] * H.unit / u.day,
-    #                   r[1][1] * H.unit, r[1][0] * H.unit / u.day,
-    #                   np.std(residuals[i]),
-    #                   np.sum((residuals[i] / self.m_unc[i])**2) / np.sum(i))
+        args = (dt.value[~mask], dm.data.value[~mask], self.m_unc.value[~mask])
+        guess = (dm.compressed().min().value, 10)
+        r = leastsq(chi, guess, args=args, full_output=True)
+        trend = model(dt.value, *r[0]) * unit
 
-    #     return dt, trend, i, fit
+        # restore baseline
+        trend = trend + baseline
+
+        residuals = m - trend
+
+        fit = ExpFit(r[0][0] * unit, r[0][1] * u.day,
+                     r[1][0] * unit, r[1][1] * u.day,
+                     np.std(residuals[~mask].data),
+                     np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
+                     / np.sum(~mask))
+
+        return dt, trend, ~mask, fit
 
     # def mrh(self, fixed_angular_size, filt=None, color_transform=True,
     #         Phi=phase_HalleyMarcus):
