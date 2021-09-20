@@ -27,15 +27,17 @@ ExpFit = namedtuple(
 )
 
 Color = namedtuple(
-    'Color', ['t', 'clusters', 'c', 'c_unc', 'avg', 'avg_unc']
+    'Color', ['t', 'clusters', 'm', 'm_unc', 'c', 'c_unc', 'avg', 'avg_unc']
 )
 Color.__doc__ = 'Color estimate.'
 Color.t.__doc__ = 'Average observation date for each color estimate. [astropy Time]'
 Color.clusters.__doc__ = 'Observation clusters used to define color; 0 for unused.'
-Color.c.__doc__ = 'Individual colors.  [ndarray]'
-Color.c_unc.__doc__ = 'Uncertainty on c.  [ndarray]'
-Color.avg.__doc__ = 'Weighted average color.'
-Color.avg_unc.__doc__ = 'Uncertainty on avg.'
+Color.m.__doc__ = 'Red filter brightness for each date. [mag]'
+Color.m_unc.__doc__ = 'Uncertainty on m.  [mag]'
+Color.c.__doc__ = 'Individual colors.  [mag]'
+Color.c_unc.__doc__ = 'Uncertainty on c.  [mag]'
+Color.avg.__doc__ = 'Weighted average color.  [mag]'
+Color.avg_unc.__doc__ = 'Uncertainty on avg.  [mag]'
 
 
 class CometaryTrends:
@@ -243,6 +245,8 @@ class CometaryTrends:
         self.logger.info(f'{clusters.max()} clusters found.')
 
         mjd = []
+        r_mean = []
+        r_mean_unc = []
         bmr = []
         bmr_unc = []
         for cluster in np.unique(clusters):
@@ -268,6 +272,8 @@ class CometaryTrends:
                 continue
 
             mjd.append(self.eph['date'].mjd[i].mean())
+            r_mean.append(wr)
+            r_mean_unc.append(wr_unc)
             bmr.append(wb - wr)
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
@@ -275,6 +281,8 @@ class CometaryTrends:
             self.logger.info('No colors measured.')
             return None
 
+        r_mean = u.Quantity(r_mean)
+        r_mean_unc = u.Quantity(r_mean_unc)
         bmr = u.Quantity(bmr)
         bmr_unc = u.Quantity(bmr_unc)
         avg, sw = np.average(bmr, weights=bmr_unc**-2, returned=True)
@@ -282,7 +290,8 @@ class CometaryTrends:
 
         self.colors[(blue, red)] = avg
 
-        return Color(Time(mjd, format='mjd'), clusters, bmr, bmr_unc, avg, avg_unc)
+        return Color(Time(mjd, format='mjd'), clusters, r_mean, r_mean_unc,
+                     bmr, bmr_unc, avg, avg_unc)
 
     @staticmethod
     def linear_add(a, b):
@@ -408,7 +417,7 @@ class CometaryTrends:
 
         return dt, m
 
-    def dmdt(self, nucleus=None, k=1, absolute=False, **kwargs):
+    def dmdt(self, nucleus=None, guess=None, k=1, absolute=False, **kwargs):
         """Fit magnitude versus time as a function of ``t**k``.
 
         ``eph`` requires ``'date'``.
@@ -422,6 +431,9 @@ class CometaryTrends:
         nucleus : Quantity
             Subtract this nucleus before fitting, assumed to be in the same
             filter as ``self.m``.
+
+        guess : tuple of floats
+            Initial fit guess: (m0, slope).
 
         k : float, optional
             Scale time by ``t^k``.
@@ -452,9 +464,11 @@ class CometaryTrends:
         unit = m.data.unit
         mask = m.mask
 
+        guess = (0.05, 15) if guess is None else guess
         r = linefit(dt.value[~mask]**k, m.data.value[~mask],
-                    self.m_unc.value[~mask], (0.05, 15))
+                    self.m_unc.value[~mask], guess)
         trend = (r[0][1] + r[0][0] * dt.value**k) * unit
+        fit_unc = r[1] if r[1] is not None else (0, 0)
 
         # restore nucleus?
         if nucleus is not None:
@@ -463,7 +477,7 @@ class CometaryTrends:
         residuals = self.m - trend
 
         fit = dmdtFit(r[0][1] * unit, r[0][0] * unit / u.day**k,
-                      r[1][1] * unit, r[1][0] * unit / u.day**k,
+                      fit_unc[1] * unit, fit_unc[0] * unit / u.day**k,
                       np.std(residuals[~mask].data),
                       np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
                       / np.sum(~mask))
@@ -526,6 +540,7 @@ class CometaryTrends:
         args = (dt.value[~mask], dm.data.value[~mask], self.m_unc.value[~mask])
         guess = (dm.compressed().min().value, 10)
         r = leastsq(chi, guess, args=args, full_output=True)
+        fit_unc = np.sqrt(np.diag(r[1]))
         trend = model(dt.value, *r[0]) * unit
 
         # restore baseline
@@ -534,7 +549,7 @@ class CometaryTrends:
         residuals = m - trend
 
         fit = ExpFit(r[0][0] * unit, r[0][1] * u.day,
-                     r[1][0] * unit, r[1][1] * u.day,
+                     fit_unc[0] * unit, fit_unc[1] * u.day,
                      np.std(residuals[~mask].data),
                      np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
                      / np.sum(~mask))
