@@ -27,12 +27,14 @@ ExpFit = namedtuple(
 )
 
 Color = namedtuple(
-    'Color', ['t', 'clusters', 'm', 'm_unc', 'c', 'c_unc', 'avg', 'avg_unc']
+    'Color', ['t', 'clusters', 'm_filter', 'm',
+              'm_unc', 'c', 'c_unc', 'avg', 'avg_unc']
 )
 Color.__doc__ = 'Color estimate.'
 Color.t.__doc__ = 'Average observation date for each color estimate. [astropy Time]'
 Color.clusters.__doc__ = 'Observation clusters used to define color; 0 for unused.'
-Color.m.__doc__ = 'Red filter brightness for each date. [mag]'
+Color.m_filter.__doc__ = 'Filter for m.'
+Color.m.__doc__ = 'Apparent mag for each date in given filter. [mag]'
 Color.m_unc.__doc__ = 'Uncertainty on m.  [mag]'
 Color.c.__doc__ = 'Individual colors.  [mag]'
 Color.c_unc.__doc__ = 'Uncertainty on c.  [mag]'
@@ -199,7 +201,8 @@ class CometaryTrends:
     def color_transform(self, flag):
         self._color_transform = bool(flag)
 
-    def color(self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag):
+    def color(self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag,
+              m_filter=None):
         """Estimate the color, blue - red, using weighted averages.
 
         ``eph`` requires ``'date'``.
@@ -223,6 +226,10 @@ class CometaryTrends:
         max_unc: Quantity, optional
             Ignore results with uncertainty > ``max_unc``.
 
+        m_filter : string, optional
+            Report mean apparent magnitude in this filter.  Default is the
+            redder filter.
+
 
         Returns
         -------
@@ -237,6 +244,10 @@ class CometaryTrends:
 
         b = self.filt == blue
         r = self.filt == red
+        if m_filter is None:
+            m_filter = red
+        elif m_filter not in [blue, red]:
+            raise ValueError("m_filter must be one of blue or red")
 
         clusters = hierarchy.fclusterdata(
             self.eph['date'].mjd[:, np.newaxis],
@@ -245,8 +256,8 @@ class CometaryTrends:
         self.logger.info(f'{clusters.max()} clusters found.')
 
         mjd = []
-        r_mean = []
-        r_mean_unc = []
+        m_mean = []
+        m_mean_unc = []
         bmr = []
         bmr_unc = []
         for cluster in np.unique(clusters):
@@ -272,8 +283,13 @@ class CometaryTrends:
                 continue
 
             mjd.append(self.eph['date'].mjd[i].mean())
-            r_mean.append(wr)
-            r_mean_unc.append(wr_unc)
+            if m_filter == 'blue':
+                m_mean.append(wb)
+                m_mean_unc.append(wb_unc)
+            else:
+                m_mean.append(wr)
+                m_mean_unc.append(wr_unc)
+
             bmr.append(wb - wr)
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
@@ -281,8 +297,8 @@ class CometaryTrends:
             self.logger.info('No colors measured.')
             return None
 
-        r_mean = u.Quantity(r_mean)
-        r_mean_unc = u.Quantity(r_mean_unc)
+        m_mean = u.Quantity(m_mean)
+        m_mean_unc = u.Quantity(m_mean_unc)
         bmr = u.Quantity(bmr)
         bmr_unc = u.Quantity(bmr_unc)
         avg, sw = np.average(bmr, weights=bmr_unc**-2, returned=True)
@@ -290,8 +306,8 @@ class CometaryTrends:
 
         self.colors[(blue, red)] = avg
 
-        return Color(Time(mjd, format='mjd'), clusters, r_mean, r_mean_unc,
-                     bmr, bmr_unc, avg, avg_unc)
+        return Color(Time(mjd, format='mjd'), clusters, m_filter,
+                     m_mean, m_mean_unc, bmr, bmr_unc, avg, avg_unc)
 
     @staticmethod
     def linear_add(a, b):
