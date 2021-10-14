@@ -490,7 +490,7 @@ class CometaryTrends:
         if nucleus is not None:
             trend = self.linear_add(trend, nucleus)
 
-        residuals = self.m - trend
+        residuals = m - trend
 
         fit = dmdtFit(r[0][1] * unit, r[0][0] * unit / u.day**k,
                       fit_unc[1] * unit, fit_unc[0] * unit / u.day**k,
