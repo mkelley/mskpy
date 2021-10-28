@@ -20,6 +20,7 @@ image.process --- Process (astronomical) images.
    slide
    stripes
    subim
+   unwrap
 
 """
 
@@ -697,6 +698,52 @@ def subim(im, yx, half_box, expand=False, pad=0):
         subim = _subim
 
     return subim
+
+
+def unwrap(im, yx, steps=None):
+    """Convert an xy image into r-theta (cylindrical).
+
+
+    Parameters
+    ----------
+    im : ndarray
+        The image to process.
+
+    yx : list of float
+        The center of the transformation.
+
+    steps : int or list of int, optional
+        The number of steps in the radial and azimuthal directions, or
+        a single number to be used for both.
+
+    radius : int, optional
+        Radial distance to transform.
+
+    Notes
+    -----
+    Based on https://gist.github.com/kevin-keraudren/c9a372bbcaaab688ccb1
+
+    """
+
+    def polar2cart(r, theta, center):
+        x = r * np.cos(theta) + center[0]
+        y = r * np.sin(theta) + center[1]
+        return x, y
+
+    def img2polar(img, center, radius, theta_step=360, zoom=2):
+        theta, R = np.meshgrid(np.linspace(0, 2*np.pi, theta_step),  # x
+                               np.linspace(0, radius, zoom*radius))   # y
+
+        print("theta-R shape", theta.shape, R.shape)
+
+        Xcart, Ycart = polar2cart(R, theta, center)
+        polar_img = nd.map_coordinates(
+            img, [Ycart, Xcart], order=3, mode='nearest')
+        polar_img = np.reshape(polar_img, (zoom*radius, theta_step))
+
+        print("polar_img shape", polar_img.shape)
+
+        return polar_img
 
 
 # update module docstring

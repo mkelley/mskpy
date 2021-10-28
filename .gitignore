@@ -42,3 +42,5 @@ MANIFEST
 .cache
 .vscode
 .venv
+
+mskpy/version.py
