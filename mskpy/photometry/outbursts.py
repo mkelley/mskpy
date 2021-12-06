@@ -17,6 +17,7 @@ from scipy.optimize import leastsq
 import astropy.units as u
 from astropy.time import Time
 from astropy.stats import sigma_clip
+from sbpy.activity import Afrho
 from ..util import linefit
 
 dmdtFit = namedtuple(
@@ -24,6 +25,9 @@ dmdtFit = namedtuple(
 )
 ExpFit = namedtuple(
     'ExpFit', ['dm', 'tau', 'dm_unc', 'tau_unc', 'rms', 'rchisq']
+)
+AfrhoRhFit = namedtuple(
+    'AfrhoRhFit', ['afrho1', 'k', 'afrho1_unc', 'k_unc', 'rms', 'rchisq']
 )
 
 Color = namedtuple(
@@ -58,6 +62,9 @@ class CometaryTrends:
     filt : array, optional
         Filters for each ``m``.
 
+    aper : Quantity, optional
+        Photometric aperture radii.
+
     fit_mask : array, optional
         ``True`` for elements to ignore when fitting (e.g., outbursts).
 
@@ -68,7 +75,7 @@ class CometaryTrends:
         Any ``CometaryTrends`` property.
 
 
-    Properties
+    Attributes
     ----------
     m_original : Quantity
         Unmodified (input) photometry.
@@ -94,13 +101,14 @@ class CometaryTrends:
 
     """
 
-    def __init__(self, eph, m, m_unc, filt=None, fit_mask=None, logger=None,
-                 **kwargs):
+    def __init__(self, eph, m, m_unc, filt=None, aper=None, fit_mask=None,
+                 logger=None, **kwargs):
         # store parameters and properties
         self.eph = eph
         self.m = m
         self.m_unc = m_unc
         self.filt = np.array(filt)
+        self.aper = aper
         self.fit_mask = (
             np.zeros(len(m), bool) if fit_mask is None
             else np.array(fit_mask)
@@ -147,9 +155,11 @@ class CometaryTrends:
                         # try to color transform
                         color = (self.filt[i], self.fit_filter)
                         if color in self.colors:
-                            m[i] -= self.colors[color]
+                            m[i] = ((m[i].value - self.colors[color].value)
+                                    * m.data.unit)
                         elif color[::-1] in self.colors:
-                            m[i] += self.colors[color[::-1]]
+                            m[i] = ((m[i].value + self.colors[color[::-1]].value)
+                                    * m.data.unit)
                         else:
                             # not possible
                             m.mask[i] = True
@@ -269,17 +279,17 @@ class CometaryTrends:
                 continue
 
             # estimate weighted averages and compute color
-            wb, sw = np.average(self.m_original[b * i],
-                                weights=self.m_unc[b * i]**-2,
+            wb, sw = np.average(self.m_original[b * i].value,
+                                weights=self.m_unc.value[b * i]**-2,
                                 returned=True)
             wb_unc = sw**-0.5
 
-            wr, sw = np.average(self.m_original[r * i],
-                                weights=self.m_unc[r * i]**-2,
+            wr, sw = np.average(self.m_original[r * i].value,
+                                weights=self.m_unc.value[r * i]**-2,
                                 returned=True)
             wr_unc = sw**-0.5
 
-            if np.hypot(wb_unc, wr_unc) > max_unc:
+            if np.hypot(wb_unc, wr_unc) > max_unc.value:
                 continue
 
             mjd.append(self.eph['date'].mjd[i].mean())
@@ -297,14 +307,16 @@ class CometaryTrends:
             self.logger.info('No colors measured.')
             return None
 
-        m_mean = u.Quantity(m_mean)
-        m_mean_unc = u.Quantity(m_mean_unc)
-        bmr = u.Quantity(bmr)
-        bmr_unc = u.Quantity(bmr_unc)
-        avg, sw = np.average(bmr, weights=bmr_unc**-2, returned=True)
-        avg_unc = sw**-0.5
+        unit = self.m_original.unit
+        m_mean = m_mean * unit
+        m_mean_unc = m_mean_unc * unit
+        bmr = bmr * unit
+        bmr_unc = bmr_unc * unit
+        avg, sw = np.average(bmr.value, weights=bmr_unc.value**-2,
+                             returned=True)
+        avg_unc = sw**-0.5 * unit
 
-        self.colors[(blue, red)] = avg
+        self.colors[(blue, red)] = avg * unit
 
         return Color(Time(mjd, format='mjd'), clusters, m_filter,
                      m_mean, m_mean_unc, bmr, bmr_unc, avg, avg_unc)
@@ -351,6 +363,39 @@ class CometaryTrends:
             H += 2.5 * np.log10(Phi(self.eph['phase'])) * unit
 
         return H
+
+    def afrho(self, Phi=None):
+        """Compute the coma dust quantity Afρ.
+
+        Requires ``'rh'``, ``'phase'`` in ``eph``, ``delta`` additionally
+        required if ``aper`` is in angular units, ``filt`` (must be understood
+        by sbpy's calibration system), and ``aper``.
+
+        Uses ``fit_filter`` and ``color_transform``, if defined.
+
+
+        Parameters
+        ----------
+        Phi : function, optional
+            Use this phase function and return A(0°)fρ.
+
+
+        Returns
+        -------
+        afrho : masked array
+            Afρ in units of cm.
+
+        """
+
+        if self.fit_filter:
+            filt = self.fit_filter
+        else:
+            filt = self.filt
+
+        afrho = Afrho.from_fluxd(filt, self.m * self.m_original.unit,
+                                 self.aper, self.eph, Phi=Phi,
+                                 phasecor=Phi is not None)
+        return np.ma.MaskedArray(afrho.to_value('cm'), mask=self.m.mask)
 
     def ostat(self, k=4, dt=14, sigma=2, **kwargs):
         """Compute the outburst statistic for each photometry point.
@@ -571,6 +616,68 @@ class CometaryTrends:
                      / np.sum(~mask))
 
         return dt, trend, ~mask, fit
+
+    def afrho_rh(self, nucleus=None, guess=None, **kwargs):
+        """Fit Afρ as a function of ``rh**k``.
+
+
+        Parameters
+        ----------
+        guess : tuple of floats
+            Initial fit guess: (Afrho1, k) = (Afrho at 1 au, rh power-law
+            slope).
+
+        **kwargs
+            Additional keyword arguments pass to ``self.Afrho()``.
+
+
+        Returns
+        -------
+        trend: np.array
+
+        mtrend: np.array
+
+        fit_mask: np.array
+            Data points used in the fit.
+
+        fit: AfrhoRhFit
+            Fit results.
+
+        """
+
+        guess = (-4, 3) if guess is None else guess
+        afrho = self.afrho(**kwargs)
+        afrho.mask += self.fit_mask
+        log10afrho = np.log10(afrho)
+        log10afrho_unc = (self.m_unc.value / 1.0857 / np.log(10))
+        log10rh = np.log10(self.eph['rh'].to_value('au'))
+        mask = afrho.mask
+        r = linefit(log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask],
+                    guess)
+
+        trend = 10**(r[0][1] + r[0][0] * log10rh)
+        fit_unc = r[1] if r[1] is not None else (0, 0)
+
+        if self.fit_filter:
+            filt = self.fit_filter
+        else:
+            filt = self.filt
+        mtrend = Afrho(trend * u.cm).to_fluxd(
+            filt, self.aper, self.eph, unit=u.ABmag, Phi=kwargs.get('Phi'),
+            phasecor='Phi' in kwargs)
+
+        residuals = np.ma.MaskedArray(
+            self.m.data.value - mtrend.value,
+            mask=mask)
+
+        fit = AfrhoRhFit(10**r[0][1] * u.cm, r[0][0],
+                         fit_unc[1] * u.cm, fit_unc[0],
+                         np.std(residuals[~mask].data),
+                         np.sum((residuals[~mask].data
+                                 / self.m_unc[~mask].value)**2)
+                         / np.sum(~mask))
+
+        return trend, mtrend, ~mask, fit
 
     # def mrh(self, fixed_angular_size, filt=None, color_transform=True,
     #         Phi=phase_HalleyMarcus):
