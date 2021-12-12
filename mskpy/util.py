@@ -76,12 +76,14 @@ obs'.
    -------------------
    bandpass
    constant_spectral_resolution
+   hemispherical_crater
    deresolve
    phase_integral
    planck
    #redden
    polcurve
    savitzky_golay
+   spherical_sector
 
    Time
    ----
@@ -179,12 +181,14 @@ __all__ = [
 
     'bandpass',
     'constant_spectral_resolution',
+    'hemispherical_crater',
     'deresolve',
     'phase_integral',
     'planck',
     #    'redden',
     'polcurve',
     'savitzky_golay',
+    'spherical_sector',
 
     'cal2doy',
     'cal2iso',
@@ -2300,6 +2304,39 @@ def constant_spectral_resolution(start, stop, R):
     return start * d**np.arange(n)
 
 
+def hemispherical_crater(calc, quantity, rho=u.Quantity(500, 'kg/m3')):
+    """Volume and mass of a hemispherical crater.
+
+
+    Parameters
+    ----------
+    calc : string
+        'mass' to calculate mass from radius, 'radius' to calculate radius
+        from mass.
+
+    quantity : u.Quantity
+        Quantity to convert.
+
+    rho : u.Quantity
+        Mean density of material excavated.
+
+    """
+
+    if calc == 'mass':
+        R = quantity
+        V = 2 / 3 * np.pi * R**3
+        result = (V * rho).decompose()
+    elif calc == 'radius':
+        m = quantity
+        V = m / rho
+        result = (V * 3 / 2 / np.pi)**(1/3)
+    else:
+        raise ValueError('must calculate mass or radius, but {} was requested'
+                         .format(calc))
+
+    return result
+
+
 def deresolve(func, wave, flux, err=None):
     """De-resolve a spectrum using the supplied instrument profile.
 
@@ -2594,6 +2631,42 @@ def savitzky_golay(x, kernel=11, order=4):
         smooth_data.append(value)
 
     return np.array(smooth_data)
+
+
+def spherical_sector(calc, quantity, R, rho=u.Quantity(500, 'kg/m3')):
+    """Volume and mass of a spherical sector.
+
+
+    Parameters
+    ----------
+    calc : string
+        'mass' to calculate mass from height, 'height' to calculate height
+        from mass.
+
+    quantity : u.Quantity
+        Quantity to convert.
+
+    R : u.Quantity
+        Radius of the sphere.
+
+    rho : u.Quantity
+        Mean density of material excavated.
+
+    """
+
+    if calc == 'mass':
+        h = quantity
+        V = 2 / 3 * np.pi * R**2 * h
+        result = (V * rho).decompose()
+    elif calc == 'height':
+        m = quantity
+        V = m / rho
+        result = V * 3 / 2 / np.pi / R**2
+    else:
+        raise ValueError('must calculate mass or height, but {} was requested'
+                         .format(calc))
+
+    return result
 
 
 def cal2doy(cal, scale='utc'):
