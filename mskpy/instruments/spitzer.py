@@ -571,9 +571,9 @@ class IRSCombine:
 
         """
 
-        assert isinstance(scales, dict)
+        assert scales is None or isinstance(scales, dict)
         if scales is None:
-            scales = dict(zip(self.raw.keys(), np.ones(len(self.raw))))
+            _scales = dict(zip(self.raw.keys(), np.ones(len(self.raw))))
         else:
             _scales = dict(**self.scales)
             _scales.update(scales)
@@ -979,8 +979,12 @@ class IRSCombine:
 
         self.header = OrderedDict()
         self.header['object'] = headers[first]['OBJECT']
-        self.header['naif id'] = headers[first]['NAIFID']
-        self.header['naif name'] = spice.bodc2s(int(self.header['naif id']))
+        self.header['naif id'] = headers[first].get('NAIFID')
+        if self.header['naif id'] is None:
+            self.header['naif name'] = None
+        else:
+            self.header['naif name'] = spice.bodc2s(
+                int(self.header['naif id']))
         self.header['observer'] = headers[first]['OBSRVR']
         self.header['program id'] = headers[first]['PROGID']
         self.header['start time'] = start_time
@@ -1015,16 +1019,20 @@ class IRSCombine:
                 position_angles[module].append(
                     float(self.headers[f]['PA_SLT']))
 
-        g = getgeom(self.header['naif id'], Spitzer,
-                    self.header['start time'])
-        self.geom = g
-        self.header['rh'] = '{:.3f}'.format(g.rh)
-        self.header['Delta'] = '{:.3f}'.format(g.delta)
-        self.header['phase'] = '{:.1f}'.format(g.phase)
-        self.header['Sun angle'] = ['{:.1f}'.format(
-            g.sangle), 'Projected Sun angle (E of N)']
-        self.header['Velocity angle'] = ['{:.1f}'.format(
-            g.vangle), 'Projected target velocity angle (E of N)']
+        if self.header['naif id'] is None:
+            g = {}
+            self.geom = {'date': cal2time(self.header['start time'])}
+        else:
+            g = getgeom(self.header['naif id'], Spitzer,
+                        self.header['start time'])
+            self.geom = g
+            self.header['rh'] = '{:.3f}'.format(g.rh)
+            self.header['Delta'] = '{:.3f}'.format(g.delta)
+            self.header['phase'] = '{:.1f}'.format(g.phase)
+            self.header['Sun angle'] = ['{:.1f}'.format(
+                g.sangle), 'Projected Sun angle (E of N)']
+            self.header['Velocity angle'] = ['{:.1f}'.format(
+                g.vangle), 'Projected target velocity angle (E of N)']
 
         # double str because single str returns numpy.str_
         self.header['RA'] = [
@@ -1850,14 +1858,18 @@ def main():
 
         rx = IRSCombine(files, **config.get('IRSCombine', {}))
 
-        if np.dot(rx.geom.rt, rx.geom.vt) < 0:
-            pre_post = 'pre'
+        dh = '{:.2f}'.format(hms2dh(rx.geom['date'].iso[11:]) / 24)[1:]
+        date = rx.geom['date'].iso[:10].replace('-', '') + dh
+        if rx.header['naif id'] is None:
+            pfx = config.get('prefix').format(date=date)
         else:
-            pre_post = 'post'
-        dh = '{:.2f}'.format(hms2dh(rx.geom.date.iso[11:]) / 24)[1:]
-        date = rx.geom.date.iso[:10].replace('-', '') + dh
-        rh = "{pre_post}{g[rh].value:.3f}".format(pre_post=pre_post, g=rx.geom)
-        pfx = config.get('prefix').format(g=rx.geom, rh=rh, date=date)
+            if np.dot(rx.geom.rt, rx.geom.vt) < 0:
+                pre_post = 'pre'
+            else:
+                pre_post = 'post'
+            rh = "{pre_post}{g[rh].value:.3f}".format(
+                pre_post=pre_post, g=rx.geom)
+            pfx = config.get('prefix').format(g=rx.geom, rh=rh, date=date)
 
         tab = irs_summary(files)
         tab.write(pfx + '-summary.csv', format="ascii.ecsv", overwrite=True)
