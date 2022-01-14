@@ -540,7 +540,8 @@ class IRSCombine:
 
         self.meta['aploss_correct'] = ['Aperture loss corrected.']
 
-    def coadd(self, scales=dict(), sig=2.5, repeatability=0.018):
+    def coadd(self, scales=dict(), sig=2.5, repeatability=0.018,
+              combine='mean'):
         """Combine by module.
 
         Scale factors derived by `scale_spectra()` are applied by
@@ -558,13 +559,15 @@ class IRSCombine:
 
         sig : float, optional
           If the number of spectra for a module is greater than 2,
-          then `mskpy.meanclip` is used to combine the spectra by
-          wavelength, clipping at `sig` sigma.  Otherwise, the spectra
-          are averaged.
+          then `mskpy.meanclip` is used to clip the data.
 
         repeatability : float, optional
-          Add this fraction of the flux desnity to the uncertainty, in
+          Add this fraction of the flux density to the uncertainty, in
           quadrature.
+
+        combine : string, optional
+          Combination function: mean or median.  When combining two samples,
+          the mean will always be used.
 
         """
 
@@ -633,9 +636,16 @@ class IRSCombine:
                     if fluxd.shape[0] > 2:
                         mc = meanclip(fluxd[:, i], lsig=sig, hsig=sig,
                                       full_output=True)
-                        f[i] = mc[0]
-                        e[i] = np.sqrt(sum(err2[mc[2], i])) / len(mc[2])
+                        if combine == 'mean':
+                            f[i] = mc[0]
+                            e[i] = np.sqrt(sum(err2[mc[2], i])) / len(mc[2])
+                        elif combine == 'median':
+                            f[i] = np.median(fluxd[:, i][mc[2]])
+                            # https://en.wikipedia.org/wiki/Median#Efficiency
+                            e[i] = np.sqrt(
+                                np.pi / 2 * sum(err2[mc[2], i])) / len(mc[2])
                     else:
+                        # two or one samples, just use mean
                         f[i] = np.mean(fluxd[:, i])
                         e[i] = np.sqrt(np.sum(err2[:, i])) / fluxd.shape[0]
 
@@ -652,11 +662,11 @@ class IRSCombine:
                     wave=w[i], fluxd=f[i], err=e[i])
 
                 if fluxd.shape[0] > 2:
-                    self.meta['coadd'].append("{} {}{} spectra coadded with meanclip(sig={}).".format(
-                        fluxd.shape[0], module[:-1], order, sig))
+                    self.meta['coadd'].append("{} {}{} spectra coadded with {}clip(sig={}).".format(
+                        fluxd.shape[0], module[:-1], order, combine, sig))
                 elif fluxd.shape[0] == 2:
-                    self.meta['coadd'].append("{} {}{} spectra averaged together.".format(
-                        fluxd.shape[0], module[:-1], order))
+                    self.meta['coadd'].append("{} {}{} spectra {}ed together.".format(
+                        fluxd.shape[0], module[:-1], order, combine))
                 else:
                     self.meta['coadd'].append("{} {}{} spectrum included.".format(
                         fluxd.shape[0], module[:-1], order))
