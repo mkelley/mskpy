@@ -85,13 +85,13 @@ def login(auth_file):
     return headers
 
 
-def mkdir(path):
+def mkdir(path, logger):
     p = '.'
     for d in path.split('/'):
         p = os.path.join(p, d)
         if not os.path.exists(p):
             os.mkdir(p)
-            print('  Created directory', p)
+            logger.info('  Created directory %s', p)
 
 
 def query_count(query, logger):
