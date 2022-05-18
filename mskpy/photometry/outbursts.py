@@ -249,7 +249,7 @@ class CometaryTrends:
         """
 
         if len(self.filt) < 2:
-            self.logger.info('Not enough filters.')
+            self.logger.warning('Not enough filters.')
             return None
 
         b = self.filt == blue
@@ -263,7 +263,7 @@ class CometaryTrends:
             self.eph['date'].mjd[:, np.newaxis],
             max_dt, criterion='distance'
         )
-        self.logger.info(f'{clusters.max()} clusters found.')
+        self.logger.debug(f'{clusters.max()} clusters found.')
 
         mjd = []
         m_mean = []
@@ -304,7 +304,7 @@ class CometaryTrends:
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
         if len(bmr) == 0:
-            self.logger.info('No colors measured.')
+            self.logger.warning('No colors measured.')
             return None
 
         unit = self.m_original.unit
@@ -397,18 +397,18 @@ class CometaryTrends:
                                  phasecor=Phi is not None)
         return np.ma.MaskedArray(afrho.to_value('cm'), mask=self.m.mask)
 
-    def ostat(self, k=4, dt=14, sigma=2, **kwargs):
+    def ostat(self, k=4, dt=14, sigma=2, minimum_uncertainty=0, **kwargs):
         """Compute the outburst statistic for each photometry point.
 
-        ostat is calculated for each masked point, but the masked points are
-        not included in the photometric baseline calculation.
+        ostat is calculated for each masked point, but the masked points are not
+        included in the photometric baseline calculation.
 
 
         Parameters
         ----------
         k : float, optional
             Heliocentric distance slope on apparent magnitude for the baseline
-            estimate.
+            estimate (i.e., includes rh-dependence on solar scattered light).
 
         dt : float, optional
             Number of days of history to use for the baseline estimate.
@@ -416,8 +416,12 @@ class CometaryTrends:
         sigma : float, optional
             Number of sigmas to clip the data.
 
+        minimum_uncertainty : float, optional
+            Force this minimum uncertainty in the ostat calculation.
+
         **kwargs
-            Additional keyword arguments are passed to ``H()``.
+            Additional keyword arguments are passed to ``H()``, e.g.,
+            `fixed_angular_size`.
 
 
         Returns
@@ -454,7 +458,8 @@ class CometaryTrends:
             baseline, sw = np.ma.average(m, weights=m_unc**-2,
                                          returned=True)
             baseline_unc = sw**-0.5
-            unc = max(np.sqrt(baseline_unc**2 + self.m_unc[i]**2).value, 0.1)
+            unc = max(np.hypot(baseline_unc, self.m_unc[i]).value,
+                      minimum_uncertainty)
             o[i] = np.round(baseline.value / unc, 1)
 
         return o
