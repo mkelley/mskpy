@@ -20,6 +20,7 @@ image.process --- Process (astronomical) images.
    slide
    stripes
    subim
+   temporal_filter
    unwrap
 
 """
@@ -27,26 +28,28 @@ image.process --- Process (astronomical) images.
 from ..util import autodoc
 import numpy as np
 from . import core, analysis
+from sbpy.activity import phase_HalleyMarcus
 
 __all__ = [
-    'align_by_centroid',
-    'align_by_offset',
-    'align_by_wcs',
-    'columnpull',
-    'combine',
-    'crclean',
-    'cutout',
-    'fixpix',
-    'mkflat',
-    'psfmatch',
-    'slide',
-    'stripes',
-    'subim',
+    "align_by_centroid",
+    "align_by_offset",
+    "align_by_wcs",
+    "columnpull",
+    "combine",
+    "crclean",
+    "cutout",
+    "fixpix",
+    "mkflat",
+    "psfmatch",
+    "slide",
+    "stripes",
+    "subim",
+    "temporal_filter",
+    "unwrap",
 ]
 
 
-def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
-                      **kwargs):
+def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5), **kwargs):
     """Align a set of images by centroid of a single source.
 
     Parameters
@@ -81,7 +84,7 @@ def align_by_centroid(data, yx, cfunc=None, ckwargs=dict(box=5),
 
     if isinstance(data[0], str):
         im = fits.getdata(data[0])
-        stack = np.zeros((len(data), ) + im.shape)
+        stack = np.zeros((len(data),) + im.shape)
         stack[0] = im
         del im
         for i in range(1, len(data)):
@@ -124,7 +127,7 @@ def align_by_offset(data, dyx, **kwargs):
 
     if isinstance(data[0], str):
         im = fits.getdata(data[0])
-        stack = np.zeros((len(data), ) + im.shape)
+        stack = np.zeros((len(data),) + im.shape)
         stack[0] = im
         del im
         for i in range(1, len(data)):
@@ -136,20 +139,28 @@ def align_by_offset(data, dyx, **kwargs):
         stack[i] = core.imshift(stack[i], dyx[i], **kwargs)
         if int(dyx[i, 0]) != 0:
             if int(dyx[i, 0]) < 0:
-                stack[i, int(dyx[i, 0]):] = np.nan
+                stack[i, int(dyx[i, 0]) :] = np.nan
             else:
-                stack[i, :int(dyx[i, 0])] = np.nan
+                stack[i, : int(dyx[i, 0])] = np.nan
         if int(dyx[i, 1]) != 0:
             if int(dyx[i, 1]) < 0:
-                stack[i, :, int(dyx[i, 1]):] = np.nan
+                stack[i, :, int(dyx[i, 1]) :] = np.nan
             else:
-                stack[i, :, :int(dyx[i, 1])] = np.nan
+                stack[i, :, : int(dyx[i, 1])] = np.nan
 
     return stack
 
 
-def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
-                 time_key='DATE-OBS', method='interp', **kwargs):
+def align_by_wcs(
+    files,
+    wcs=None,
+    shape=None,
+    target=None,
+    observer=None,
+    time_key="DATE-OBS",
+    method="interp",
+    **kwargs
+):
     """Align a set of images using their world coordinate systems.
 
     Parameters
@@ -187,14 +198,14 @@ def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
     from astropy.wcs import WCS
     from reproject import reproject_interp, reproject_exact
 
-    assert method in ['interp', 'exact']
-    if method == 'interp':
+    assert method in ["interp", "exact"]
+    if method == "interp":
         reproject = reproject_interp
     else:
         reproject = reproject_exact
 
     im, h0 = fits.getdata(files[0], header=True)
-    shape = (h0['NAXIS2'], h0['NAXIS1']) if shape is None else shape
+    shape = (h0["NAXIS2"], h0["NAXIS1"]) if shape is None else shape
     wcs0 = WCS(h0) if wcs is None else wcs
 
     if target is None:
@@ -215,8 +226,7 @@ def align_by_wcs(files, wcs=None, shape=None, target=None, observer=None,
         wcs = WCS(h)
         wcs.wcs.crval = wcs.wcs.crval + d
 
-        stack[i], cov[i] = reproject(
-            (im, wcs), wcs0, shape_out=shape, **kwargs)
+        stack[i], cov[i] = reproject((im, wcs), wcs0, shape_out=shape, **kwargs)
 
     return stack, cov
 
@@ -283,22 +293,23 @@ def combine(images, axis=0, func=np.mean, niter=0, lsig=3, hsig=3):
 
     """
 
-    print('[Combine] Remaining iterations: ', niter)
+    print("[Combine] Remaining iterations: ", niter)
     if not isinstance(images, np.ma.MaskedArray):
         images = np.ma.MaskedArray(images)
 
-    print('  Median')
+    print("  Median")
     m = np.median(images, axis=axis)
-    print('  Standard deviation')
+    print("  Standard deviation")
     s = np.std(images, axis=axis)
     d = (images - m) / s
     images.mask += (d < -lsig) + (d > hsig)
     if niter <= 0:
-        print('  Combining')
+        print("  Combining")
         return func(images, axis=axis)
     else:
-        return combine(images, axis=axis, func=func, niter=niter-1,
-                       lsig=lsig, hsig=hsig)
+        return combine(
+            images, axis=axis, func=func, niter=niter - 1, lsig=lsig, hsig=hsig
+        )
 
 
 def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
@@ -341,8 +352,8 @@ def crclean(im, thresh, niter=1, unc=None, gain=1.0, rn=0.0, fwhm=2.0):
     from scipy.ndimage import convolve, median_filter
 
     if niter > 1:
-        print('[crclean] Iteration {}'.format(niter))
-        im = crclean(im, thresh, niter=niter-1, unc=unc, gain=gain, rn=rn)
+        print("[crclean] Iteration {}".format(niter))
+        im = crclean(im, thresh, niter=niter - 1, unc=unc, gain=gain, rn=rn)
 
     # subsample the image by a factor of 2 to avoid contamination from
     # neighboring high pixels
@@ -409,10 +420,10 @@ def cutout(yx, half_size, shape=None):
     if not np.iterable(half_size):
         half_size = (half_size, half_size)
 
-    s = np.s_[max(yx[0] - half_size[0], 0):
-              min(yx[0] + half_size[0] + 1, shape[0]),
-              max(yx[1] - half_size[1], 0):
-              min(yx[1] + half_size[1] + 1, shape[1])]
+    s = np.s_[
+        max(yx[0] - half_size[0], 0) : min(yx[0] + half_size[0] + 1, shape[0]),
+        max(yx[1] - half_size[1], 0) : min(yx[1] + half_size[1] + 1, shape[1]),
+    ]
     return s
 
 
@@ -538,7 +549,7 @@ def psfmatch(psf, psfr, ps=1, psr=1, smooth=None, mask=None):
     # trim psfr?
     d = _psfr.shape[0] - _psf.shape[0]
     if d != 0:
-        sl = slice(np.floor(d / 2.), -np.ceil(d / 2.))
+        sl = slice(np.floor(d / 2.0), -np.ceil(d / 2.0))
         _psfr = rebin(_psfr, 2)
         _psfr = rebin(_psfr[d:-d, d:-d], -2)
 
@@ -591,7 +602,7 @@ def slide(im, angle, axis=0, reversed=False):
     for i in range(im.shape[1]):
         d = direction * int(i * ta)
         slid[:, i] = np.roll(im[:, i], d, axis=0)
-        if hasattr(im, 'mask'):
+        if hasattr(im, "mask"):
             slid.mask[:, i] = np.roll(im.mask[:, i], d, axis=0)
 
     return slid
@@ -684,8 +695,10 @@ def subim(im, yx, half_box, expand=False, pad=0):
 
     y0 = int(np.around(yx[0]))
     x0 = int(np.around(yx[1]))
-    s = np.s_[max(y0 - half_box, 0): min(y0 + half_box + 1, im.shape[0]),
-              max(x0 - half_box, 0): min(x0 + half_box + 1, im.shape[1])]
+    s = np.s_[
+        max(y0 - half_box, 0) : min(y0 + half_box + 1, im.shape[0]),
+        max(x0 - half_box, 0) : min(x0 + half_box + 1, im.shape[1]),
+    ]
 
     _subim = im[s]
     shape = (2 * half_box + 1, 2 * half_box + 1)
@@ -693,11 +706,80 @@ def subim(im, yx, half_box, expand=False, pad=0):
         dy = shape[0] - _subim.shape[0]
         dx = shape[1] - _subim.shape[1]
         subim = np.zeros(shape) + pad
-        subim[:_subim.shape[0], :_subim.shape[1]] = _subim
+        subim[: _subim.shape[0], : _subim.shape[1]] = _subim
     else:
         subim = _subim
 
     return subim
+
+
+def temporal_filter(
+    images,
+    eph,
+    scale=None,
+    delta_power=1,
+    Phi=phase_HalleyMarcus,
+    combine="median",
+    axis=0,
+):
+    """Temporally filter comet images.
+
+
+    Parameters
+    ----------
+    images : ndarray
+        The baseline data are `images[:-1]`, and the last image is the image to
+        filter.  All images should be photometrically calibrated to the same
+        scale, background removed, and equal dimensions.  Axis 0 iterates over
+        the images.
+
+    eph : sbpy.data.Ephem
+        Ephemeris of the object, each row corresponding to each image, in order.
+        The images will be scaled by ``rh**2 * delta**delta_power *
+        Phi(phase)``, relative to the last image.
+
+    scale : ndarray, optional
+        Additional scale factor to apply (applied relative to the last value).
+
+    delta_power : float, optional
+        Use 1 for cometary comae?  2 for asteroids or nuclei.
+
+    Phi : callable or None, optional
+        Use this phase function for geometric scaling, or ``None`` for no phase
+        angle correction.
+
+    combine : string, optional
+        Combine baseline data by `'median'` or `'average'`.
+
+
+    Returns
+    -------
+    diff : ndarray
+        The image - baseline.
+
+    baseline : ndarray
+        The generated baseline image.
+
+    image_scales : ndarray
+        Image scales used to derive the baseline image.
+
+    """
+
+    _scale = (
+        (1 if scale is None else scale)
+        * eph["rh"].value ** 2
+        * eph["delta"].value ** delta_power
+        / Phi(eph["phase"])
+    )
+    _scale /= _scale[-1]
+
+    scaled_images = images * _scale[:, np.newaxis, np.newaxis]
+    if combine == "median":
+        baseline = np.median(scaled_images[:-1], axis)
+    elif combine in ["average", "mean"]:
+        baseline = np.mean(scaled_images[:-1], axis)
+
+    return images[-1] - baseline, baseline, _scale
 
 
 def unwrap(im, yx, steps=None):
@@ -731,15 +813,18 @@ def unwrap(im, yx, steps=None):
         return x, y
 
     def img2polar(img, center, radius, theta_step=360, zoom=2):
-        theta, R = np.meshgrid(np.linspace(0, 2*np.pi, theta_step),  # x
-                               np.linspace(0, radius, zoom*radius))   # y
+        theta, R = np.meshgrid(
+            np.linspace(0, 2 * np.pi, theta_step),  # x
+            np.linspace(0, radius, zoom * radius),
+        )  # y
 
         print("theta-R shape", theta.shape, R.shape)
 
         Xcart, Ycart = polar2cart(R, theta, center)
         polar_img = nd.map_coordinates(
-            img, [Ycart, Xcart], order=3, mode='nearest')
-        polar_img = np.reshape(polar_img, (zoom*radius, theta_step))
+            img, [Ycart, Xcart], order=3, mode="nearest"
+        )
+        polar_img = np.reshape(polar_img, (zoom * radius, theta_step))
 
         print("polar_img shape", polar_img.shape)
 
