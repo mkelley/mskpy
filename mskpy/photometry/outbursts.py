@@ -5,9 +5,7 @@ outbursts --- Lightcurve and outburst analysis
 
 """
 
-__all__ = [
-    'CometaryTrends'
-]
+__all__ = ["CometaryTrends"]
 
 from collections import namedtuple
 import logging
@@ -21,29 +19,33 @@ from sbpy.activity import Afrho
 from ..util import linefit
 
 dmdtFit = namedtuple(
-    'dmdtFit', ['m0', 'dmdt', 'm0_unc', 'dmdt_unc', 'rms', 'rchisq']
+    "dmdtFit", ["m0", "dmdt", "m0_unc", "dmdt_unc", "rms", "rchisq"]
 )
 ExpFit = namedtuple(
-    'ExpFit', ['dm', 'tau', 'dm_unc', 'tau_unc', 'rms', 'rchisq']
+    "ExpFit", ["dm", "tau", "dm_unc", "tau_unc", "rms", "rchisq"]
 )
 AfrhoRhFit = namedtuple(
-    'AfrhoRhFit', ['afrho1', 'k', 'afrho1_unc', 'k_unc', 'rms', 'rchisq']
+    "AfrhoRhFit", ["afrho1", "k", "afrho1_unc", "k_unc", "rms", "rchisq"]
 )
 
 Color = namedtuple(
-    'Color', ['t', 'clusters', 'm_filter', 'm',
-              'm_unc', 'c', 'c_unc', 'avg', 'avg_unc']
+    "Color",
+    ["t", "clusters", "m_filter", "m", "m_unc", "c", "c_unc", "avg", "avg_unc"],
 )
-Color.__doc__ = 'Color estimate.'
-Color.t.__doc__ = 'Average observation date for each color estimate. [astropy Time]'
-Color.clusters.__doc__ = 'Observation clusters used to define color; 0 for unused.'
-Color.m_filter.__doc__ = 'Filter for m.'
-Color.m.__doc__ = 'Apparent mag for each date in given filter. [mag]'
-Color.m_unc.__doc__ = 'Uncertainty on m.  [mag]'
-Color.c.__doc__ = 'Individual colors.  [mag]'
-Color.c_unc.__doc__ = 'Uncertainty on c.  [mag]'
-Color.avg.__doc__ = 'Weighted average color.  [mag]'
-Color.avg_unc.__doc__ = 'Uncertainty on avg.  [mag]'
+Color.__doc__ = "Color estimate."
+Color.t.__doc__ = (
+    "Average observation date for each color estimate. [astropy Time]"
+)
+Color.clusters.__doc__ = (
+    "Observation clusters used to define color; 0 for unused."
+)
+Color.m_filter.__doc__ = "Filter for m."
+Color.m.__doc__ = "Apparent mag for each date in given filter. [mag]"
+Color.m_unc.__doc__ = "Uncertainty on m.  [mag]"
+Color.c.__doc__ = "Individual colors.  [mag]"
+Color.c_unc.__doc__ = "Uncertainty on c.  [mag]"
+Color.avg.__doc__ = "Weighted average color.  [mag]"
+Color.avg_unc.__doc__ = "Uncertainty on avg.  [mag]"
 
 
 class CometaryTrends:
@@ -104,8 +106,18 @@ class CometaryTrends:
 
     """
 
-    def __init__(self, eph, m, m_unc, filt=None, aper=None, fit_mask=None,
-                 logger=None, log_level="INFO", **kwargs):
+    def __init__(
+        self,
+        eph,
+        m,
+        m_unc,
+        filt=None,
+        aper=None,
+        fit_mask=None,
+        logger=None,
+        log_level="INFO",
+        **kwargs,
+    ):
         # store parameters and properties
         self.eph = eph
         self.m = m
@@ -113,29 +125,27 @@ class CometaryTrends:
         self.filt = np.array(filt)
         self.aper = aper
         self.fit_mask = (
-            np.zeros(len(m), bool) if fit_mask is None
-            else np.array(fit_mask)
+            np.zeros(len(m), bool) if fit_mask is None else np.array(fit_mask)
         )
-        self.colors = kwargs.get('colors', {})
-        self.fit_filter = kwargs.get('fit_filter')
-        self.color_transform = kwargs.get('color_transform', False)
+        self.colors = kwargs.get("colors", {})
+        self.fit_filter = kwargs.get("fit_filter")
+        self.color_transform = kwargs.get("color_transform", False)
 
         if logger is None:
-            self.logger = logging.getLogger('CometaryTrends')
+            self.logger = logging.getLogger("CometaryTrends")
         else:
             self.logger = logger
-        self.log_level = log_level
+        self.log_level = logging.getLevelName(log_level.upper())
 
         # parameter check
         if not all((isinstance(m, u.Quantity), isinstance(m_unc, u.Quantity))):
-            raise ValueError(
-                'm, m_unc must be Quantity in units of magnitude.')
+            raise ValueError("m, m_unc must be Quantity in units of magnitude.")
 
         n = [len(x) for x in (eph, m, m_unc, self.fit_mask)]
         if filt is not None:
             n += [len(filt)]
         if len(np.unique(n)) != 1:
-            raise ValueError('all arrays must have the same length')
+            raise ValueError("all arrays must have the same length")
 
     @property
     def m_original(self):
@@ -150,8 +160,7 @@ class CometaryTrends:
 
         """
 
-        m = np.ma.MaskedArray(self._m.copy(),
-                              mask=np.zeros(len(self._m), bool))
+        m = np.ma.MaskedArray(self._m.copy(), mask=np.zeros(len(self._m), bool))
         if (self.filt is not None) and (self.fit_filter is not None):
             for i in range(len(m)):
                 if self.filt[i] != self.fit_filter:
@@ -159,11 +168,13 @@ class CometaryTrends:
                         # try to color transform
                         color = (self.filt[i], self.fit_filter)
                         if color in self.colors:
-                            m[i] = ((m[i].value - self.colors[color].value)
-                                    * m.data.unit)
+                            m[i] = (
+                                m[i].value - self.colors[color].value
+                            ) * m.data.unit
                         elif color[::-1] in self.colors:
-                            m[i] = ((m[i].value + self.colors[color[::-1]].value)
-                                    * m.data.unit)
+                            m[i] = (
+                                m[i].value + self.colors[color[::-1]].value
+                            ) * m.data.unit
                         else:
                             # not possible
                             m.mask[i] = True
@@ -196,7 +207,7 @@ class CometaryTrends:
     @fit_filter.setter
     def fit_filter(self, filt):
         if not isinstance(filt, (str, type(None))):
-            raise ValueError('fit filter must be a string or ``None``')
+            raise ValueError("fit filter must be a string or ``None``")
 
         self._fit_filter = filt
 
@@ -215,8 +226,9 @@ class CometaryTrends:
     def color_transform(self, flag):
         self._color_transform = bool(flag)
 
-    def color(self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag,
-              m_filter=None):
+    def color(
+        self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag, m_filter=None
+    ):
         """Estimate the color, blue - red, using weighted averages.
 
         ``eph`` requires ``'date'``.
@@ -253,7 +265,7 @@ class CometaryTrends:
         """
 
         if len(self.filt) < 2:
-            self.logger.log(self.log_level, 'Not enough filters.')
+            self.logger.log(self.log_level, "Not enough filters.")
             return None
 
         b = self.filt == blue
@@ -264,10 +276,9 @@ class CometaryTrends:
             raise ValueError("m_filter must be one of blue or red")
 
         clusters = hierarchy.fclusterdata(
-            self.eph['date'].mjd[:, np.newaxis],
-            max_dt, criterion='distance'
+            self.eph["date"].mjd[:, np.newaxis], max_dt, criterion="distance"
         )
-        self.logger.log(self.log_level, f'{clusters.max()} clusters found.')
+        self.logger.log(self.log_level, f"{clusters.max()} clusters found.")
 
         mjd = []
         m_mean = []
@@ -283,21 +294,25 @@ class CometaryTrends:
                 continue
 
             # estimate weighted averages and compute color
-            wb, sw = np.average(self.m_original[b * i].value,
-                                weights=self.m_unc.value[b * i]**-2,
-                                returned=True)
+            wb, sw = np.average(
+                self.m_original[b * i].value,
+                weights=self.m_unc.value[b * i] ** -2,
+                returned=True,
+            )
             wb_unc = sw**-0.5
 
-            wr, sw = np.average(self.m_original[r * i].value,
-                                weights=self.m_unc.value[r * i]**-2,
-                                returned=True)
+            wr, sw = np.average(
+                self.m_original[r * i].value,
+                weights=self.m_unc.value[r * i] ** -2,
+                returned=True,
+            )
             wr_unc = sw**-0.5
 
             if np.hypot(wb_unc, wr_unc) > max_unc.value:
                 continue
 
-            mjd.append(self.eph['date'].mjd[i].mean())
-            if m_filter == 'blue':
+            mjd.append(self.eph["date"].mjd[i].mean())
+            if m_filter == "blue":
                 m_mean.append(wb)
                 m_mean_unc.append(wb_unc)
             else:
@@ -308,7 +323,7 @@ class CometaryTrends:
             bmr_unc.append(np.hypot(wb_unc, wr_unc))
 
         if len(bmr) == 0:
-            self.logger.log(self.log_level, 'No colors measured.')
+            self.logger.log(self.log_level, "No colors measured.")
             return None
 
         unit = self.m_original.unit
@@ -316,14 +331,24 @@ class CometaryTrends:
         m_mean_unc = m_mean_unc * unit
         bmr = bmr * unit
         bmr_unc = bmr_unc * unit
-        avg, sw = np.average(bmr.value, weights=bmr_unc.value**-2,
-                             returned=True)
+        avg, sw = np.average(
+            bmr.value, weights=bmr_unc.value**-2, returned=True
+        )
         avg_unc = sw**-0.5 * unit
 
         self.colors[(blue, red)] = avg * unit
 
-        return Color(Time(mjd, format='mjd'), clusters, m_filter,
-                     m_mean, m_mean_unc, bmr, bmr_unc, avg, avg_unc)
+        return Color(
+            Time(mjd, format="mjd"),
+            clusters,
+            m_filter,
+            m_mean,
+            m_mean_unc,
+            bmr,
+            bmr_unc,
+            avg,
+            avg_unc,
+        )
 
     @staticmethod
     def linear_add(a, b):
@@ -357,14 +382,18 @@ class CometaryTrends:
         m = self.m.copy()
         unit = m.data.unit
         if nucleus is not None:
-            m = np.ma.MaskedArray(self.linear_subtract(m.data, nucleus),
-                                  mask=m.mask)
+            m = np.ma.MaskedArray(
+                self.linear_subtract(m.data, nucleus), mask=m.mask
+            )
 
         d = 2.5 if fixed_angular_size else 5
-        H = (m - 5 * np.log10(self.eph['rh'].to_value('au')) * unit
-             - d * np.log10(self.eph['delta'].to_value('au')) * unit)
+        H = (
+            m
+            - 5 * np.log10(self.eph["rh"].to_value("au")) * unit
+            - d * np.log10(self.eph["delta"].to_value("au")) * unit
+        )
         if Phi is not None:
-            H += 2.5 * np.log10(Phi(self.eph['phase'])) * unit
+            H += 2.5 * np.log10(Phi(self.eph["phase"])) * unit
 
         return H
 
@@ -396,10 +425,15 @@ class CometaryTrends:
         else:
             filt = self.filt
 
-        afrho = Afrho.from_fluxd(filt, self.m * self.m_original.unit,
-                                 self.aper, self.eph, Phi=Phi,
-                                 phasecor=Phi is not None)
-        return np.ma.MaskedArray(afrho.to_value('cm'), mask=self.m.mask)
+        afrho = Afrho.from_fluxd(
+            filt,
+            self.m * self.m_original.unit,
+            self.aper,
+            self.eph,
+            Phi=Phi,
+            phasecor=Phi is not None,
+        )
+        return np.ma.MaskedArray(afrho.to_value("cm"), mask=self.m.mask)
 
     def ostat(self, k=4, dt=14, sigma=2, minimum_uncertainty=0, **kwargs):
         """Compute the outburst statistic for each photometry point.
@@ -437,14 +471,13 @@ class CometaryTrends:
 
         Hy = (
             self.H(**kwargs)
-            - 2.5 * (k - 2) * np.log10(self.eph['rh'].to_value('au')) * u.mag
+            - 2.5 * (k - 2) * np.log10(self.eph["rh"].to_value("au")) * u.mag
         )
 
         o = np.ma.zeros(len(Hy))
         for i in range(len(Hy)):
-            j = (
-                (self.eph['date'] < self.eph['date'][i])
-                * (self.eph['date'] > (self.eph['date'][i] - dt * u.day))
+            j = (self.eph["date"] < self.eph["date"][i]) * (
+                self.eph["date"] > (self.eph["date"][i] - dt * u.day)
             )
             if j.sum() < 1:
                 o[i] = np.ma.masked
@@ -459,17 +492,17 @@ class CometaryTrends:
             m -= Hy[i]  # normalize to data point being tested
             m_unc = self.m_unc[good]
 
-            baseline, sw = np.ma.average(m, weights=m_unc**-2,
-                                         returned=True)
+            baseline, sw = np.ma.average(m, weights=m_unc**-2, returned=True)
             baseline_unc = sw**-0.5
-            unc = max(np.hypot(baseline_unc, self.m_unc[i]).value,
-                      minimum_uncertainty)
+            unc = max(
+                np.hypot(baseline_unc, self.m_unc[i]).value, minimum_uncertainty
+            )
             o[i] = np.round(baseline.value / unc, 1)
 
         return o
 
     def _fit_setup(self, nucleus=None, absolute=False, **kwargs):
-        dt = self.eph['date'].mjd * u.day
+        dt = self.eph["date"].mjd * u.day
         dt -= dt.min()
 
         if absolute:
@@ -479,8 +512,7 @@ class CometaryTrends:
             m = self.fit_m
             if nucleus is not None:
                 m = np.ma.MaskedArray(
-                    self.linear_subtract(m.data, nucleus),
-                    mask=m.mask
+                    self.linear_subtract(m.data, nucleus), mask=m.mask
                 )
                 # subtraction may introduce nans
                 m.mask += ~np.isfinite(m)
@@ -535,8 +567,12 @@ class CometaryTrends:
         mask = m.mask
 
         guess = (0.05, 15) if guess is None else guess
-        r = linefit(dt.value[~mask]**k, m.data.value[~mask],
-                    self.m_unc.value[~mask], guess)
+        r = linefit(
+            dt.value[~mask] ** k,
+            m.data.value[~mask],
+            self.m_unc.value[~mask],
+            guess,
+        )
         trend = (r[0][1] + r[0][0] * dt.value**k) * unit
         fit_unc = r[1] if r[1] is not None else (0, 0)
 
@@ -546,11 +582,15 @@ class CometaryTrends:
 
         residuals = m - trend
 
-        fit = dmdtFit(r[0][1] * unit, r[0][0] * unit / u.day**k,
-                      fit_unc[1] * unit, fit_unc[0] * unit / u.day**k,
-                      np.std(residuals[~mask].data),
-                      np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
-                      / np.sum(~mask))
+        fit = dmdtFit(
+            r[0][1] * unit,
+            r[0][0] * unit / u.day**k,
+            fit_unc[1] * unit,
+            fit_unc[0] * unit / u.day**k,
+            np.std(residuals[~mask].data),
+            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2)
+            / np.sum(~mask),
+        )
 
         return dt, trend, ~mask, fit
 
@@ -618,11 +658,15 @@ class CometaryTrends:
 
         residuals = m - trend
 
-        fit = ExpFit(r[0][0] * unit, r[0][1] * u.day,
-                     fit_unc[0] * unit, fit_unc[1] * u.day,
-                     np.std(residuals[~mask].data),
-                     np.sum((residuals[~mask].data / self.m_unc[~mask])**2)
-                     / np.sum(~mask))
+        fit = ExpFit(
+            r[0][0] * unit,
+            r[0][1] * u.day,
+            fit_unc[0] * unit,
+            fit_unc[1] * u.day,
+            np.std(residuals[~mask].data),
+            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2)
+            / np.sum(~mask),
+        )
 
         return dt, trend, ~mask, fit
 
@@ -658,13 +702,14 @@ class CometaryTrends:
         afrho = self.afrho(**kwargs)
         afrho.mask += self.fit_mask
         log10afrho = np.log10(afrho)
-        log10afrho_unc = (self.m_unc.value / 1.0857 / np.log(10))
-        log10rh = np.log10(self.eph['rh'].to_value('au'))
+        log10afrho_unc = self.m_unc.value / 1.0857 / np.log(10)
+        log10rh = np.log10(self.eph["rh"].to_value("au"))
         mask = afrho.mask
-        r = linefit(log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask],
-                    guess)
+        r = linefit(
+            log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask], guess
+        )
 
-        trend = 10**(r[0][1] + r[0][0] * log10rh)
+        trend = 10 ** (r[0][1] + r[0][0] * log10rh)
         fit_unc = r[1] if r[1] is not None else (0, 0)
 
         if self.fit_filter:
@@ -672,19 +717,27 @@ class CometaryTrends:
         else:
             filt = self.filt
         mtrend = Afrho(trend * u.cm).to_fluxd(
-            filt, self.aper, self.eph, unit=u.ABmag, Phi=kwargs.get('Phi'),
-            phasecor='Phi' in kwargs)
+            filt,
+            self.aper,
+            self.eph,
+            unit=u.ABmag,
+            Phi=kwargs.get("Phi"),
+            phasecor="Phi" in kwargs,
+        )
 
         residuals = np.ma.MaskedArray(
-            self.m.data.value - mtrend.value,
-            mask=mask)
+            self.m.data.value - mtrend.value, mask=mask
+        )
 
-        fit = AfrhoRhFit(10**r[0][1] * u.cm, r[0][0],
-                         fit_unc[1] * u.cm, fit_unc[0],
-                         np.std(residuals[~mask].data),
-                         np.sum((residuals[~mask].data
-                                 / self.m_unc[~mask].value)**2)
-                         / np.sum(~mask))
+        fit = AfrhoRhFit(
+            10 ** r[0][1] * u.cm,
+            r[0][0],
+            fit_unc[1] * u.cm,
+            fit_unc[0],
+            np.std(residuals[~mask].data),
+            np.sum((residuals[~mask].data / self.m_unc[~mask].value) ** 2)
+            / np.sum(~mask),
+        )
 
         return trend, mtrend, ~mask, fit
 
