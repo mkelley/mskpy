@@ -1292,12 +1292,25 @@ def delta_at_rh(rh, selong, observer=1 * u.au):
     observer = u.Quantity(observer, 'au')
     selong = u.Quantity(selong, 'rad')
 
-    delta = np.zeros_like(rh)
-    for i in range(len(rh)):
+    sizes = [np.size(rh), np.size(selong), np.size(observer)]
+    size = np.max(sizes)
+    if len(np.unique(sizes)) > 2 or (1 not in np.unique(sizes)):
+        raise ValueError("Array of different lengths given as input.")
+
+    if np.size(rh) == 1:
+      rh = np.repeat(rh, size)
+    if np.size(selong) == 1:
+      selong = np.repeat(selong, size)
+    if np.size(observer) == 1:
+      observer = np.repeat(observer, size)
+
+    delta = np.zeros(size) * rh.unit
+
+    for i in range(size):
         d = np.roots((
             1,
-            -2 * observer.value * np.cos(selong),
-            (observer**2 - rh[i]**2).value
+            -2 * observer[i].value * np.cos(selong[i]).value,
+            (observer[i]**2 - rh[i]**2).value
         ))
         j = 0 if d[0] >= 0 else 1
         delta[i] = d[j] * u.au
