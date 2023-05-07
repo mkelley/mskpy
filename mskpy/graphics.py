@@ -21,21 +21,22 @@ graphics --- Helper functions for making plots.
 """
 
 from .util import autodoc
+
 __all__ = [
-    'arrows',
-    'axcolor',
-    'circle',
-    'harrows',
-    'jdaxis2date',
-    'ksplot',
-    'nicelegend',
-    'niceplot',
-    'noborder',
-    'remaxes',
-    'rem_interior_ticklabels',
-    'savepdf2pdf',
-    'tplot',
-    'tplot_setup'
+    "arrows",
+    "axcolor",
+    "circle",
+    "harrows",
+    "jdaxis2date",
+    "ksplot",
+    "nicelegend",
+    "niceplot",
+    "noborder",
+    "remaxes",
+    "rem_interior_ticklabels",
+    "savepdf2pdf",
+    "tplot",
+    "tplot_setup",
 ]
 
 import os
@@ -45,9 +46,18 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 
-def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
-           offset=1.3, inset=0, fontsize='medium', arrowprops=dict(),
-           **kwargs):
+def arrows(
+    xy,
+    length,
+    rot=0,
+    angles=[0, 90],
+    labels=["N", "E"],
+    offset=1.3,
+    inset=0,
+    fontsize="medium",
+    arrowprops=dict(),
+    **kwargs
+):
     """Draw arrows, E of N.
 
     Parameters
@@ -83,24 +93,32 @@ def arrows(xy, length, rot=0, angles=[0, 90], labels=['N', 'E'],
 
     """
 
-    ax = kwargs.pop('axes', plt.gca())
+    ax = kwargs.pop("axes", plt.gca())
 
     if type(arrowprops) == dict:
-        arrowprops['arrowstyle'] = arrowprops.pop('arrowstyle', '<-')
-        arrowprops['shrinkB'] = arrowprops.pop('shrinkB', 0)
+        arrowprops["arrowstyle"] = arrowprops.pop("arrowstyle", "<-")
+        arrowprops["shrinkB"] = arrowprops.pop("shrinkB", 0)
 
     if labels is None:
-        labels = [''] * len(angles)
+        labels = [""] * len(angles)
 
     alist = []
     for i in range(len(angles)):
         a = np.radians(rot + angles[i])
         ixy = length * inset * np.array([-np.sin(a), np.cos(a)])
         dxy = length * offset * np.array([-np.sin(a), np.cos(a)])
-        alist += [ax.annotate(labels[i], xy + ixy, xy + dxy,
-                              ha='center', va='center',
-                              fontsize=fontsize, arrowprops=arrowprops,
-                              **kwargs)]
+        alist += [
+            ax.annotate(
+                labels[i],
+                xy + ixy,
+                xy + dxy,
+                ha="center",
+                va="center",
+                fontsize=fontsize,
+                arrowprops=arrowprops,
+                **kwargs
+            )
+        ]
     return alist
 
 
@@ -114,10 +132,10 @@ def axcolor(color):
 
     """
 
-    plt.rc('xtick', color=color)
-    plt.rc('ytick', color=color)
-    plt.rc('axes', edgecolor=color)
-    plt.rc('axes', labelcolor=color)
+    plt.rc("xtick", color=color)
+    plt.rc("ytick", color=color)
+    plt.rc("axes", edgecolor=color)
+    plt.rc("axes", labelcolor=color)
 
 
 def circle(x, y, r, ax=None, segments=100, **kwargs):
@@ -199,9 +217,9 @@ def jdaxis2date(axis, fmt):
 
     """
     from .util import jd2time
+
     jd = axis.get_ticklocs()
-    return axis.set_ticklabels(
-        [jd2time(t).datetime.strftime(fmt) for t in jd])
+    return axis.set_ticklabels([jd2time(t).datetime.strftime(fmt) for t in jd])
 
 
 def ksplot(x, xmax=None, ax=None, **kwargs):
@@ -239,7 +257,7 @@ def ksplot(x, xmax=None, ax=None, **kwargs):
     if ax is None:
         ax = plt.gca()
 
-    return ax.step(xx, yy, where='post', **kwargs)
+    return ax.step(xx, yy, where="post", **kwargs)
 
 
 def nicelegend(*args, **kwargs):
@@ -264,13 +282,13 @@ def nicelegend(*args, **kwargs):
 
     """
 
-    axis = kwargs.pop('axis', None)
+    axis = kwargs.pop("axis", None)
 
-    kwargs['numpoints'] = kwargs.pop('numpoints', 1)
+    kwargs["numpoints"] = kwargs.pop("numpoints", 1)
 
-    prop = dict(size='medium')
-    prop.update(kwargs.pop('prop', dict()))
-    kwargs['prop'] = prop
+    prop = dict(size="medium")
+    prop.update(kwargs.pop("prop", dict()))
+    kwargs["prop"] = prop
 
     if axis is not None:
         plt.sca(axis)
@@ -278,8 +296,16 @@ def nicelegend(*args, **kwargs):
     return plt.legend(*args, **kwargs)
 
 
-def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
-              mew=1.25, lw=2.0, ms=7.0, **kwargs):
+def niceplot1(
+    ax=None,
+    axfs="12",
+    lfs="14",
+    tightlayout=True,
+    mew=1.25,
+    lw=2.0,
+    ms=7.0,
+    **kwargs
+):
     """Clean up a plot for publication (matplotlib 1.x).
 
     Parameters
@@ -299,8 +325,16 @@ def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
 
     if ax is None:
         for ax in plt.gcf().get_axes():
-            niceplot(ax, tightlayout=tightlayout, axfs=axfs, lfs=lfs,
-                     mew=mew, lw=lw, ms=ms, **kwargs)
+            niceplot(
+                ax,
+                tightlayout=tightlayout,
+                axfs=axfs,
+                lfs=lfs,
+                mew=mew,
+                lw=lw,
+                ms=ms,
+                **kwargs
+            )
 
     # axis ticks
     plt.setp(ax.get_ymajorticklabels(), fontsize=axfs)
@@ -312,23 +346,27 @@ def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
 
     # for plot markers, ticks
     lines = ax.get_lines()
-    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+    mew = kwargs.pop("markeredgewidth", kwargs.pop("mew", None))
     if mew is not None:
         plt.setp(lines, mew=mew)
 
-    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+    ms = kwargs.pop("markersize", kwargs.pop("ms", None))
     if ms is not None:
         plt.setp(lines, ms=ms)
 
-    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+    lw = kwargs.pop("linewidth", kwargs.pop("lw", None))
     if lw is not None:
         plt.setp(lines, lw=lw)
 
     if len(kwargs) > 0:
         plt.setp(lines, **kwargs)
 
-    lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
-        ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
+    lines = (
+        ax.xaxis.get_minorticklines()
+        + ax.xaxis.get_majorticklines()
+        + ax.yaxis.get_minorticklines()
+        + ax.yaxis.get_majorticklines()
+    )
     plt.setp(lines, mew=1.25)
 
     # the frame
@@ -339,8 +377,14 @@ def niceplot1(ax=None, axfs='12', lfs='14', tightlayout=True,
         plt.tight_layout()
 
 
-def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
-             set_axis_formatter=True, **kwargs):
+def niceplot2(
+    ax=None,
+    tick_fs=12,
+    label_fs=14,
+    tight_layout=True,
+    set_axis_formatter=True,
+    **kwargs
+):
     """Clean up a plot for publication.
 
     Parameters
@@ -361,23 +405,35 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
 
     if ax is None:
         for ax in plt.gcf().get_axes():
-            niceplot(ax, tight_layout=tight_layout, tick_fs=tick_fs,
-                     label_fs=label_fs, **kwargs)
+            niceplot(
+                ax,
+                tight_layout=tight_layout,
+                tick_fs=tick_fs,
+                label_fs=label_fs,
+                **kwargs
+            )
 
     # axis ticks
     if isinstance(tick_fs, str):
         if tick_fs.isdecimal():
             minortick_fs = float(tick_fs) / np.sqrt(2)
         else:
-            sizes = ['xx-small', 'x-small', 'small', 'medium', 'large',
-                     'x-large', 'xx-large']
-            assert(tick_fs.lower() in sizes), 'Unknown tick font size name'
+            sizes = [
+                "xx-small",
+                "x-small",
+                "small",
+                "medium",
+                "large",
+                "x-large",
+                "xx-large",
+            ]
+            assert tick_fs.lower() in sizes, "Unknown tick font size name"
             minortick_fs = sizes[max(0, sizes.index(tick_fs) - 1)]
     else:
         minortick_fs = tick_fs / np.sqrt(2)
 
-    ax.tick_params(axis='both', which='major', labelsize=tick_fs)
-    ax.tick_params(axis='both', which='minor', labelsize=minortick_fs)
+    ax.tick_params(axis="both", which="major", labelsize=tick_fs)
+    ax.tick_params(axis="both", which="minor", labelsize=minortick_fs)
 
     # axis labels
     labels = (ax.xaxis.get_label(), ax.yaxis.get_label())
@@ -385,31 +441,109 @@ def niceplot(ax=None, tick_fs=12, label_fs=14, tight_layout=True,
 
     # for plot markers, ticks
     lines = ax.get_lines()
-#    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
-#    if mew is not None:
-#        plt.setp(lines, mew=mew)
-#
-#    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
-#    if ms is not None:
-#        plt.setp(lines, ms=ms)
-#
-#    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
-#    if lw is not None:
-#        plt.setp(lines, lw=lw)
+    #    mew = kwargs.pop('markeredgewidth', kwargs.pop('mew', None))
+    #    if mew is not None:
+    #        plt.setp(lines, mew=mew)
+    #
+    #    ms = kwargs.pop('markersize', kwargs.pop('ms', None))
+    #    if ms is not None:
+    #        plt.setp(lines, ms=ms)
+    #
+    #    lw = kwargs.pop('linewidth', kwargs.pop('lw', None))
+    #    if lw is not None:
+    #        plt.setp(lines, lw=lw)
 
     if len(kwargs) > 0:
         plt.setp(lines, **kwargs)
 
     # lines = ax.xaxis.get_minorticklines() + ax.xaxis.get_majorticklines() + \
     #    ax.yaxis.get_minorticklines() + ax.yaxis.get_majorticklines()
-    #plt.setp(lines, mew=1.25)
+    # plt.setp(lines, mew=1.25)
 
     # the frame
-    #plt.setp(ax.patch, lw=2.0)
+    # plt.setp(ax.patch, lw=2.0)
 
     if tight_layout:
         plt.sca(ax)
         plt.tight_layout()
+
+
+def niceplot(
+    ax=None,
+    tick_fs=8,
+    label_fs=9,
+    tight_layout=True,
+    set_axis_formatter=True,
+    **kwargs
+):
+    """Clean up a plot for publication.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.AxesSubplot, optional
+      An axis to niceify.  Default is all axes in the current figure.
+    tick_fs : string, float, or int, optional
+      Axis major tick label font size.  Minor ticks will be 1/sqrt(2)
+      smaller.
+    label_fs : string, float, or int, optional
+      Axis label font size.
+    tight_layout : bool, optional
+      Run `plt.tight_layout`.
+    **kwargs
+      Any line or marker property keyword.
+
+    """
+
+    if ax is None:
+        for ax in plt.gcf().get_axes():
+            niceplot(
+                ax,
+                tight_layout=tight_layout,
+                tick_fs=tick_fs,
+                label_fs=label_fs,
+                **kwargs
+            )
+
+    # axis ticks
+    if isinstance(tick_fs, str):
+        if tick_fs.isdecimal():
+            minortick_fs = float(tick_fs) / np.sqrt(2)
+        else:
+            sizes = [
+                "xx-small",
+                "x-small",
+                "small",
+                "medium",
+                "large",
+                "x-large",
+                "xx-large",
+            ]
+            assert tick_fs.lower() in sizes, "Unknown tick font size name"
+            minortick_fs = sizes[max(0, sizes.index(tick_fs) - 1)]
+    else:
+        minortick_fs = tick_fs / np.sqrt(2)
+
+    ax.tick_params(axis="both", which="major", labelsize=tick_fs)
+    ax.tick_params(axis="both", which="minor", labelsize=minortick_fs)
+
+    # axis labels
+    labels = (ax.xaxis.get_label(), ax.yaxis.get_label())
+    plt.setp(labels, fontsize=label_fs)
+    plt.tick_params("both", which="both", top=True, right=True)
+    plt.tick_params("both", which="major", length=6)
+    plt.tick_params("both", which="minor", length=3)
+
+    # for plot markers, ticks
+    lines = ax.get_lines()
+
+    ax.minorticks_on()
+
+    if len(kwargs) > 0:
+        plt.setp(lines, **kwargs)
+
+    if tight_layout:
+        plt.sca(ax)
+        plt.tight_layout(pad=0.5)
 
 
 def noborder(fig=None):
@@ -501,10 +635,10 @@ def savepdf2pdf(filename, **kwargs):
     name = ""
     with NamedTemporaryFile(delete=False) as outf:
         name = outf.name
-        plt.savefig(outf, format='pdf')
+        plt.savefig(outf, format="pdf")
 
-    os.system('pdf2pdf {} {}'.format(name, filename))
-    os.system('rm {}'.format(name))
+    os.system("pdf2pdf {} {}".format(name, filename))
+    os.system("rm {}".format(name))
 
 
 def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
@@ -548,10 +682,13 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
 
     if setup:
         tplot_setup()
-    linestyle = kwargs.pop('linestyle', kwargs.pop('ls', 'none'))
+    linestyle = kwargs.pop("linestyle", kwargs.pop("ls", "none"))
 
-    def x(b, c): return np.array(b) + np.array(c) / 2.0
-    def y(c): return np.array(c) * 0.86603
+    def x(b, c):
+        return np.array(b) + np.array(c) / 2.0
+
+    def y(c):
+        return np.array(c) * 0.86603
 
     if (erra is not None) or (errb is not None) or (errc is not None):
         points = []
@@ -561,9 +698,14 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
             ub = b - 0.5 * erra[1] * b / (b + c)
             uc = c - 0.5 * erra[1] * c / (b + c)
             lc = c + 0.5 * erra[0] * c / (b + c)
-            points.append(plt.plot(np.c_[x(lb, lc), x(ub, uc)].T,
-                                   np.c_[y(lc), y(uc)].T,
-                                   '-', color='0.5'))
+            points.append(
+                plt.plot(
+                    np.c_[x(lb, lc), x(ub, uc)].T,
+                    np.c_[y(lc), y(uc)].T,
+                    "-",
+                    color="0.5",
+                )
+            )
         if errb is not None:
             lb = b - errb[0]
             ub = b + errb[1]
@@ -571,9 +713,14 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
             # would be on the a-axis)
             lc = c + 0.5 * errb[0]
             uc = c - 0.5 * errb[1]
-            points.append(plt.plot(np.c_[x(lb, lc), x(ub, uc)].T,
-                                   np.c_[y(lc), y(uc)].T,
-                                   '-', color='0.5'))
+            points.append(
+                plt.plot(
+                    np.c_[x(lb, lc), x(ub, uc)].T,
+                    np.c_[y(lc), y(uc)].T,
+                    "-",
+                    color="0.5",
+                )
+            )
         if errc is not None:
             lc = c - errc[0]
             uc = c + errc[1]
@@ -581,9 +728,14 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
             # would be on the a-axis)
             ub = b - 0.5 * errc[1]
             lb = b + 0.5 * errc[0]
-            points.append(plt.plot(np.c_[x(lb, lc), x(ub, uc)].T,
-                                   np.c_[y(lc), y(uc)].T,
-                                   '-', color='0.5'))
+            points.append(
+                plt.plot(
+                    np.c_[x(lb, lc), x(ub, uc)].T,
+                    np.c_[y(lc), y(uc)].T,
+                    "-",
+                    color="0.5",
+                )
+            )
 
         points.append(plt.plot(x(b, c), y(c), linestyle=linestyle, **kwargs))
     else:
@@ -592,9 +744,13 @@ def tplot(b, c, erra=None, errb=None, errc=None, setup=False, **kwargs):
     return points
 
 
-def tplot_setup(alabel=None, blabel=None, clabel=None,
-                axes=dict(color='k', linestyle='-'),
-                grid=dict(color='0.5', linestyle='--')):
+def tplot_setup(
+    alabel=None,
+    blabel=None,
+    clabel=None,
+    axes=dict(color="k", linestyle="-"),
+    grid=dict(color="0.5", linestyle="--"),
+):
     """Set up a ternary plot.
 
     a is the lower-left corner & base, b is the lower-right
@@ -615,8 +771,11 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
 
     """
 
-    def x(b, c): return np.array(b) + np.array(c) / 2.0
-    def y(c): return np.array(c) * 0.86603
+    def x(b, c):
+        return np.array(b) + np.array(c) / 2.0
+
+    def y(c):
+        return np.array(c) * 0.86603
 
     if axes is not None:
         b = [0, 1, 0, 0]
@@ -632,42 +791,103 @@ def tplot_setup(alabel=None, blabel=None, clabel=None,
         c = [0.5, 0, 0.5, 0.5]
         plt.plot(x(b, c), y(c), **grid)
 
-        b = [0, 0.25, 0.5, 0.75, 1.0,
-             1.0, 0.75, 0.5, 0.25, 0,
-             0, 0, 0, 0, 0]
-        c = [0, 0, 0, 0, 0,
-             0, 0.25, 0.5, 0.75, 1.0,
-             1.0, 0.75, 0.5, 0.25, 0]
-        l = ['100', '75', '50', '25', '0',  # a
-             '100', '75', '50', '25', '0',  # b
-             '100', '75', '50', '25', '0']  # c
-        dx = [0, 0, 0, 0, 0,
-              0.015, 0.015, 0.015, 0.015, 0.015,
-              -0.015, -0.015, -0.015, -0.015, -0.015]
-        dy = [-0.021, -0.021, -0.021, -0.021, -0.021,
-              0.01, 0.01, 0.01, 0.01, 0.01,
-              0.01, 0.01, 0.01, 0.01, 0.01]
-        a = [0, 0, 0, 0, 0,
-             -60, -60, -60, -60, -60,
-             60, 60, 60, 60, 60]
+        b = [0, 0.25, 0.5, 0.75, 1.0, 1.0, 0.75, 0.5, 0.25, 0, 0, 0, 0, 0, 0]
+        c = [0, 0, 0, 0, 0, 0, 0.25, 0.5, 0.75, 1.0, 1.0, 0.75, 0.5, 0.25, 0]
+        l = [
+            "100",
+            "75",
+            "50",
+            "25",
+            "0",  # a
+            "100",
+            "75",
+            "50",
+            "25",
+            "0",  # b
+            "100",
+            "75",
+            "50",
+            "25",
+            "0",
+        ]  # c
+        dx = [
+            0,
+            0,
+            0,
+            0,
+            0,
+            0.015,
+            0.015,
+            0.015,
+            0.015,
+            0.015,
+            -0.015,
+            -0.015,
+            -0.015,
+            -0.015,
+            -0.015,
+        ]
+        dy = [
+            -0.021,
+            -0.021,
+            -0.021,
+            -0.021,
+            -0.021,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+            0.01,
+        ]
+        a = [0, 0, 0, 0, 0, -60, -60, -60, -60, -60, 60, 60, 60, 60, 60]
         for i in range(len(b)):
-            plt.annotate(l[i], (x(b[i], c[i]) + dx[i], y(c[i]) + dy[i]),
-                         ha='center', va='center', rotation=a[i])
+            plt.annotate(
+                l[i],
+                (x(b[i], c[i]) + dx[i], y(c[i]) + dy[i]),
+                ha="center",
+                va="center",
+                rotation=a[i],
+            )
 
     if alabel is not None:
-        plt.text(x(0.5, 0), y(0) - 0.05, alabel, ha='center',
-                 va='center', fontsize=14)
+        plt.text(
+            x(0.5, 0),
+            y(0) - 0.05,
+            alabel,
+            ha="center",
+            va="center",
+            fontsize=14,
+        )
     if blabel is not None:
-        plt.text(x(0.5, 0.5) + 0.04, y(0.5) + 0.03, blabel,
-                 ha='center', va='center', rotation=-60, fontsize=14)
+        plt.text(
+            x(0.5, 0.5) + 0.04,
+            y(0.5) + 0.03,
+            blabel,
+            ha="center",
+            va="center",
+            rotation=-60,
+            fontsize=14,
+        )
     if clabel is not None:
-        plt.text(x(0, 0.5) - 0.04, y(0.5) + 0.03, clabel,
-                 ha='center', va='center', rotation=60, fontsize=14)
+        plt.text(
+            x(0, 0.5) - 0.04,
+            y(0.5) + 0.03,
+            clabel,
+            ha="center",
+            va="center",
+            rotation=60,
+            fontsize=14,
+        )
 
     plt.gcf().subplots_adjust(top=1.0, left=0, bottom=0, right=1.0)
     ax = plt.gca()
-    ax.axis('off')
-    ax.axis('equal')
+    ax.axis("off")
+    ax.axis("equal")
     plt.setp(plt.gca(), ylim=(-0.1, 1), xlim=(-0.01, 1.01))
     return ax
 
