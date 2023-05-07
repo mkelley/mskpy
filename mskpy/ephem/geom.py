@@ -16,8 +16,7 @@ proper_motion
 from ..util import autodoc
 __all__ = ['Geom', 'proper_motion']
 
-from datetime import datetime
-from collections import Mapping
+from collections.abc import Mapping
 import numpy as np
 from astropy.time import Time
 import astropy.units as u
