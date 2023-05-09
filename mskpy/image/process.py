@@ -22,11 +22,13 @@ image.process --- Process (astronomical) images.
    subim
    temporal_filter
    unwrap
+   wrap
 
 """
 
 from ..util import autodoc
 import numpy as np
+import scipy.ndimage as nd
 from . import core, analysis
 from sbpy.activity import phase_HalleyMarcus
 
@@ -46,6 +48,7 @@ __all__ = [
     "subim",
     "temporal_filter",
     "unwrap",
+    "wrap",
 ]
 
 
@@ -782,8 +785,8 @@ def temporal_filter(
     return images[-1] - baseline, baseline, _scale
 
 
-def unwrap(im, yx, steps=None):
-    """Convert an xy image into r-theta (cylindrical).
+def unwrap(im, yx, radius, theta_steps=360, zoom=1):
+    """Convert an x-y (rectangular) image to r-th (polar).
 
 
     Parameters
@@ -794,12 +797,16 @@ def unwrap(im, yx, steps=None):
     yx : list of float
         The center of the transformation.
 
-    steps : int or list of int, optional
+    radius : int, optional
+        Maximal radial distance to transform.
+
+    theta_steps : int or list of int, optional
         The number of steps in the radial and azimuthal directions, or
         a single number to be used for both.
 
-    radius : int, optional
-        Radial distance to transform.
+    zoom : int, optional
+        Radial subsampling factor.
+
 
     Notes
     -----
@@ -812,23 +819,60 @@ def unwrap(im, yx, steps=None):
         y = r * np.sin(theta) + center[1]
         return x, y
 
-    def img2polar(img, center, radius, theta_step=360, zoom=2):
-        theta, R = np.meshgrid(
-            np.linspace(0, 2 * np.pi, theta_step),  # x
-            np.linspace(0, radius, zoom * radius),
-        )  # y
+    theta, R = np.meshgrid(
+        np.linspace(0, 2 * np.pi, theta_steps),  # x
+        np.linspace(0, radius, zoom * radius),
+    )  # y
 
-        print("theta-R shape", theta.shape, R.shape)
+    print("theta-r shape", theta.shape, R.shape)
 
-        Xcart, Ycart = polar2cart(R, theta, center)
-        polar_img = nd.map_coordinates(
-            img, [Ycart, Xcart], order=3, mode="nearest"
-        )
-        polar_img = np.reshape(polar_img, (zoom * radius, theta_step))
+    Xcart, Ycart = polar2cart(R, theta, yx[::-1])
+    polar_img = nd.map_coordinates(im, [Ycart, Xcart], order=3, mode="nearest")
+    polar_img = np.reshape(polar_img, (zoom * radius, theta_steps))
 
-        print("polar_img shape", polar_img.shape)
+    print("polar image shape", polar_img.shape)
 
-        return polar_img
+    return polar_img
+
+
+def wrap(im, yx, shape, zoom=1):
+    """Convert an r-th (polar) image to x-y (rectangular).
+
+
+    Parameters
+    ----------
+    im : ndarray
+        The image to process. Axis 0 is the radial axis, axis 1 is the azimuthal
+        axis.  It is assumed that the azimuthal axis spans from 0 to 360 deg.
+        The extent of the radial axis is controlled by ``zoom``.
+
+    yx : list of float
+        The center of the transformation.
+
+    shape : tuple of int
+        The shape of the output image.
+
+    zoom : int, optional
+        Radial subsampling factor.
+
+    """
+
+    # def cart2polar(x, y, center):
+    #     r = np.hypot(x - center[0], y - center[1])
+    #     th = np.arctan2(y - center[1], x - center[0])
+    #     return r, th
+
+    # x, y = np.meshgrid(
+    #     np.arange(-yx[1], shape[1] - yx[1]),  # x
+    #     np.arange(-yx[0], shape[0] - yx[0]),  # y
+    # )
+
+    # r, th = cart2polar(x, y, yx[::-1])
+    r = core.rarray(shape, yx, subsample=10) * zoom
+    th = (core.tarray(shape, yx) / (2 * np.pi) + 0.5) * im.shape[1]
+    rect_img = nd.map_coordinates(im, [r, th], order=3, mode="nearest")
+
+    return rect_img
 
 
 # update module docstring
