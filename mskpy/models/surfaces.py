@@ -26,21 +26,22 @@ surfaces --- Models for surfaces
 """
 
 import numpy as np
+from numpy import pi
+from scipy.integrate import quad, dblquad
 import astropy.units as u
-from astropy.units import Quantity
+from ..util import planck
 
 __all__ = [
-    'SurfaceRadiation',
-    'DAp',
-    'DApColor',
-    'HG',
-    'NEATM',
-
-    'phaseHG',
-    'lambertian',
-
-    'neatm'
+    "SurfaceRadiation",
+    "DAp",
+    "DApColor",
+    "HG",
+    "NEATM",
+    "phaseHG",
+    "lambertian",
+    "neatm",
 ]
+
 
 class SurfaceRadiation(object):
     """An abstract class for light from a surface in the Solar System.
@@ -65,6 +66,7 @@ class SurfaceRadiation(object):
 
     def fluxd(self, geom, wave, unit=None):
         pass
+
 
 class NEATM(SurfaceRadiation):
     """The Near Earth Asteroid Thermal Model.
@@ -109,8 +111,17 @@ class NEATM(SurfaceRadiation):
 
     """
 
-    def __init__(self, D, Ap, eta=1.0, epsilon=0.95, G=0.15,
-                 phaseint=None, tol=1e-3, **kwargs):
+    def __init__(
+        self,
+        D,
+        Ap,
+        eta=1.0,
+        epsilon=0.95,
+        G=0.15,
+        phaseint=None,
+        tol=1e-3,
+        **kwargs
+    ):
         self.D = D.to(u.km)
         self.Ap = Ap
         self.eta = eta
@@ -140,38 +151,45 @@ class NEATM(SurfaceRadiation):
 
         """
 
-        from numpy import pi
-        from scipy.integrate import quad
-
-        phase = geom['phase']
+        phase = geom["phase"]
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
-        T0 = self.T0(geom['rh']).to(u.Kelvin).value
+        T0 = self.T0(geom["rh"]).to(u.Kelvin).value
         fluxd = np.zeros(len(wave))
 
         # Integrate theta from -pi/2 to pi/2: emission is emitted from
         # the daylit hemisphere: theta = (phase - pi/2) to (phase +
-        # pi/2), therfore the theta limits become [-pi/2, pi/2 -
+        # pi/2), therefore the theta limits become [-pi/2, pi/2 -
         # phase]
         #
         # Integrate phi from -pi/2 to pi/2 (or 2 * integral from 0 to
         # pi/2)
-        #
+
         # Drop some units for efficiency
-        phase_r = np.abs(phase.to(u.rad).value)
+        phase_rad = np.abs(phase.to(u.rad).value)
         wave_um = wave.to(u.um).value
         for i in range(len(wave_um)):
-            fluxd[i] = quad(self._latitude_emission,
-                            -pi / 2.0 + phase_r, pi / 2.0,
-                            args=(wave_um[i], T0, phase_r),
-                            epsrel=self.tol)[0]
+            fluxd[i] = (
+                2
+                * dblquad(
+                    self.point_emission,
+                    0,  # phi0
+                    pi / 2,  # phi1
+                    -pi / 2,  # theta0
+                    pi / 2 - phase_rad,  # theta1
+                    args=(wave[i], T0),
+                    epsrel=self.tol,
+                )[0]
+            )
 
-        fluxd *= (self.epsilon * (self.D / geom['delta'])**2
-                  / pi / 2.0).decompose().value # W/m^2/Hz
+        fluxd *= (
+            (self.epsilon * (self.D / geom["delta"]) ** 2 / pi / 2.0)
+            .decompose()
+            .to_value("")
+        )  # W/m^2/Hz
 
-        fluxd = fluxd * u.Unit('W / (m2 Hz)')
-        equiv = u.spectral_density(u.um, wave.to(u.um).value)
-        fluxd = fluxd.to(unit, equivalencies=equiv)
+        fluxd = fluxd * u.Unit("W / (m2 Hz)")
+        fluxd = fluxd.to(unit, u.spectral_density(u.um, wave.to(u.um).value))
         if len(fluxd) == 1:
             return fluxd[0]
         else:
@@ -214,10 +232,11 @@ class NEATM(SurfaceRadiation):
 
         """
 
-        Fsun = 1367.567 / rh.to(u.au).value**2  # W / m2
+        Fsun = 1367.567 / rh.to(u.au).value ** 2  # W / m2
         sigma = 5.670373e-08  # W / (K4 m2)
-        T0 = (((1.0 - self.A) * Fsun) / abs(self.eta) / self.epsilon
-              / sigma)**0.25
+        T0 = (
+            ((1.0 - self.A) * Fsun) / abs(self.eta) / self.epsilon / sigma
+        ) ** 0.25
         return T0 * u.K
 
     def fit(self, g, wave, fluxd, unc, **kwargs):
@@ -266,9 +285,9 @@ class NEATM(SurfaceRadiation):
 
         neatm = copy(self)
         args = (neatm, g, wave, fluxd, unc)
-        kwargs['epsfcn'] = kwargs.get('epsfcn', 1e-5)
+        kwargs["epsfcn"] = kwargs.get("epsfcn", 1e-5)
 
-        kwargs['full_output'] = True
+        kwargs["full_output"] = True
         result = leastsq(chi, (self.D.value, self.eta), args, **kwargs)
 
         neatm.D = u.Quantity(result[0][0], u.km)
@@ -281,7 +300,8 @@ class NEATM(SurfaceRadiation):
 
         return neatm, err, result
 
-    def _point_emission(self, phi, theta, wave, T0):
+    @staticmethod
+    def point_emission(theta, phi, wave, T0):
         """The emission from a single point.
 
         phi, theta : float  [radians]
@@ -290,11 +310,10 @@ class NEATM(SurfaceRadiation):
         """
 
         from numpy import pi
-        from ..util import planck
 
-        T = T0 * np.cos(phi)**0.25 * np.cos(theta)**0.25
-        B = planck(wave, T, unit=None) # W / (m2 sr Hz)
-        return (B * pi * np.cos(phi)**2) # W / (m2 Hz)
+        T = T0 * np.cos(phi) ** 0.25 * np.cos(theta) ** 0.25
+        B = planck(wave, T, unit=None)  # W / (m2 sr Hz)
+        return B * pi * np.cos(phi) ** 2  # W / (m2 Hz)
 
     def _latitude_emission(self, theta, wave, T0, phase):
         """The emission from a single latitude.
@@ -313,17 +332,25 @@ class NEATM(SurfaceRadiation):
         if not np.iterable(theta):
             theta = np.array([theta])
 
+        def f(phi, theta, wave, T0):
+            return self.point_emission(theta, phi, wave, T0)
+
         fluxd = np.zeros_like(theta)
         for i in range(len(theta)):
-            integral = quad(self._point_emission, 0.0, pi / 2.0,
-                            args=(theta[i], wave, T0),
-                            epsrel=self.tol / 10.0)
-            fluxd[i] = (integral[0] * np.cos(theta[i] - phase))
+            integral = quad(
+                f,
+                0.0,
+                pi / 2.0,
+                args=(theta[i], wave, T0),
+                epsrel=self.tol / 10.0,
+            )
+            fluxd[i] = integral[0] * np.cos(theta[i] - phase)
 
         i = np.isnan(fluxd)
         if any(i):
             fluxd[i] = 0.0
         return fluxd
+
 
 class HG(SurfaceRadiation):
     """The IAU HG system for reflected light from asteroids.
@@ -348,12 +375,12 @@ class HG(SurfaceRadiation):
 
     """
 
-    def __init__(self, H, G, mzp=3.51e-8 * u.Unit('W / (m2 um)'), **kwargs):
+    def __init__(self, H, G, mzp=3.51e-8 * u.Unit("W / (m2 um)"), **kwargs):
         self.H = H
         self.G = G
         self.mzp = mzp
 
-    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+    def fluxd(self, geom, wave, unit=u.Unit("W / (m2 um)")):
         """Flux density.
 
         Parameters
@@ -379,17 +406,20 @@ class HG(SurfaceRadiation):
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
-        rhdelta = geom['rh'].to(u.au).value * geom['delta'].to(u.au).value
-        phase = geom['phase']
+        rhdelta = geom["rh"].to(u.au).value * geom["delta"].to(u.au).value
+        phase = geom["phase"]
 
-        mv = (self.H + 5.0 * np.log10(rhdelta)
-              - 2.5 * np.log10(phaseHG(np.abs(phase.to(u.deg).value), self.G)))
+        mv = (
+            self.H
+            + 5.0 * np.log10(rhdelta)
+            - 2.5 * np.log10(phaseHG(np.abs(phase.to(u.deg).value), self.G))
+        )
 
         wave_v = np.linspace(0.5, 0.6) * u.um
         fsun_v = solar_flux(wave_v, unit=unit).value.mean()
         fsun = solar_flux(wave, unit=unit)
 
-        fluxd = self.mzp * 10**(-0.4 * mv) * fsun / fsun_v
+        fluxd = self.mzp * 10 ** (-0.4 * mv) * fsun / fsun_v
 
         if len(fluxd) == 1:
             return fluxd[0]
@@ -410,14 +440,15 @@ class HG(SurfaceRadiation):
         -------
         D : Quantity
           Diameter of the asteroid.
-        
+
         """
-        D = 2 / np.sqrt(Ap) * 10**(0.2 * (Msun - self.H)) * u.au
+        D = 2 / np.sqrt(Ap) * 10 ** (0.2 * (Msun - self.H)) * u.au
         return D.to(u.km)
 
     def R(self, *args, **kwargs):
         """Radius via D()."""
         return self.D(*args, **kwargs) / 2.0
+
 
 class DAp(SurfaceRadiation):
     """Reflected light from asteroids given D, Ap.
@@ -449,13 +480,15 @@ class DAp(SurfaceRadiation):
         self.Ap = Ap
 
         if phasef is None:
+
             def phi_g(phase):
                 return phaseHG(phase, G)
+
             self.phasef = phi_g
-        else:        
+        else:
             self.phasef = phasef
 
-    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+    def fluxd(self, geom, wave, unit=u.Unit("W / (m2 um)")):
         """Flux density.
 
         Parameters
@@ -482,13 +515,17 @@ class DAp(SurfaceRadiation):
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
-        delta = geom['delta']
-        phase = geom['phase']
-        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
+        delta = geom["delta"]
+        phase = geom["phase"]
+        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
-        #fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
-        fsca = (fsun * self.Ap * self.phasef(np.abs(phase.to(u.deg).value))
-                * (self.R / delta).decompose()**2)
+        # fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
+        fsca = (
+            fsun
+            * self.Ap
+            * self.phasef(np.abs(phase.to(u.deg).value))
+            * (self.R / delta).decompose() ** 2
+        )
 
         if unit != fsca.unit:
             fsca = fsca.to(unit, equivalencies=u.spectral_density(u.um, wave))
@@ -515,6 +552,7 @@ class DAp(SurfaceRadiation):
     def R(self):
         """Radius."""
         return self.D / 2.0
+
 
 class DApColor(DAp):
     """Reflected light from asteroids given D, Ap, and a color.
@@ -554,27 +592,31 @@ class DApColor(DAp):
         self.refl_max = refl_max
         DAp.__init__(self, D, Ap, **kwargs)
 
-    def fluxd(self, geom, wave, unit=u.Unit('W / (m2 um)')):
+    def fluxd(self, geom, wave, unit=u.Unit("W / (m2 um)")):
         from numpy import pi
         from ..calib import solar_flux
 
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
-        delta = geom['delta']
-        phase = geom['phase']
-        fsun = solar_flux(wave, unit=unit) / geom['rh'].to(u.au).value**2
+        delta = geom["delta"]
+        phase = geom["phase"]
+        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
-        refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.
+        refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.0
         if np.any(refl > self.refl_max):
             refl[refl > self.refl_max] = self.refl_max
         if np.any(refl < 0.0):
             refl[refl < 0.0] = 0.0
 
-        #fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
-        fsca = (fsun * self.Ap * refl
-                * self.phasef(np.abs(phase.to(u.deg).value))
-                * (self.R / delta).decompose()**2)
+        # fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
+        fsca = (
+            fsun
+            * self.Ap
+            * refl
+            * self.phasef(np.abs(phase.to(u.deg).value))
+            * (self.R / delta).decompose() ** 2
+        )
 
         if unit != fsca.unit:
             fsca = fsca.to(unit, equivalencies=u.spectral_density(u.um, wave))
@@ -582,6 +624,7 @@ class DApColor(DAp):
         return fsca
 
     fluxd.__doc__ = DAp.__doc__
+
 
 def _phaseHG_i(i, phase):
     """Helper function for phaseHG.
@@ -594,11 +637,13 @@ def _phaseHG_i(i, phase):
     A = [3.332, 1.862]
     B = [0.631, 1.218]
     C = [0.986, 0.238]
-    Phi_S = 1.0 - C[i] * np.sin(phase) / \
-        (0.119 + 1.341 * np.sin(phase) - 0.754 * np.sin(phase)**2)
-    Phi_L = np.exp(-A[i] * np.tan(0.5 * phase)**B[i])
-    W = np.exp(-90.56 * np.tan(0.5 * phase)**2)
+    Phi_S = 1.0 - C[i] * np.sin(phase) / (
+        0.119 + 1.341 * np.sin(phase) - 0.754 * np.sin(phase) ** 2
+    )
+    Phi_L = np.exp(-A[i] * np.tan(0.5 * phase) ** B[i])
+    W = np.exp(-90.56 * np.tan(0.5 * phase) ** 2)
     return W * Phi_S + (1.0 - W) * Phi_L
+
 
 def phaseHG(phase, G):
     """IAU HG system phase function.
@@ -614,7 +659,8 @@ def phaseHG(phase, G):
 
     """
     phase = np.radians(phase)
-    return ((1.0 - G) * _phaseHG_i(0, phase) + G * _phaseHG_i(1, phase))
+    return (1.0 - G) * _phaseHG_i(0, phase) + G * _phaseHG_i(1, phase)
+
 
 def lambertian(phase):
     """Return the phase function from an Lambert disc computed at a
@@ -638,6 +684,7 @@ def lambertian(phase):
     """
     phase = np.radians(np.abs(phase))
     return (np.sin(phase) + (pi - phase) * np.cos(phase)) / pi
+
 
 def neatm(D, Ap, geom, wave, unit=u.Jy, **kwargs):
     """Convenience function for NEATM.
@@ -666,8 +713,9 @@ def neatm(D, Ap, geom, wave, unit=u.Jy, **kwargs):
 
     return NEATM(D, Ap, **kwargs).fluxd(geom, wave, unit=unit)
 
+
 # update module docstring
 from ..util import autodoc
+
 autodoc(globals())
 del autodoc
-
