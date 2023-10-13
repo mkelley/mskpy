@@ -10,6 +10,7 @@ import re
 from collections import UserDict, defaultdict
 import requests
 import numpy as np
+from astropy.io import ascii
 from astropy.table import Table
 
 __all__ = ["PSGConfig", "PSGModel"]
