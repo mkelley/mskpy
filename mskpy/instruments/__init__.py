@@ -26,6 +26,7 @@ from .hst import *
 from .irtf import *
 from .spitzer import *
 from .vis import *
+from .jwst import *
 
 # update module docstring
 from ..util import autodoc

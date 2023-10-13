@@ -37,6 +37,7 @@ docs/_build
 
 # Visual Studio Code project files
 .vscode
+.hypothesis
 
 # Packages/installer info
 *.egg
