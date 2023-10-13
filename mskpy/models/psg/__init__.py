@@ -15,6 +15,10 @@ from astropy.table import Table
 __all__ = ["PSGConfig", "PSGModel"]
 
 
+class PSGError(Exception):
+    pass
+
+
 class PSGConfig(UserDict):
     @classmethod
     def from_file(cls, filename):
@@ -117,6 +121,10 @@ class PSGConfig(UserDict):
         response = requests.post(
             "https://psg.gsfc.nasa.gov/api.php", data=data)
         response.raise_for_status()
+
+        if len(ascii.read(response.text)) == 0:
+            raise PSGError(response.text)
+
         with open(fn, "w") as outf:
             outf.write(response.text)
 
