@@ -145,13 +145,14 @@ class PSGModel:
                     molecules = [x.strip()
                                  for x in line.split(":")[1].split(",")]
                     continue
-                elif "Molecular sources" in line:
+                elif line.startswith("# Molecular sources"):
                     sources = [x.strip()
                                for x in line.split(":")[1].split(",")]
                     if len(set(sources)) != len(sources):
                         raise ValueError(
                             "Molecular source names are not unique:" + ",".join(sources))
 
+                    self.sources = sources
                     self.molecules = defaultdict(list)
                     for m, source in zip(molecules, sources):
                         self.molecules[m].append(source)
@@ -181,4 +182,4 @@ class PSGModel:
 
             return spec
         else:
-            return self.data[k]
+            return self.data[k].data

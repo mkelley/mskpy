@@ -33,6 +33,7 @@ image.analysis --- Analyze (astronomical) images.
 
 """
 
+from ..util import autodoc
 import numpy as np
 import astropy.coordinates as coords
 from astropy.wcs.utils import skycoord_to_pixel, pixel_to_skycoord
@@ -958,19 +959,19 @@ def imstat(im, **kwargs):
 
     from .. import util
 
-    mc = util.meanclip(im, full_output=True, **kwargs)
-    scmean, scstdev = mc[:2]
-    scmedian = np.median(im.flatten()[mc[2]])
+    scmean, scstdev, good, _ = util.meanclip(im, full_output=True, **kwargs)
+    scmedian = np.median(im.flatten()[good])
 
     return dict(min=np.nanmin(im),
                 max=np.nanmax(im),
                 mean=np.nanmean(im.ravel()),
                 median=util.nanmedian(im),
-                mode=3.0 * scmedian - 2.0 * scmean,
                 stdev=np.nanstd(im.ravel()),
                 scmean=scmean,
                 scmedian=scmedian,
+                scmode=3.0 * scmedian - 2.0 * scmean,
                 scstdev=scstdev,
+                scarea=len(good),
                 sum=np.nansum(im))
 
 
@@ -1429,6 +1430,5 @@ def trace(im, err, guess, rap=5, axis=1, polyfit=False, order=2, plot=False,
 
 
 # update module docstring
-from ..util import autodoc
 autodoc(globals())
 del autodoc
