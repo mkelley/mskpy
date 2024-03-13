@@ -18,12 +18,8 @@ from astropy.stats import sigma_clip
 from sbpy.activity import Afrho
 from ..util import linefit
 
-dmdtFit = namedtuple(
-    "dmdtFit", ["m0", "dmdt", "m0_unc", "dmdt_unc", "rms", "rchisq"]
-)
-ExpFit = namedtuple(
-    "ExpFit", ["dm", "tau", "dm_unc", "tau_unc", "rms", "rchisq"]
-)
+dmdtFit = namedtuple("dmdtFit", ["m0", "dmdt", "m0_unc", "dmdt_unc", "rms", "rchisq"])
+ExpFit = namedtuple("ExpFit", ["dm", "tau", "dm_unc", "tau_unc", "rms", "rchisq"])
 AfrhoRhFit = namedtuple(
     "AfrhoRhFit", ["afrho1", "k", "afrho1_unc", "k_unc", "rms", "rchisq"]
 )
@@ -33,12 +29,8 @@ Color = namedtuple(
     ["t", "clusters", "m_filter", "m", "m_unc", "c", "c_unc", "avg", "avg_unc"],
 )
 Color.__doc__ = "Color estimate."
-Color.t.__doc__ = (
-    "Average observation date for each color estimate. [astropy Time]"
-)
-Color.clusters.__doc__ = (
-    "Observation clusters used to define color; 0 for unused."
-)
+Color.t.__doc__ = "Average observation date for each color estimate. [astropy Time]"
+Color.clusters.__doc__ = "Observation clusters used to define color; 0 for unused."
 Color.m_filter.__doc__ = "Filter for m."
 Color.m.__doc__ = "Apparent mag for each date in given filter. [mag]"
 Color.m_unc.__doc__ = "Uncertainty on m.  [mag]"
@@ -168,9 +160,7 @@ class CometaryTrends:
                         # try to color transform
                         color = (self.filt[i], self.fit_filter)
                         if color in self.colors:
-                            m[i] = (
-                                m[i].value - self.colors[color].value
-                            ) * m.data.unit
+                            m[i] = (m[i].value - self.colors[color].value) * m.data.unit
                         elif color[::-1] in self.colors:
                             m[i] = (
                                 m[i].value + self.colors[color[::-1]].value
@@ -226,9 +216,7 @@ class CometaryTrends:
     def color_transform(self, flag):
         self._color_transform = bool(flag)
 
-    def color(
-        self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag, m_filter=None
-    ):
+    def color(self, blue, red, max_dt=16 / 24, max_unc=0.25 * u.mag, m_filter=None):
         """Estimate the color, blue - red, using weighted averages.
 
         ``eph`` requires ``'date'``.
@@ -331,9 +319,7 @@ class CometaryTrends:
         m_mean_unc = m_mean_unc * unit
         bmr = bmr * unit
         bmr_unc = bmr_unc * unit
-        avg, sw = np.average(
-            bmr.value, weights=bmr_unc.value**-2, returned=True
-        )
+        avg, sw = np.average(bmr.value, weights=bmr_unc.value**-2, returned=True)
         avg_unc = sw**-0.5 * unit
 
         self.colors[(blue, red)] = avg * unit
@@ -382,9 +368,7 @@ class CometaryTrends:
         m = self.m.copy()
         unit = m.data.unit
         if nucleus is not None:
-            m = np.ma.MaskedArray(
-                self.linear_subtract(m.data, nucleus), mask=m.mask
-            )
+            m = np.ma.MaskedArray(self.linear_subtract(m.data, nucleus), mask=m.mask)
 
         d = 2.5 if fixed_angular_size else 5
         H = (
@@ -476,15 +460,17 @@ class CometaryTrends:
 
         o = np.ma.zeros(len(Hy))
         for i in range(len(Hy)):
-            j = (self.eph["date"] < self.eph["date"][i]) * (
-                self.eph["date"] > (self.eph["date"][i] - dt * u.day)
+            good = (
+                (self.eph["date"] < self.eph["date"][i])
+                * (self.eph["date"] > (self.eph["date"][i] - dt * u.day))
+                * ~Hy.mask
+                * np.isfinite(Hy.data)
             )
-            if j.sum() < 1:
+            if good.sum() < 1:
                 o[i] = np.ma.masked
                 continue
 
             # reject outliers, calculate weighted mean
-            good = j * ~Hy.mask * np.isfinite(Hy.data)
             if np.sum(good) > 2:
                 m = sigma_clip(Hy[good].data, sigma=sigma)
             else:
@@ -494,9 +480,7 @@ class CometaryTrends:
 
             baseline, sw = np.ma.average(m, weights=m_unc**-2, returned=True)
             baseline_unc = sw**-0.5
-            unc = max(
-                np.hypot(baseline_unc, self.m_unc[i]).value, minimum_uncertainty
-            )
+            unc = max(np.hypot(baseline_unc, self.m_unc[i]).value, minimum_uncertainty)
             o[i] = np.round(baseline.value / unc, 1)
 
         return o
@@ -588,8 +572,7 @@ class CometaryTrends:
             fit_unc[1] * unit,
             fit_unc[0] * unit / u.day**k,
             np.std(residuals[~mask].data),
-            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2)
-            / np.sum(~mask),
+            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2) / np.sum(~mask),
         )
 
         return dt, trend, ~mask, fit
@@ -664,8 +647,7 @@ class CometaryTrends:
             fit_unc[0] * unit,
             fit_unc[1] * u.day,
             np.std(residuals[~mask].data),
-            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2)
-            / np.sum(~mask),
+            np.sum((residuals[~mask].data / self.m_unc[~mask]) ** 2) / np.sum(~mask),
         )
 
         return dt, trend, ~mask, fit
@@ -705,9 +687,7 @@ class CometaryTrends:
         log10afrho_unc = self.m_unc.value / 1.0857 / np.log(10)
         log10rh = np.log10(self.eph["rh"].to_value("au"))
         mask = afrho.mask
-        r = linefit(
-            log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask], guess
-        )
+        r = linefit(log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask], guess)
 
         trend = 10 ** (r[0][1] + r[0][0] * log10rh)
         fit_unc = r[1] if r[1] is not None else (0, 0)
@@ -725,9 +705,7 @@ class CometaryTrends:
             phasecor="Phi" in kwargs,
         )
 
-        residuals = np.ma.MaskedArray(
-            self.m.data.value - mtrend.value, mask=mask
-        )
+        residuals = np.ma.MaskedArray(self.m.data.value - mtrend.value, mask=mask)
 
         fit = AfrhoRhFit(
             10 ** r[0][1] * u.cm,
