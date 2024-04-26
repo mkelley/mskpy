@@ -5,6 +5,8 @@ Support for the Planetary Spectrum Generator
 ============================================
 """
 
+__all__ = ["PSGConfig", "PSGModel"]
+
 import os
 import re
 from collections import UserDict, defaultdict
@@ -12,8 +14,8 @@ import requests
 import numpy as np
 from astropy.io import ascii
 from astropy.table import Table
-
-__all__ = ["PSGConfig", "PSGModel"]
+import astropy.units as u
+from sbpy.spectroscopy.sources import SpectralSource
 
 
 class PSGError(Exception):
@@ -88,8 +90,7 @@ class PSGConfig(UserDict):
         """
 
         if os.path.exists(filename) and not overwrite:
-            raise RuntimeError(
-                "File exists, overwrite it with overwrite=True.")
+            raise RuntimeError("File exists, overwrite it with overwrite=True.")
 
         with open(filename, "w") as outf:
             for key, value in self.items():
@@ -119,8 +120,7 @@ class PSGConfig(UserDict):
         """
 
         data = {"file": str(self)}
-        response = requests.post(
-            "https://psg.gsfc.nasa.gov/api.php", data=data)
+        response = requests.post("https://psg.gsfc.nasa.gov/api.php", data=data)
         response.raise_for_status()
 
         if len(ascii.read(response.text)) == 0:
@@ -142,15 +142,14 @@ class PSGModel:
                 if len(line) == 0:
                     continue
                 elif line.startswith("# Molecules considered:"):
-                    molecules = [x.strip()
-                                 for x in line.split(":")[1].split(",")]
+                    molecules = [x.strip() for x in line.split(":")[1].split(",")]
                     continue
                 elif line.startswith("# Molecular sources"):
-                    sources = [x.strip()
-                               for x in line.split(":")[1].split(",")]
+                    sources = [x.strip() for x in line.split(":")[1].split(",")]
                     if len(set(sources)) != len(sources):
                         raise ValueError(
-                            "Molecular source names are not unique:" + ",".join(sources))
+                            "Molecular source names are not unique:" + ",".join(sources)
+                        )
 
                     self.sources = sources
                     self.molecules = defaultdict(list)
@@ -173,10 +172,23 @@ class PSGModel:
 
         self.data = Table(rows)
 
+    def bin(self, wave):
+        """Bin the data to these wavelengths (μm).  This changes the data in-place."""
+
+        class Spectrum(SpectralSource):
+            pass
+
+        data = [wave]
+        for k in self.data.colnames[1:]:
+            spectrum = Spectrum.from_array(
+                self.data["wave"] * u.um, self.data[k] * u.Jy
+            )  # actual unit is not important, right?
+            data.append(spectrum.observe(wave * u.um, unit=u.Jy))
+        self.data = Table(data, names=self.data.colnames)
+
     def __getitem__(self, k):
         if k in self.molecules:
             spec = 0
-            i = 0
             for source in self.molecules[k]:
                 spec = spec + self.data[source].data
 
