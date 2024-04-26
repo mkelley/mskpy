@@ -134,7 +134,7 @@ except OSError:
     pass
 
 try:
-    JWST = getspiceobj("-170", kernel="jwst_pred.bsp", name="JWST")
+    JWST = getspiceobj("-170", kernel="jwst_rec.bsp", name="JWST")
     _loaded_objects["jwst"] = JWST
     __all__.append("JWST")
 except OSError:
