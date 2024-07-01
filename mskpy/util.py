@@ -128,90 +128,82 @@ import astropy.units as u
 import astropy.io.registry as astropy_io_registry
 
 __all__ = [
-    'archav',
-    'cartesian',
-    'davint',
-    'deriv',
-    'gaussian',
-    'gaussian2d',
-    'hav',
-    'rotmat',
-
-    'basicwcs',
-    'fitslog',
-    'getrot',
-
-    'gaussfit',
-    'glfit',
-    'linefit',
-    'planckfit',
-
-    'between',
-    'clusters',
-    'groupby',
-    'leading_num_key',
-    'nearest',
-    'stat_avg',
-    'takefrom',
-    'whist',
-
-    'delta_at_rh',
-    'ec2eq',
-    'lb2xyz',
-    'mhat',
-    'projected_vector_angle',
-    'spherical_coord_rotate',
-    'spherical_distribution',
-    'state2orbit',
-    'vector_rotate',
-    'xyz2lb',
-
-    'kuiper',
-    'kuiperprob',
-    'mean2minmax',
-    'meanclip',
-    'midstep',
-    'minmax',
-    'nanmedian',
-    'nanminmax',
-    'randpl',
-    'sigma',
-    'spearman',
-    'uclip',
-
-    'bandpass',
-    'constant_spectral_resolution',
-    'hemispherical_crater',
-    'deresolve',
-    'phase_integral',
-    'planck',
+    "archav",
+    "cartesian",
+    "davint",
+    "deriv",
+    "gaussian",
+    "gaussian2d",
+    "hav",
+    "rotmat",
+    "basicwcs",
+    "fitslog",
+    "getrot",
+    "gaussfit",
+    "glfit",
+    "linefit",
+    "planckfit",
+    "between",
+    "clusters",
+    "groupby",
+    "leading_num_key",
+    "nearest",
+    "stat_avg",
+    "takefrom",
+    "whist",
+    "delta_at_rh",
+    "ec2eq",
+    "lb2xyz",
+    "mhat",
+    "projected_vector_angle",
+    "spherical_coord_rotate",
+    "spherical_distribution",
+    "state2orbit",
+    "vector_rotate",
+    "xyz2lb",
+    "kuiper",
+    "kuiperprob",
+    "mean2minmax",
+    "meanclip",
+    "midstep",
+    "minmax",
+    "nanmedian",
+    "nanminmax",
+    "randpl",
+    "sigma",
+    "spearman",
+    "uclip",
+    "bandpass",
+    "constant_spectral_resolution",
+    "hemispherical_crater",
+    "deresolve",
+    "phase_integral",
+    "planck",
     #    'redden',
-    'polcurve',
-    'savitzky_golay',
-    'spherical_sector',
-
-    'cal2doy',
-    'cal2iso',
-    'cal2time',
-    'date_len',
-    'date2time',
-    'dh2hms',
-    'doy2md',
-    'drange',
-    'hms2dh',
-    'jd2doy',
-    'jd2time',
-    'timestamp',
-    'tz2utc',
-
-    'asAngle',
-    'asQuantity',
-    'asValue',
-    'autodoc',
-    'file2list',
-    'spectral_density_sb',
-    'timesten',
-    'write_table'
+    "polcurve",
+    "savitzky_golay",
+    "spherical_sector",
+    "cal2doy",
+    "cal2iso",
+    "cal2time",
+    "date_len",
+    "date2time",
+    "dh2hms",
+    "doy2md",
+    "drange",
+    "hms2dh",
+    "jd2doy",
+    "jd2time",
+    "timestamp",
+    "tz2utc",
+    "asAngle",
+    "asQuantity",
+    "asValue",
+    "autodoc",
+    "file2list",
+    "spectral_density_sb",
+    "timesten",
+    "write_table",
 ]
 
 
@@ -266,14 +258,17 @@ def cartesian(*arrays):
            [3, 5, 7]])
     """
     from itertools import product
+
     return np.array(list(product(*arrays)))
 
 
 _davint_err = dict()
-_davint_err[2] = 'x1 was less than x0'
-_davint_err[3] = 'the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed.'
-_davint_err[4] = 'the restriction x(i+1) > x(i) was violated.'
-_davint_err[5] = 'the number of function values was < 2'
+_davint_err[2] = "x1 was less than x0"
+_davint_err[3] = (
+    "the number of x between x0 and x1 (inclusive) was less than 3 and neither of the two special cases described in the abstract occurred.  No integration was performed."
+)
+_davint_err[4] = "the restriction x(i+1) > x(i) was violated."
+_davint_err[5] = "the number of function values was < 2"
 
 
 def davint(x, y, x0, x1, axis=0):
@@ -318,8 +313,7 @@ def davint(x, y, x0, x1, axis=0):
     if y.ndim == 1:
         r, ierr = _davint(x, y, len(x), x0, x1)
         if ierr != 1:
-            raise RuntimeError(
-                "DAVINT integration error: {}".format(err[ierr]))
+            raise RuntimeError("DAVINT integration error: {}".format(err[ierr]))
     elif y.ndim == 2:
         r = np.zeros(y.shape[axis])
         for i, yy in enumerate(np.rollaxis(y, axis)):
@@ -368,23 +362,29 @@ def deriv(y, x=None):
         return None
 
     xx = x.astype(float)
-    x12 = xx - np.roll(xx, -1)           # x1 - x2
-    x01 = np.roll(xx, 1) - xx            # x0 - x1
+    x12 = xx - np.roll(xx, -1)  # x1 - x2
+    x01 = np.roll(xx, 1) - xx  # x0 - x1
     x02 = np.roll(xx, 1) - np.roll(xx, -1)  # x0 - x2
 
     # mid points
-    dydx = (np.roll(y, 1) * (x12 / (x01 * x02)) +
-            y * (1.0 / x12 - 1.0 / x01) -
-            np.roll(y, -1) * (x01 / (x02 * x12)))
+    dydx = (
+        np.roll(y, 1) * (x12 / (x01 * x02))
+        + y * (1.0 / x12 - 1.0 / x01)
+        - np.roll(y, -1) * (x01 / (x02 * x12))
+    )
 
     # end points
-    dydx[0] = (y[0] * (x01[1] + x02[1]) / (x01[1] * x02[1]) -
-               y[1] * x02[1] / (x01[1] * x12[1]) +
-               y[2] * x01[1] / (x02[1] * x12[1]))
+    dydx[0] = (
+        y[0] * (x01[1] + x02[1]) / (x01[1] * x02[1])
+        - y[1] * x02[1] / (x01[1] * x12[1])
+        + y[2] * x01[1] / (x02[1] * x12[1])
+    )
 
-    dydx[-1] = (-y[-3] * x12[-2] / (x01[-2] * x02[-2]) +
-                y[-2] * x02[-2] / (x01[-2] * x12[-2]) -
-                y[-1] * (x02[-2] + x12[-2]) / (x02[-2] * x12[-2]))
+    dydx[-1] = (
+        -y[-3] * x12[-2] / (x01[-2] * x02[-2])
+        + y[-2] * x02[-2] / (x01[-2] * x12[-2])
+        - y[-1] * (x02[-2] + x12[-2]) / (x02[-2] * x12[-2])
+    )
 
     return dydx
 
@@ -407,8 +407,7 @@ def gaussian(x, mu, sigma):
       The Gaussian function.
 
     """
-    return (np.exp(-(x - mu)**2 / 2.0 / sigma**2) /
-            np.sqrt(2.0 * np.pi) / sigma)
+    return np.exp(-((x - mu) ** 2) / 2.0 / sigma**2) / np.sqrt(2.0 * np.pi) / sigma
 
 
 def gaussian2d(shape, sigma, theta=0):
@@ -442,9 +441,9 @@ def gaussian2d(shape, sigma, theta=0):
         sx = sigma[1]
 
     thr = np.radians(theta)
-    a = np.cos(thr)**2 / 2.0 / sx**2 + np.sin(thr)**2 / 2.0 / sy**2
+    a = np.cos(thr) ** 2 / 2.0 / sx**2 + np.sin(thr) ** 2 / 2.0 / sy**2
     b = np.sin(2 * thr) / 4.0 / sx**2 + np.sin(2 * thr) / 4.0 / sy**2
-    c = np.sin(thr)**2 / 2.0 / sx**2 + np.cos(thr)**2 / 2.0 / sy**2
+    c = np.sin(thr) ** 2 / 2.0 / sx**2 + np.cos(thr) ** 2 / 2.0 / sy**2
 
     y, x = np.indices(shape)
     y = y - (shape[0] - 1) / 2
@@ -471,7 +470,7 @@ def hav(th):
       The haversine.
 
     """
-    return np.sin(th / 2.0)**2
+    return np.sin(th / 2.0) ** 2
 
 
 def rotmat(th):
@@ -504,7 +503,7 @@ def rotmat(th):
     return np.matrix([[c, s], [-s, c]])
 
 
-def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
+def basicwcs(crpix, crval, cdelt, pa, projection="TAN"):
     """A basic world coordinate system (WCS) object.
 
     Parameters
@@ -536,12 +535,13 @@ def basicwcs(crpix, crval, cdelt, pa, projection='TAN'):
     else:
         wcs.wcs.cdelt = np.array([-1, 1]) * cdelt / 3600.0
         par = np.radians(pa)
-        wcs.wcs.pc = np.array([[-np.cos(par), -np.sin(par)],
-                               [-np.sin(par),  np.cos(par)]])
+        wcs.wcs.pc = np.array(
+            [[-np.cos(par), -np.sin(par)], [-np.sin(par), np.cos(par)]]
+        )
     return wcs
 
 
-def fitslog(keywords, files=None, path='.', format=None, csv=True):
+def fitslog(keywords, files=None, path=".", format=None, csv=True):
     """One-line descriptions of a list of FITS files.
 
     By default, `fitslog` will summarize *.fit{,s} files in the
@@ -578,28 +578,88 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
         files.sort()
 
     if type(keywords) is str:
-        if keywords.lower() == 'bigdog':
-            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
-                        'AIRMASS', 'GRAT', 'OBJECT']
-            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
-                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
-        elif keywords.lower() == 'old-guidedog':
-            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
-                        'AIRMASS', 'GFLT', 'OBJECT']
-            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
-                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
-        elif keywords.lower() == 'guidedog':
-            keywords = ['TIME_OBS', 'ITIME', 'CO_ADDS', 'CYCLES',
-                        'TCS_AM', 'GFLT', 'OBJECT']
-            format = ["{0:16}", "{1:18}", "{2:6.2f}", "{3:4d}"
-                      "{4:4d}", "{5:7.3f}", "{6:<12}", "{7:<25}"]
-        elif keywords.lower() == 'mirsi':
-            keywords = ['UTC_TIME', 'OBS-MODE', 'EXPTIME', 'FRAME-T',
-                        'NCOADS', 'AIRMASS', 'WHEEL1', 'WHEEL2', 'WHEEL3',
-                        'OBJECT']
-            format = ['{0:12}', '{1:13}', '{2:7.3f}', '{3:>7}', '{4:3d}',
-                      '{5:>6}', '{6:>20}', '{7:>20}', '{8:>20}',
-                      '{9}']
+        if keywords.lower() == "bigdog":
+            keywords = [
+                "TIME_OBS",
+                "ITIME",
+                "CO_ADDS",
+                "CYCLES",
+                "AIRMASS",
+                "GRAT",
+                "OBJECT",
+            ]
+            format = [
+                "{0:16}",
+                "{1:18}",
+                "{2:6.2f}",
+                "{3:4d}" "{4:4d}",
+                "{5:7.3f}",
+                "{6:<12}",
+                "{7:<25}",
+            ]
+        elif keywords.lower() == "old-guidedog":
+            keywords = [
+                "TIME_OBS",
+                "ITIME",
+                "CO_ADDS",
+                "CYCLES",
+                "AIRMASS",
+                "GFLT",
+                "OBJECT",
+            ]
+            format = [
+                "{0:16}",
+                "{1:18}",
+                "{2:6.2f}",
+                "{3:4d}" "{4:4d}",
+                "{5:7.3f}",
+                "{6:<12}",
+                "{7:<25}",
+            ]
+        elif keywords.lower() == "guidedog":
+            keywords = [
+                "TIME_OBS",
+                "ITIME",
+                "CO_ADDS",
+                "CYCLES",
+                "TCS_AM",
+                "GFLT",
+                "OBJECT",
+            ]
+            format = [
+                "{0:16}",
+                "{1:18}",
+                "{2:6.2f}",
+                "{3:4d}" "{4:4d}",
+                "{5:7.3f}",
+                "{6:<12}",
+                "{7:<25}",
+            ]
+        elif keywords.lower() == "mirsi":
+            keywords = [
+                "UTC_TIME",
+                "OBS-MODE",
+                "EXPTIME",
+                "FRAME-T",
+                "NCOADS",
+                "AIRMASS",
+                "WHEEL1",
+                "WHEEL2",
+                "WHEEL3",
+                "OBJECT",
+            ]
+            format = [
+                "{0:12}",
+                "{1:13}",
+                "{2:7.3f}",
+                "{3:>7}",
+                "{4:3d}",
+                "{5:>6}",
+                "{6:>20}",
+                "{7:>20}",
+                "{8:>20}",
+                "{9}",
+            ]
         else:
             print("{0} not a recognized template".format(keywords))
             return None
@@ -619,18 +679,20 @@ def fitslog(keywords, files=None, path='.', format=None, csv=True):
                 format = " ".join(format)
 
     log = ""
-    s = max([len(x.replace('.fits', '').replace('.fit', '').split('/')[-1])
-             for x in files])
+    s = max(
+        [len(x.replace(".fits", "").replace(".fit", "").split("/")[-1]) for x in files]
+    )
     for f in files:
-        log += '{0:{1}}'.format(
-            f.replace('.fits', '').replace('.fit', '').split('/')[-1], s)
+        log += "{0:{1}}".format(
+            f.replace(".fits", "").replace(".fit", "").split("/")[-1], s
+        )
         if csv:
-            log += ','
-            log += ' '
+            log += ","
+            log += " "
             h = fits.getheader(f)
             values = ()
         for k in keywords:
-            values += (h[k], )
+            values += (h[k],)
         log += format.format(*values)
         log += "\n"
 
@@ -666,34 +728,31 @@ def getrot(h):
     # Does CDELTx exist?
     cdelt = np.zeros(2)
     cdeltDefined = False
-    if (('CDELT1' in h) and ('CDELT2' in h)):
+    if ("CDELT1" in h) and ("CDELT2" in h):
         # these keywords take precedence over the CD matrix
         cdeltDefined = True
-        cdelt = np.array([h['CDELT1'], h['CDELT2']])
+        cdelt = np.array([h["CDELT1"], h["CDELT2"]])
 
     # Transformation matrix?
     tmDefined = False
-    if (('CD1_1' in h) and ('CD1_2' in h) and
-            ('CD2_1' in h) and ('CD2_2' in h)):
+    if ("CD1_1" in h) and ("CD1_2" in h) and ("CD2_1" in h) and ("CD2_2" in h):
         tmDefined = True
-        cd = np.array(((h['CD1_1'], h['CD1_2']), (h['CD2_1'], h['CD2_2'])))
+        cd = np.array(((h["CD1_1"], h["CD1_2"]), (h["CD2_1"], h["CD2_2"])))
 
-    if (('PC1_1' in h) and ('PC1_2' in h) and
-            ('PC2_1' in h) and ('PC2_2' in h)):
+    if ("PC1_1" in h) and ("PC1_2" in h) and ("PC2_1" in h) and ("PC2_2" in h):
         tmDefined = True
-        cd = np.array(((h['PC1_1'], h['PC1_2']), (h['PC2_1'], h['PC2_2'])))
+        cd = np.array(((h["PC1_1"], h["PC1_2"]), (h["PC2_1"], h["PC2_2"])))
 
     if not tmDefined:
         # if CDELT is defined but the transformation matrix isn't,
         # then CROT should be defined
-        if cdeltDefined and ('CROTA2' in h):
-            rot = h['CROTA2']
+        if cdeltDefined and ("CROTA2" in h):
+            rot = h["CROTA2"]
             return cdelt, rot
 
-        raise ValueError("WCS has CDELTx but is missing CROTA2,"
-                         " and CDi_j or PCi_j")
+        raise ValueError("WCS has CDELTx but is missing CROTA2," " and CDi_j or PCi_j")
 
-    if (h['CTYPE1'].find('DEC-') >= 0) or (h['CTYPE1'].find('LAT') >= 0):
+    if (h["CTYPE1"].find("DEC-") >= 0) or (h["CTYPE1"].find("LAT") >= 0):
         newcd = cd.copy()
         newcd[0, :] = cd[1, :]
         newcd[1, :] = cd[0, :]
@@ -713,14 +772,12 @@ def getrot(h):
             cdelt[0] = cd[0, 0]
             cdelt[1] = cd[1, 1]
     else:
-        rot1 = np.arctan2(sgn * np.radians(cd[0, 1]),
-                          sgn * np.radians(cd[0, 0]))
-        rot2 = np.arctan2(np.radians(-cd[1, 0]),
-                          np.radians(cd[1, 1]))
+        rot1 = np.arctan2(sgn * np.radians(cd[0, 1]), sgn * np.radians(cd[0, 0]))
+        rot2 = np.arctan2(np.radians(-cd[1, 0]), np.radians(cd[1, 1]))
 
         if not cdeltDefined:
-            cdelt[0] = sgn * np.sqrt(cd[0, 0]**2 + cd[0, 1]**2)
-            cdelt[1] = np.sqrt(cd[1, 1]**2 + cd[1, 0]**2)
+            cdelt[0] = sgn * np.sqrt(cd[0, 0] ** 2 + cd[0, 1] ** 2)
+            cdelt[1] = np.sqrt(cd[1, 1] ** 2 + cd[1, 0] ** 2)
 
     return cdelt * 3600.0, np.degrees(rot1)
 
@@ -781,8 +838,7 @@ def gaussfit(x, y, err, guess, covar=False, **kwargs):
 
     assert len(guess) in (3, 4, 5), "guess must have length of 3, 4, or 5."
 
-    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4,
-                xtol=1e-4, ftol=1e-4)
+    opts = dict(args=(x, y, err), full_output=True, epsfcn=1e-4, xtol=1e-4, ftol=1e-4)
     opts.update(**kwargs)
     if len(guess) == 3:
         output = leastsq(gauss_chi, guess, **opts)
@@ -841,8 +897,7 @@ def glfit(x, y, err, guess, covar=False):
     if err is None:
         err = np.ones(len(y))
 
-    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
-                     epsfcn=1e-4)
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True, epsfcn=1e-4)
     fit = output[0]
     cov = output[1]
     err = np.sqrt(np.diag(cov))
@@ -890,8 +945,7 @@ def linefit(x, y, err, guess, covar=False):
     if err is None:
         err = np.ones(len(y))
 
-    output = leastsq(chi, guess, args=(x, y, err), full_output=True,
-                     epsfcn=1e-3)
+    output = leastsq(chi, guess, args=(x, y, err), full_output=True, epsfcn=1e-3)
     fit = output[0]
     cov = output[1]
     try:
@@ -950,17 +1004,22 @@ def planckfit(wave, fluxd, err, guess, covar=False, epsfcn=1e-3, **kwargs):
         model = planck(wave, T, unit=fluxd.unit / u.sr) * u.sr
         d[0] = (model / err).decompose().value
 
-        model = scale * planck(wave, T, unit=fluxd.unit /
-                               u.sr, deriv='T') * u.sr
+        model = scale * planck(wave, T, unit=fluxd.unit / u.sr, deriv="T") * u.sr
         d[1] = (model / err).decompose().value
         return d
 
     if err is None:
         err = np.ones_like(fluxd)
 
-    output = leastsq(chi, guess, args=(wave, fluxd, err), full_output=True,
-                     #                     Dfun=dchi, col_deriv=True,
-                     epsfcn=epsfcn, **kwargs)
+    output = leastsq(
+        chi,
+        guess,
+        args=(wave, fluxd, err),
+        full_output=True,
+        #                     Dfun=dchi, col_deriv=True,
+        epsfcn=epsfcn,
+        **kwargs
+    )
     print(output[-2])
     fit = output[0]
     cov = output[1]
@@ -1102,7 +1161,7 @@ def leading_num_key(s):
 
     """
 
-    pfx = ''
+    pfx = ""
     sfx = s
     for i in range(len(s)):
         if not s[i].isdigit():
@@ -1164,7 +1223,7 @@ def stat_avg(x, y, u, N):
     remainder = x.size % nbins
     shape = (nbins, N)
 
-    w = (1.0 / np.array(u)**2)
+    w = 1.0 / np.array(u) ** 2
     _w = w[:-remainder].reshape(shape)
     _x = np.array(x)[:-remainder].reshape(shape)
     _y = np.array(y)[:-remainder].reshape(shape)
@@ -1241,8 +1300,8 @@ def whist(x, y, w, errors=True, **keywords):
 
     """
 
-    if 'weights' in keywords:
-        raise RuntimeError('weights not allowed in keywords')
+    if "weights" in keywords:
+        raise RuntimeError("weights not allowed in keywords")
 
     _x = np.array(x)
     _y = np.array(y)
@@ -1288,9 +1347,9 @@ def delta_at_rh(rh, selong, observer=1 * u.au):
     delta_unit = rh.unit if isinstance(rh, u.Quantity) else 1
     phase_unit = selong.unit if isinstance(selong, u.Quantity) else 1
 
-    rh = u.Quantity(rh, 'au')
-    observer = u.Quantity(observer, 'au')
-    selong = u.Quantity(selong, 'rad')
+    rh = u.Quantity(rh, "au")
+    observer = u.Quantity(observer, "au")
+    selong = u.Quantity(selong, "rad")
 
     sizes = [np.size(rh), np.size(selong), np.size(observer)]
     size = np.max(sizes)
@@ -1298,25 +1357,26 @@ def delta_at_rh(rh, selong, observer=1 * u.au):
         raise ValueError("Array of different lengths given as input.")
 
     if np.size(rh) == 1:
-      rh = np.repeat(rh, size)
+        rh = np.repeat(rh, size)
     if np.size(selong) == 1:
-      selong = np.repeat(selong, size)
+        selong = np.repeat(selong, size)
     if np.size(observer) == 1:
-      observer = np.repeat(observer, size)
+        observer = np.repeat(observer, size)
 
     delta = np.zeros(size) * rh.unit
 
     for i in range(size):
-        d = np.roots((
-            1,
-            -2 * observer[i].value * np.cos(selong[i]).value,
-            (observer[i]**2 - rh[i]**2).value
-        ))
+        d = np.roots(
+            (
+                1,
+                -2 * observer[i].value * np.cos(selong[i]).value,
+                (observer[i] ** 2 - rh[i] ** 2).value,
+            )
+        )
         j = 0 if d[0] >= 0 else 1
         delta[i] = d[j] * u.au
 
-    phase = np.arccos((rh**2 + delta**2 - observer**2)
-                      / 2 / rh / delta)
+    phase = np.arccos((rh**2 + delta**2 - observer**2) / 2 / rh / delta)
 
     if delta_unit == 1:
         delta = delta.value
@@ -1401,9 +1461,9 @@ def lb2xyz(lam, bet=None):
 
     lamr = np.radians(_lam)
     betr = np.radians(np.array(bet).squeeze())
-    return np.array((np.cos(betr) * np.cos(lamr),
-                     np.cos(betr) * np.sin(lamr),
-                     np.sin(betr)))
+    return np.array(
+        (np.cos(betr) * np.cos(lamr), np.cos(betr) * np.sin(lamr), np.sin(betr))
+    )
 
 
 def mhat(a, axis=-1):
@@ -1459,12 +1519,12 @@ def projected_vector_angle(r, rot, ra, dec):
 
     # find the projected vectors in RA, Dec
     lam2 = np.degrees(np.arctan2(dv[1], dv[0]))
-    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0]**2 + dv[1]**2)))
+    bet2 = np.degrees(np.arctan2(dv[2], np.sqrt(dv[0] ** 2 + dv[1] ** 2)))
 
     ra2, dec2 = ec2eq(lam2, bet2)
 
     x2 = (ra2 - ra) * np.cos(np.radians(dec2))
-    y2 = (dec2 - dec)
+    y2 = dec2 - dec
 
     th = np.degrees(np.arctan2(y2, x2))
     pa = 90.0 - th
@@ -1510,9 +1570,8 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
     def rd2cartesian(lon, lat):
         # convert to cartesian coords
         clat = np.cos(lat)
-        return np.array([clat * np.cos(lon),
-                         clat * np.sin(lon),
-                         np.sin(lat)])
+        return np.array([clat * np.cos(lon), clat * np.sin(lon), np.sin(lat)])
+
     v0 = rd2cartesian(np.radians(lon0), np.radians(lat0))
     v1 = rd2cartesian(np.radians(lon1), np.radians(lat1))
     v = rd2cartesian(np.radians(lon), np.radians(lat))
@@ -1539,7 +1598,7 @@ def spherical_coord_rotate(lon0, lat0, lon1, lat1, lon, lat):
         vz = np.dot(v.T, z)
         v = vx * np.repeat(x2, v.shape[1]).reshape(v.shape)
         v += vy * np.repeat(y2, v.shape[1]).reshape(v.shape)
-        v += vz * np.repeat(z,  v.shape[1]).reshape(v.shape)
+        v += vz * np.repeat(z, v.shape[1]).reshape(v.shape)
 
     lat_new = np.degrees(np.arcsin(v[2]))
     lon_new = np.degrees(np.arctan2(v[1], v[0]))
@@ -1628,7 +1687,7 @@ def state2orbit(R, V):
     r = np.sqrt((R**2).sum())  # heliocentric distance [km]
     v = np.sqrt((V**2).sum())  # velocity [km/s]
 
-    H = np.cross(R, V)         # specific angular momentum vector [km2/s]
+    H = np.cross(R, V)  # specific angular momentum vector [km2/s]
     h = np.sqrt((H**2).sum())  # specific angular momentum [km2/s]
 
     s = np.dot(R, V)
@@ -1644,15 +1703,15 @@ def state2orbit(R, V):
         f = np.arctan2(sinf, cosf)  # true anomaly [radians]
     elif ec < 1.1:
         # punt!
-        return dict(a=a, ec=ec, q=q, Tp=None, P=None, f=None, E=None,
-                    H=None, M=None)
+        return dict(a=a, ec=ec, q=q, Tp=None, P=None, f=None, E=None, H=None, M=None)
     else:
         raise ValueError("eccentricity is too high")
 
     # eccentric anomaly [radians]
     if ec < 1.0:
-        E = 2.0 * np.arctan2(np.sqrt(1.0 - ec) * np.sin(f / 2.0),
-                             np.sqrt(1.0 + ec) * np.cos(f / 2.0))
+        E = 2.0 * np.arctan2(
+            np.sqrt(1.0 - ec) * np.sin(f / 2.0), np.sqrt(1.0 + ec) * np.cos(f / 2.0)
+        )
         M = E - ec * np.sin(E)  # mean anomaly [radians]
     else:
         # hyperbolic eccentric anomaly [radians]
@@ -1661,8 +1720,8 @@ def state2orbit(R, V):
 
     # date of perihelion [Julian date]
     if a < 0:
-        n = np.sqrt(mu / -a**3) / 86400.0  # mean motion
-        Tp = -M * np.sqrt(-a**3 / mu) / 86400.0
+        n = np.sqrt(mu / -(a**3)) / 86400.0  # mean motion
+        Tp = -M * np.sqrt(-(a**3) / mu) / 86400.0
         P = None
     else:
         Tp = -M * np.sqrt(a**3 / mu) / 86400.0
@@ -1698,9 +1757,11 @@ def vector_rotate(r, n, th):
     nhat = n / np.sqrt((n**2).sum())
 
     def rot(r, nhat, theta):
-        return (r * np.cos(-theta) +
-                nhat * (nhat * r).sum() * (1.0 - np.cos(-theta)) +
-                np.cross(r, nhat) * np.sin(-theta))
+        return (
+            r * np.cos(-theta)
+            + nhat * (nhat * r).sum() * (1.0 - np.cos(-theta))
+            + np.cross(r, nhat) * np.sin(-theta)
+        )
 
     if np.size(th) == 1:
         return rot(r, nhat, th)
@@ -1728,11 +1789,11 @@ def xyz2lb(r):
     r = np.array(r)
     if r.ndim == 1:
         lam = np.arctan2(r[1], r[0])
-        bet = np.arctan2(r[2], np.sqrt(r[0]**2 + r[1]**2))
+        bet = np.arctan2(r[2], np.sqrt(r[0] ** 2 + r[1] ** 2))
     else:
         # assume it is an array of vectors
         lam = np.arctan2(r[:, 1], r[:, 0])
-        bet = np.arctan2(r[:, 2], np.sqrt(r[:, 0]**2 + r[:, 1]**2))
+        bet = np.arctan2(r[:, 2], np.sqrt(r[:, 0] ** 2 + r[:, 1] ** 2))
 
     return np.degrees(lam), np.degrees(bet)
 
@@ -1767,8 +1828,8 @@ def kuiper(x, y):
     data1 = np.sort(data1)
     data2 = np.sort(data2)
     data_all = np.sort(np.concatenate([data1, data2]))
-    cdf1 = np.searchsorted(data1, data_all, side='right') / n1
-    cdf2 = np.searchsorted(data2, data_all, side='right') / n2
+    cdf1 = np.searchsorted(data1, data_all, side="right") / n1
+    cdf2 = np.searchsorted(data2, data_all, side="right") / n2
     V = np.ptp(cdf1 - cdf2)
     Ne = n1 * n2 / (n1 + n2)
     return V, kuiperprob(V, Ne)
@@ -1837,8 +1898,16 @@ def mean2minmax(a):
     return np.abs(minmax(a) - np.array(a).mean())
 
 
-def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
-             full_output=False, dtype=np.float64):
+def meanclip(
+    x,
+    axis=None,
+    lsig=3.0,
+    hsig=3.0,
+    maxiter=5,
+    minfrac=0.001,
+    full_output=False,
+    dtype=np.float64,
+):
     """Average `x` after iteratively removing outlying points.
 
     Clipping is performed about the median.  NaNs are ignored.
@@ -1888,9 +1957,15 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
             yind = ()
             yiter = np.zeros(x2.shape[0])
             for i in range(x2.shape[0]):
-                mc = meanclip(x2[i], axis=None, lsig=lsig, hsig=hsig,
-                              maxiter=maxiter, minfrac=minfrac,
-                              full_output=True)
+                mc = meanclip(
+                    x2[i],
+                    axis=None,
+                    lsig=lsig,
+                    hsig=hsig,
+                    maxiter=maxiter,
+                    minfrac=minfrac,
+                    full_output=True,
+                )
                 y[i], ys[i], yiter[i] = mc[0], mc[1], mc[3]
                 yind += (mc[2],)
             if full_output:
@@ -1898,8 +1973,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
             else:
                 return y.mean(dtype=dtype)
         else:
-            raise ValueError("There is no axis {0} in the input"
-                             " array".format(axis))
+            raise ValueError("There is no axis {0} in the input" " array".format(axis))
 
     if isinstance(lsig, tuple):
         lsig = list(lsig)
@@ -1940,7 +2014,7 @@ def meanclip(x, axis=None, lsig=3.0, hsig=3.0, maxiter=5, minfrac=0.001,
 
     y = x.flatten()[good]
     if full_output:
-        return y.mean(dtype=dtype), y.std(dtype=dtype), good, i+1
+        return y.mean(dtype=dtype), y.std(dtype=dtype), good, i + 1
     else:
         return y.mean(dtype=dtype)
 
@@ -2053,7 +2127,7 @@ def randpl(x0, x1, k, n=1):
     """
 
     y = np.random.rand(n)
-    return ((x1**(k + 1) - x0**(k + 1)) * y + x0**(k + 1))**(1.0 / (k + 1))
+    return ((x1 ** (k + 1) - x0 ** (k + 1)) * y + x0 ** (k + 1)) ** (1.0 / (k + 1))
 
 
 def sigma(s):
@@ -2071,6 +2145,7 @@ def sigma(s):
 
     """
     from scipy.special import erf
+
     return 0.5 * (erf(s / np.sqrt(2.0)) - erf(-s / np.sqrt(2.0)))
 
 
@@ -2120,9 +2195,9 @@ def spearman(x, y, nmc=None, xerr=None, yerr=None):
         ties = stats.mstats.count_tied_groups(y)
         sy = sum((k**3 - k) * v for k, v in ties.items())
 
-        D = sum((rankx - ranky)**2)
+        D = sum((rankx - ranky) ** 2)
         meanD = (N**3 - N) / 6.0 - (sx + sy) / 12.0
-        varD = (N - 1) * N**2 * (N + 1)**2 / 36.0
+        varD = (N - 1) * N**2 * (N + 1) ** 2 / 36.0
         varD *= (1 - sx / (N**3 - N)) * (1 - sy / (N**3 - N))
         return abs(D - meanD) / np.sqrt(varD)
 
@@ -2166,7 +2241,7 @@ def uclip(x, ufunc, full_output=False, **keywords):
 
     Returns
     -------
-    y : 
+    y :
       The result.
     ind : ndarray, optional
       The array indices of the good data in `x.flatten()`.
@@ -2182,8 +2257,9 @@ def uclip(x, ufunc, full_output=False, **keywords):
         return ufunc(x.flatten()[mc[2]])
 
 
-def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
-             k=3, s=None):
+def bandpass(
+    sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None, k=3, s=None
+):
     """Filters a spectrum given a transimission function.
 
     If the filter has a greater spectreal dispersion than the
@@ -2281,7 +2357,7 @@ def bandpass(sw, sf, se=None, fw=None, ft=None, filter=None, filterdir=None,
     # weighted mean to get the effective wavelength
     wrange = minmax(_w)
     weights = _ft * _sf / _se2
-    wave = (davint(_w, _w * weights, *wrange) / davint(_w, weights, *wrange))
+    wave = davint(_w, _w * weights, *wrange) / davint(_w, weights, *wrange)
 
     # weighted mean for the flux
     weights = _ft / _se2
@@ -2314,10 +2390,10 @@ def constant_spectral_resolution(start, stop, R):
 
     d = 1 + 1 / R
     n = int(np.ceil(np.log(stop / start) / np.log(d)))
-    return start * d**np.arange(n)
+    return start * d ** np.arange(n)
 
 
-def hemispherical_crater(calc, quantity, rho=u.Quantity(500, 'kg/m3')):
+def hemispherical_crater(calc, quantity, rho=u.Quantity(500, "kg/m3")):
     """Volume and mass of a hemispherical crater.
 
 
@@ -2335,17 +2411,18 @@ def hemispherical_crater(calc, quantity, rho=u.Quantity(500, 'kg/m3')):
 
     """
 
-    if calc == 'mass':
+    if calc == "mass":
         R = quantity
         V = 2 / 3 * np.pi * R**3
         result = (V * rho).decompose()
-    elif calc == 'radius':
+    elif calc == "radius":
         m = quantity
         V = m / rho
-        result = (V * 3 / 2 / np.pi)**(1/3)
+        result = (V * 3 / 2 / np.pi) ** (1 / 3)
     else:
-        raise ValueError('must calculate mass or radius, but {} was requested'
-                         .format(calc))
+        raise ValueError(
+            "must calculate mass or radius, but {} was requested".format(calc)
+        )
 
     return result
 
@@ -2378,14 +2455,14 @@ def deresolve(func, wave, flux, err=None):
     """
 
     if type(func) is str:
-        if 'gaussian' in func.lower():
-            sigma = float(re.findall('gaussian\(([^)]+)\)', func.lower())[0])
+        if "gaussian" in func.lower():
+            sigma = float(re.findall("gaussian\(([^)]+)\)", func.lower())[0])
 
             def func(dw):
                 return gaussian(dw, 0, sigma)
-        elif 'uniform' in func.lower():
-            hwhm = (float(re.findall('uniform\(([^)]+)\)', func.lower())[0])
-                    / 2.0)
+
+        elif "uniform" in func.lower():
+            hwhm = float(re.findall("uniform\(([^)]+)\)", func.lower())[0]) / 2.0
 
             def func(dw):
                 f = np.zeros_like(dw)
@@ -2393,6 +2470,7 @@ def deresolve(func, wave, flux, err=None):
                 if any(i):
                     f[i] = 1.0
                 return f
+
         else:
             raise ValueError("Function '{}' not recognized.".format(func))
 
@@ -2432,13 +2510,16 @@ def phase_integral(phasef, range=[0, 180]):
 
     """
     from scipy.integrate import quad
+
     range = np.radians(range)
-    pint = 2.0 * quad(lambda x: phasef(np.degrees(x)) * np.sin(x),
-                      min(range), max(range))[0]
+    pint = (
+        2.0
+        * quad(lambda x: phasef(np.degrees(x)) * np.sin(x), min(range), max(range))[0]
+    )
     return pint
 
 
-def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
+def planck(wave, T, unit="W/(m2 Hz sr)", deriv=None):
     """The Planck function.
 
     Parameters
@@ -2466,10 +2547,10 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
 
     """
 
-    assert deriv in [None, 'T', 't']
+    assert deriv in [None, "T", "t"]
 
     # prevent over/underflow warnings
-    oldseterr = np.seterr(all='ignore')
+    oldseterr = np.seterr(all="ignore")
 
     # wave in m
     if isinstance(wave, u.Quantity):
@@ -2477,22 +2558,22 @@ def planck(wave, T, unit='W/(m2 Hz sr)', deriv=None):
     else:
         wave = wave * 1e-6
 
-    #from astropy import constants as const
-    #c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
-    #c2 = const.si.h * const.si.c / const.si.k_B
-    #a = np.exp(c2 / wave.si / T.to(u.K))
-    #B = c1 / ((wave.si)**3 * (a - 1.0)) / u.sr
+    # from astropy import constants as const
+    # c1 = 2.0 * const.si.h * const.si.c / u.s / u.Hz
+    # c2 = const.si.h * const.si.c / const.si.k_B
+    # a = np.exp(c2 / wave.si / T.to(u.K))
+    # B = c1 / ((wave.si)**3 * (a - 1.0)) / u.sr
 
     c1 = 3.9728913665386057e-25  # J m
     c2 = 0.0143877695998  # K m
-    a = np.exp(c2 / wave / u.Quantity(T, 'K').value)
+    a = np.exp(c2 / wave / u.Quantity(T, "K").value)
     B = c1 / (wave**3 * (a - 1.0))
     if unit is not None:
-        B = B * u.Unit('W/(m2 Hz sr)')
+        B = B * u.Unit("W/(m2 Hz sr)")
         B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
 
-    if deriv in ['T', 't']:
-        B = B * c2 / T.to('K').value**2 / wave * a / (a - 1.0) / u.K
+    if deriv in ["T", "t"]:
+        B = B * c2 / T.to("K").value ** 2 / wave * a / (a - 1.0) / u.K
 
     # restore seterr
     np.seterr(**oldseterr)
@@ -2543,8 +2624,7 @@ def _redden(wave, S, wave0=0.55):
     elif len(S) == 1:
         S = np.ones_like(wave) * S[0]
 
-    slope = interp1d(np.r_[0, wave, np.inf], np.r_[S[0], S, S[-1]],
-                     kind='linear')
+    slope = interp1d(np.r_[0, wave, np.inf], np.r_[S[0], S, S[-1]], kind="linear")
 
     spec = np.zeros_like(wave)
     for i in range(len(wave)):
@@ -2577,8 +2657,7 @@ def polcurve(th, p, a, b, th0):
 
     """
     thr = np.radians(th)
-    return (p * np.sin(thr)**a * np.cos(thr / 2.)**b
-            * np.sin(thr - np.radians(th0)))
+    return p * np.sin(thr) ** a * np.cos(thr / 2.0) ** b * np.sin(thr - np.radians(th0))
 
 
 def savitzky_golay(x, kernel=11, order=4):
@@ -2607,14 +2686,15 @@ def savitzky_golay(x, kernel=11, order=4):
 
     if (kernel % 2) != 1 or kernel < 1:
         raise ValueError(
-            "kernel size must be a positive odd number, was:{}".format(kernel))
+            "kernel size must be a positive odd number, was:{}".format(kernel)
+        )
     if kernel < order + 2:
-        raise ValueError(
-            "kernel is to small for the polynomals\nshould be > order + 2")
+        raise ValueError("kernel is to small for the polynomals\nshould be > order + 2")
 
     half_window = (kernel - 1) // 2
-    b = np.mat([[k**i for i in range(order + 1)]
-                for k in range(-half_window, half_window+1)])
+    b = np.mat(
+        [[k**i for i in range(order + 1)] for k in range(-half_window, half_window + 1)]
+    )
 
     # since we don't want the derivative, else choose [1] or [2], respectively
     m = np.linalg.pinv(b).A[0]
@@ -2629,9 +2709,9 @@ def savitzky_golay(x, kernel=11, order=4):
     # right extension: f(xl+x) = f(xl)+(f(xl)-f(xl-x)) = 2f(xl)-f(xl-x)
     leftpad = np.zeros(half_window) + 2 * x[0]
     rightpad = np.zeros(half_window) + 2 * x[-1]
-    leftchunk = x[1:(1 + half_window)]
-    leftpad = leftpad-leftchunk[::-1]
-    rightchunk = x[len(x) - half_window - 1:len(x) - 1]
+    leftchunk = x[1 : (1 + half_window)]
+    leftpad = leftpad - leftchunk[::-1]
+    rightchunk = x[len(x) - half_window - 1 : len(x) - 1]
     rightpad = rightpad - rightchunk[::-1]
     data = np.concatenate((leftpad, x))
     data = np.concatenate((data, rightpad))
@@ -2646,7 +2726,7 @@ def savitzky_golay(x, kernel=11, order=4):
     return np.array(smooth_data)
 
 
-def spherical_sector(calc, quantity, R, rho=u.Quantity(500, 'kg/m3')):
+def spherical_sector(calc, quantity, R, rho=u.Quantity(500, "kg/m3")):
     """Volume and mass of a spherical sector.
 
 
@@ -2667,22 +2747,23 @@ def spherical_sector(calc, quantity, R, rho=u.Quantity(500, 'kg/m3')):
 
     """
 
-    if calc == 'mass':
+    if calc == "mass":
         h = quantity
         V = 2 / 3 * np.pi * R**2 * h
         result = (V * rho).decompose()
-    elif calc == 'height':
+    elif calc == "height":
         m = quantity
         V = m / rho
         result = V * 3 / 2 / np.pi / R**2
     else:
-        raise ValueError('must calculate mass or height, but {} was requested'
-                         .format(calc))
+        raise ValueError(
+            "must calculate mass or height, but {} was requested".format(calc)
+        )
 
     return result
 
 
-def cal2doy(cal, scale='utc'):
+def cal2doy(cal, scale="utc"):
     """Calendar date to day of year.
 
     Parameters
@@ -2700,9 +2781,9 @@ def cal2doy(cal, scale='utc'):
     """
     t = cal2time(cal, scale=scale)
     if len(t) > 1:
-        return [int(x.yday.split(':')[1]) for x in t]
+        return [int(x.yday.split(":")[1]) for x in t]
     else:
-        return int(t.yday.split(':')[1])
+        return int(t.yday.split(":")[1])
 
 
 def cal2iso(cal):
@@ -2733,33 +2814,32 @@ def cal2iso(cal):
 
     # if the month is an abbreviation, replace it with a number
     cal = cal.lower()
-    cal = cal.replace('jan', '01')
-    cal = cal.replace('feb', '02')
-    cal = cal.replace('mar', '03')
-    cal = cal.replace('apr', '04')
-    cal = cal.replace('may', '05')
-    cal = cal.replace('jun', '06')
-    cal = cal.replace('jul', '07')
-    cal = cal.replace('aug', '08')
-    cal = cal.replace('sep', '09')
-    cal = cal.replace('oct', '10')
-    cal = cal.replace('nov', '11')
-    cal = cal.replace('dec', '12')
+    cal = cal.replace("jan", "01")
+    cal = cal.replace("feb", "02")
+    cal = cal.replace("mar", "03")
+    cal = cal.replace("apr", "04")
+    cal = cal.replace("may", "05")
+    cal = cal.replace("jun", "06")
+    cal = cal.replace("jul", "07")
+    cal = cal.replace("aug", "08")
+    cal = cal.replace("sep", "09")
+    cal = cal.replace("oct", "10")
+    cal = cal.replace("nov", "11")
+    cal = cal.replace("dec", "12")
 
-    d = (''.join(map(a2space, cal))).split(" ")
+    d = ("".join(map(a2space, cal))).split(" ")
     d = d[:6]  # truncate at seconds
     d = [float(t) for t in d] + [0] * (6 - len(d))
     if d[1] == 0.0:
         d = d[:1] + [1.0] + d[2:]
     if d[2] == 0.0:
         d = d[:2] + [1.0] + d[3:]
-    dt = datetime.timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4],
-                            seconds=d[5])
+    dt = datetime.timedelta(days=d[2] - 1.0, hours=d[3], minutes=d[4], seconds=d[5])
     d = datetime.datetime(int(d[0]), int(d[1]), 1) + dt
     return d.isoformat()
 
 
-def cal2time(cal, scale='utc'):
+def cal2time(cal, scale="utc"):
     """Calendar date to astropy `Time`.
 
     Parameters
@@ -2775,7 +2855,7 @@ def cal2time(cal, scale='utc'):
       Day of year.
 
     """
-    return Time(cal2iso(cal), format='isot', scale=scale)
+    return Time(cal2iso(cal), format="isot", scale=scale)
 
 
 def date_len(date):
@@ -2811,7 +2891,7 @@ def date_len(date):
 
 
 @singledispatch
-def date2time(date, scale='utc'):
+def date2time(date, scale="utc"):
     """Lazy date to astropy `Time`.
 
     Parameters
@@ -2826,33 +2906,32 @@ def date2time(date, scale='utc'):
     date : astropy Time
 
     """
-    if (date is not None):
+    if date is not None:
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return Time(datetime.datetime.utcnow(), scale=scale,
-                format='datetime')
+    return Time(datetime.datetime.utcnow(), scale=scale, format="datetime")
 
 
 @date2time.register(Time)
 @date2time.register(datetime.datetime)
-def _(date, scale='utc'):
+def _(date, scale="utc"):
     return Time(date, scale=scale)
 
 
 @date2time.register(int)
 @date2time.register(float)
-def _(date, scale='utc'):
+def _(date, scale="utc"):
     return jd2time(date, scale=scale)
 
 
 @date2time.register(str)
-def _(date, scale='utc'):
+def _(date, scale="utc"):
     return cal2time(date, scale=scale)
 
 
 @date2time.register(list)
 @date2time.register(tuple)
 @date2time.register(np.ndarray)
-def _(date, scale='utc'):
+def _(date, scale="utc"):
     date = [date2time(d, scale=scale) for d in date]
     return Time(date)
 
@@ -2905,13 +2984,13 @@ def doy2md(doy, year):
 
     """
 
-    jd0 = s2jd('{0}-12-31'.format(year - 1))
+    jd0 = s2jd("{0}-12-31".format(year - 1))
     if isinstance(doy, (tuple, list, numpy.ndarray)):
         md = []
         for i in range(len(doy)):
-            md.append(jd2dt(jd0 + doy[i]).strftime('%m-%d'))
+            md.append(jd2dt(jd0 + doy[i]).strftime("%m-%d"))
     else:
-        md = jd2dt(jd0 + doy).strftime('%m-%d')
+        md = jd2dt(jd0 + doy).strftime("%m-%d")
     return md
 
 
@@ -2922,7 +3001,7 @@ def drange(start, stop, num=50):
     ----------
     start : string, float, astropy Time, datetime, or array
       The start date, in any form suitable for `date2time`.
-    stop : 
+    stop :
       The stop date, in any form suitable for `date2time`.
     num : int, optional
       The number of samples to generate.
@@ -2958,19 +3037,20 @@ def hms2dh(hms):
       Decimal hours.
 
     """
-    if (isinstance(hms, (list, tuple, np.ndarray))
-            and isinstance(hms[0], (list, tuple, np.ndarray, str))):
+    if isinstance(hms, (list, tuple, np.ndarray)) and isinstance(
+        hms[0], (list, tuple, np.ndarray, str)
+    ):
         return [hms2dh(x) for x in hms]
 
     def a2space(c):
-        if c.isdigit() or c in ['.', '+', '-']:
+        if c.isdigit() or c in [".", "+", "-"]:
             return c
         else:
             return " "
 
     if isinstance(hms, str):
-        s = -1 if hms.find('-') >= 0 else 1
-        hms = ''.join(map(a2space, hms)).split()
+        s = -1 if hms.find("-") >= 0 else 1
+        hms = "".join(map(a2space, hms)).split()
         hms = s * np.array(hms, dtype=float)
     else:
         hms = np.array(hms, dtype=float)
@@ -2990,7 +3070,7 @@ def hms2dh(hms):
     return s * dh
 
 
-def jd2doy(jd, jd2=None, scale='utc'):
+def jd2doy(jd, jd2=None, scale="utc"):
     """Julian date to day of year.
 
     Parameters
@@ -3009,14 +3089,14 @@ def jd2doy(jd, jd2=None, scale='utc'):
       Day of year.
 
     """
-    t = Time(jd, val2=jd2, format='jd', scale=scale)
+    t = Time(jd, val2=jd2, format="jd", scale=scale)
     if len(t) > 1:
-        return [int(x.yday.split(':')[1]) for x in t]
+        return [int(x.yday.split(":")[1]) for x in t]
     else:
-        return int(t.yday.split(':')[1])
+        return int(t.yday.split(":")[1])
 
 
-def jd2time(jd, jd2=None, scale='utc'):
+def jd2time(jd, jd2=None, scale="utc"):
     """Julian date to astropy `Time`.
 
     Parameters
@@ -3034,10 +3114,10 @@ def jd2time(jd, jd2=None, scale='utc'):
     t : astropy Time
 
     """
-    return Time(jd, val2=jd2, format='jd', scale=scale)
+    return Time(jd, val2=jd2, format="jd", scale=scale)
 
 
-def timestamp(format='%Y%m%d'):
+def timestamp(format="%Y%m%d"):
     """The current date/time as a string.
 
     Parameters
@@ -3047,6 +3127,7 @@ def timestamp(format='%Y%m%d'):
 
     """
     from datetime import datetime
+
     return datetime.utcnow().strftime(format)
 
 
@@ -3068,6 +3149,7 @@ def tz2utc(date, tz):
     """
 
     from pytz import timezone
+
     return timezone(tz).utcoffset(date2time(date).datetime)
 
 
@@ -3146,15 +3228,15 @@ def asValue(x, unit_in, unit_out):
 
     from astropy.coordinates import Angle
 
-#    if isinstance(x, Angle):
-#        if unit_out == u.deg:
-#            y = x.degrees
-#        elif unit_out == u.rad:
-#            y = x.radians
-#        else:
-#            raise ValueError("Cannot convert Angle to units of {}".format(
-#                    unit_out))
-#    elif isinstance(x, Quantity):
+    #    if isinstance(x, Angle):
+    #        if unit_out == u.deg:
+    #            y = x.degrees
+    #        elif unit_out == u.rad:
+    #            y = x.radians
+    #        else:
+    #            raise ValueError("Cannot convert Angle to units of {}".format(
+    #                    unit_out))
+    #    elif isinstance(x, Quantity):
     if isinstance(x, (Angle, u.Quantity)):
         y = x.to(unit_out).value
     else:
@@ -3183,7 +3265,7 @@ def autodoc(glbs, width=15, truncate=True):
     """
 
     try:
-        docstring = glbs['__doc__'].splitlines()
+        docstring = glbs["__doc__"].splitlines()
     except AttributeError:
         return
 
@@ -3195,8 +3277,7 @@ def autodoc(glbs, width=15, truncate=True):
             if callable(glbs[x]):
                 try:
                     topline = glbs[x].__doc__.splitlines()[0].strip()
-                    summary = "{:{width}s} - {:}".format(
-                        x, topline, width=width)
+                    summary = "{:{width}s} - {:}".format(x, topline, width=width)
                     s = s.replace(x, summary)
                     if truncate:
                         s = s[:80]
@@ -3204,7 +3285,7 @@ def autodoc(glbs, width=15, truncate=True):
                     pass
         newdoc += s + "\n"
 
-    glbs['__doc__'] = newdoc
+    glbs["__doc__"] = newdoc
 
 
 def file2list(f, strip=True):
@@ -3225,7 +3306,7 @@ def file2list(f, strip=True):
     """
 
     lines = []
-    with open(f, 'r') as inf:
+    with open(f, "r") as inf:
         for line in inf.readlines():
             lines.append(line.strip() if strip else line)
     return lines
@@ -3249,42 +3330,42 @@ def horizons_csv(table):
     """
 
     def split(line):
-        return re.split('\s*,\s*', line.strip())
+        return re.split("\s*,\s*", line.strip())
 
     if isinstance(table, str):
-        inf = open(table, 'r')
+        inf = open(table, "r")
     else:
         inf = table
 
     header = []
     for line in inf:
-        if line.startswith('$$SOE'):
+        if line.startswith("$$SOE"):
             break
         header.append(line)
 
     colnames = split(header[-2].strip())
     for i in range(len(colnames)):
-        if colnames[i] == '':
-            colnames[i] = 'col{}'.format(i)
+        if colnames[i] == "":
+            colnames[i] = "col{}".format(i)
 
-    data = ''
+    data = ""
     for line in inf:
-        if line.startswith('$$EOE'):
+        if line.startswith("$$EOE"):
             break
         elif len(line.strip()) == 0:
             continue
-        elif 'Requested' in line:
+        elif "Requested" in line:
             continue
         data += line
 
     tab = ascii.read(data, names=colnames)
 
-    footer = ''
+    footer = ""
     for line in inf:
         footer += line
 
-    tab.meta['header'] = ''.join(header)
-    tab.meta['footer'] = footer
+    tab.meta["header"] = "".join(header)
+    tab.meta["footer"] = footer
 
     return tab
 
@@ -3307,20 +3388,30 @@ def mpc_comet_obs(table):
 
     """
     tab = ascii.read(
-        '240P.txt',
-        col_starts=[0, 4,  5, 13, 14, 15, 32, 44, 65, 70, 77],
+        "240P.txt",
+        col_starts=[0, 4, 5, 13, 14, 15, 32, 44, 65, 70, 77],
         col_ends=[3, 4, 12, 13, 14, 31, 43, 56, 69, 70, 80],
-        names=['P', 'orbit', 'desg', 'note 1', 'note 2', 'date', 'ra',
-               'dec', 'm', 'type', 'obs'],
-        format='fixed_width_no_header'
+        names=[
+            "P",
+            "orbit",
+            "desg",
+            "note 1",
+            "note 2",
+            "date",
+            "ra",
+            "dec",
+            "m",
+            "type",
+            "obs",
+        ],
+        format="fixed_width_no_header",
     )
-    tab = tab[tab['note 2'] != 's']
+    tab = tab[tab["note 2"] != "s"]
 
     # reformat into astropy.time parseable string
-    dates = [d.replace(' ', '-') for d in tab['date']]
-    dates = ['{} {}'.format(d[:10], dh2hms(float(d[10:]) * 24))
-             for d in dates]
-    tab['date'] = dates
+    dates = [d.replace(" ", "-") for d in tab["date"]]
+    dates = ["{} {}".format(d[:10], dh2hms(float(d[10:]) * 24)) for d in dates]
+    tab["date"] = dates
 
     return tab
 
@@ -3359,10 +3450,10 @@ def spectral_density_sb(s):
     sfactor = s.decompose().value
 
     def converter(x):
-        return x * (sunit.to(u.AA, sfactor, u.spectral())**2 / c_Aps)
+        return x * (sunit.to(u.AA, sfactor, u.spectral()) ** 2 / c_Aps)
 
     def iconverter(x):
-        return x / (sunit.to(u.AA, sfactor, u.spectral())**2 / c_Aps)
+        return x / (sunit.to(u.AA, sfactor, u.spectral()) ** 2 / c_Aps)
 
     def converter_fnu_nufnu(x):
         return x * sunit.to(u.Hz, sfactor, u.spectral())
@@ -3404,7 +3495,7 @@ def timesten(v, sigfigs):
             s.append(timesten(v[i], sigfigs))
         return s
 
-    s = "{0:.{1:d}e}".format(v, sigfigs - 1).split('e')
+    s = "{0:.{1:d}e}".format(v, sigfigs - 1).split("e")
     s = r"${0}\times10^{{{1:d}}}$".format(s[0], int(s[1]))
     return s
 
@@ -3430,8 +3521,8 @@ def write_table(fn, tab, header, comments=[], **kwargs):
 
     """
 
-    format = kwargs.pop('format', 'ascii.fixed_width_two_line')
-    with open(fn, 'w') as outf:
+    format = kwargs.pop("format", "ascii.fixed_width_two_line")
+    with open(fn, "w") as outf:
         outf.write("# {}\n#\n".format(date2time(None).iso))
 
         for c in comments:
@@ -3440,13 +3531,13 @@ def write_table(fn, tab, header, comments=[], **kwargs):
         for k, v in header.items():
             outf.write("# {} = {}\n".format(k, str(v)))
 
-        outf.write('#\n')
+        outf.write("#\n")
 
         tab.write(outf, format=format, **kwargs)
 
 
-astropy_io_registry.register_reader('mpc comet obs', Table, mpc_comet_obs)
-astropy_io_registry.register_reader('horizons csv', Table, horizons_csv)
+astropy_io_registry.register_reader("mpc comet obs", Table, mpc_comet_obs)
+astropy_io_registry.register_reader("horizons csv", Table, horizons_csv)
 
 # summarize the module
 autodoc(globals())
