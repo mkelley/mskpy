@@ -706,10 +706,12 @@ def subim(im, yx, half_box, expand=False, pad=0):
     _subim = im[s]
     shape = (2 * half_box + 1, 2 * half_box + 1)
     if expand and _subim.shape != shape:
-        dy = shape[0] - _subim.shape[0]
-        dx = shape[1] - _subim.shape[1]
         subim = np.zeros(shape) + pad
         subim[: _subim.shape[0], : _subim.shape[1]] = _subim
+        if y0 < half_box:
+            subim = np.roll(subim, half_box - y0, 0)
+        if x0 < half_box:
+            subim = np.roll(subim, half_box - x0, 1)
     else:
         subim = _subim
 
