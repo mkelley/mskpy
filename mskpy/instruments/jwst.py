@@ -6,7 +6,11 @@ import astropy.units as u
 from astropy.table import Table
 from astropy.io import ascii, fits
 from astropy.wcs import WCS
-from photutils import RectangularAperture, CircularAperture, aperture_photometry
+from photutils.aperture import (
+    RectangularAperture,
+    CircularAperture,
+    aperture_photometry,
+)
 from ..image.analysis import gcentroid, UnableToCenter
 
 
