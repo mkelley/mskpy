@@ -2094,7 +2094,7 @@ def nanminmax(a):
 
 
 def randpl(x0, x1, k, n=1):
-    """Pick random deviates from a power-law distribution.
+    r"""Pick random deviates from a power-law distribution.
 
     This returns:
       .. math:: dn/dx \propto x**k
@@ -2456,13 +2456,13 @@ def deresolve(func, wave, flux, err=None):
 
     if type(func) is str:
         if "gaussian" in func.lower():
-            sigma = float(re.findall("gaussian\(([^)]+)\)", func.lower())[0])
+            sigma = float(re.findall(r"gaussian\(([^)]+)\)", func.lower())[0])
 
             def func(dw):
                 return gaussian(dw, 0, sigma)
 
         elif "uniform" in func.lower():
-            hwhm = float(re.findall("uniform\(([^)]+)\)", func.lower())[0]) / 2.0
+            hwhm = float(re.findall(r"uniform\(([^)]+)\)", func.lower())[0]) / 2.0
 
             def func(dw):
                 f = np.zeros_like(dw)
@@ -3330,7 +3330,7 @@ def horizons_csv(table):
     """
 
     def split(line):
-        return re.split("\s*,\s*", line.strip())
+        return re.split(r"\s*,\s*", line.strip())
 
     if isinstance(table, str):
         inf = open(table, "r")

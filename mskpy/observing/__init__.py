@@ -24,13 +24,13 @@ from . import core
 from .core import *
 
 __all__ = core.__all__ + [
-    'Observer',
-    'Target',
+    "Observer",
+    "Target",
+    "am_plot",
+    "file2targets",
+    "plot_transit_time",
+]
 
-    'am_plot',
-    'file2targets',
-    'plot_transit_time'
-    ]
 
 class Target(object):
     """A target to be observed.
@@ -46,15 +46,19 @@ class Target(object):
 
     def __init__(self, ra, dec, name=None):
         from .. import util
+
         self.ra = ra
         self.dec = dec
         self.name = name
 
     def __repr__(self):
-        opts = dict(sep=':', precision=0, pad=True)
+        opts = dict(sep=":", precision=0, pad=True)
         return '<Target ra={} dec={} name="{}">'.format(
             self.ra.to_string(**opts),
-            self.dec.to_string(alwayssign=True, **opts), self.name)
+            self.dec.to_string(alwayssign=True, **opts),
+            self.name,
+        )
+
 
 class Observer(object):
     """An Earth-based observer.
@@ -91,6 +95,7 @@ class Observer(object):
 
     def __init__(self, lon, lat, tz, date, name=None):
         from .. import util
+
         self.lon = Angle(lon)
         self.lat = Angle(lat)
         self.tz = tz
@@ -109,6 +114,7 @@ class Observer(object):
     def date(self, d):
         """Observation date"""
         from .. import util
+
         self._date = util.date2time(d)
         if isinstance(self.tz, (float, int)):
             self._date += self.tz * u.hr
@@ -118,29 +124,30 @@ class Observer(object):
     @property
     def lst(self):
         """Local sidereal time."""
-        return Angle(core.ct2lst(self.date, self.lon.degree, self.tz),
-                     unit=u.hr)
+        return Angle(core.ct2lst(self.date, self.lon.degree, self.tz), unit=u.hr)
 
     @property
     def lst0(self):
         """Local sidereal time at nearest midnight."""
-        return Angle(core.ct2lst0(self.date, self.lon.degree, self.tz),
-                     unit=u.hr)
+        return Angle(core.ct2lst0(self.date, self.lon.degree, self.tz), unit=u.hr)
 
     def __repr__(self):
         if self.name is not None:
-            return '<Observer ({}): {}, {}, {}>'.format(
-                self.name, self.lon.degree, self.lat.degree, self.date.iso[:10])
+            return "<Observer ({}): {}, {}, {}>".format(
+                self.name, self.lon.degree, self.lat.degree, self.date.iso[:10]
+            )
         else:
-            return '<Observer: {}, {}, {}>'.format(
-                self.lon.degree, self.lat.degree, self.date.iso[:10])
+            return "<Observer: {}, {}, {}>".format(
+                self.lon.degree, self.lat.degree, self.date.iso[:10]
+            )
 
     def _radec(self, target, date):
         from ..ephem import Earth, SolarSysObject
+
         if isinstance(target, SolarSysObject):
             g = Earth.observe(target, date, ltt=True)
-            ra = g['ra']
-            dec = g['dec']
+            ra = g["ra"]
+            dec = g["dec"]
         else:
             ra = target.ra
             dec = target.dec
@@ -170,9 +177,9 @@ class Observer(object):
             return am
 
         ra, dec = self._radec(target, self.date)
-        return core.airmass(ra.degree, dec.degree,
-                            self.date, self.lon.degree, self.lat.degree,
-                            self.tz)
+        return core.airmass(
+            ra.degree, dec.degree, self.date, self.lon.degree, self.lat.degree, self.tz
+        )
 
     def altaz(self, target):
         """Altitude and azimuth of a target.
@@ -191,13 +198,19 @@ class Observer(object):
 
         ra, dec = self._radec(target, self.date)
         ha = self.lst - ra
-        alt, az = core.hadec2altaz(ha.degree, dec.degree,
-                                   self.lat.degree)
+        alt, az = core.hadec2altaz(ha.degree, dec.degree, self.lat.degree)
         return Angle(alt, unit=u.deg), Angle(az, unit=u.deg)
 
-    def finding_chart(self, target, ds9, trange=[-6, 6] * u.hr,
-                      ticks=1 * u.hr, fov=1 * u.arcmin,
-                      frame=1, dss=True):
+    def finding_chart(
+        self,
+        target,
+        ds9,
+        trange=[-6, 6] * u.hr,
+        ticks=1 * u.hr,
+        fov=1 * u.arcmin,
+        frame=1,
+        dss=True,
+    ):
         """Plot a DS9 finding chart for a moving target.
 
         Parameters
@@ -232,36 +245,44 @@ class Observer(object):
 
         # DSS
         g = Earth.observe(target, self.date, ltt=True)
-        ds9.set('frame {}'.format(frame))
-        ds9.set('dsssao frame current')
-        ds9.set('dsssao size 60 60')
-        ds9.set('dsssao coord {} {}'.format(
-            g['ra'].to_string(u.hr, sep=':'),
-            g['dec'].to_string(u.deg, sep=':')))
-        ds9.set('dsssao close')
-        ds9.set('cmap b')
-        ds9.set('align')
+        ds9.set("frame {}".format(frame))
+        ds9.set("dsssao frame current")
+        ds9.set("dsssao size 60 60")
+        ds9.set(
+            "dsssao coord {} {}".format(
+                g["ra"].to_string(u.hr, sep=":"), g["dec"].to_string(u.deg, sep=":")
+            )
+        )
+        ds9.set("dsssao close")
+        ds9.set("cmap b")
+        ds9.set("align")
 
         # FOV
         if fov is not None:
             if fov.size == 1:
                 fov = [fov, fov]
             fov_deg = u.Quantity(fov, u.deg).value
-            reg = 'fk5; box {} {} {} {} 0'.format(
-                g['ra'].to_string(u.hr, sep=':'),
-                g['dec'].to_string(u.deg, sep=':'),
-                fov_deg[0], fov_deg[1])
-            ds9.set('regions', reg)
+            reg = "fk5; box {} {} {} {} 0".format(
+                g["ra"].to_string(u.hr, sep=":"),
+                g["dec"].to_string(u.deg, sep=":"),
+                fov_deg[0],
+                fov_deg[1],
+            )
+            ds9.set("regions", reg)
 
         # path
         dt = np.linspace(trange[0], trange[1], 31)
         g = Earth.observe(target, self.date + dt, ltt=True)
         for i in range(len(g) - 1):
-            ds9.set('regions', 'fk5; line {} {} {} {}'.format(
-                g[i]['ra'].to_string(u.hr, sep=':'),
-                g[i]['dec'].to_string(u.deg, sep=':'),
-                g[i+1]['ra'].to_string(u.hr, sep=':'),
-                g[i+1]['dec'].to_string(u.deg, sep=':')))
+            ds9.set(
+                "regions",
+                "fk5; line {} {} {} {}".format(
+                    g[i]["ra"].to_string(u.hr, sep=":"),
+                    g[i]["dec"].to_string(u.deg, sep=":"),
+                    g[i + 1]["ra"].to_string(u.hr, sep=":"),
+                    g[i + 1]["dec"].to_string(u.deg, sep=":"),
+                ),
+            )
 
         # ticks
         dt1 = np.arange(0, trange[0].value, -ticks.value)
@@ -274,22 +295,27 @@ class Observer(object):
         del dt1, dt2
         g = Earth.observe(target, self.date + dt, ltt=True)
         for i in range(len(g)):
-            s = 'fk5; point({},{}) # point=cross'.format(
-                g[i]['ra'].to_string(u.hr, sep=':'),
-                g[i]['dec'].to_string(u.deg, sep=':'))
+            s = "fk5; point({},{}) # point=cross".format(
+                g[i]["ra"].to_string(u.hr, sep=":"),
+                g[i]["dec"].to_string(u.deg, sep=":"),
+            )
             if i == 0:
-                s = s.replace('cross', 'circle')
-            ds9.set('regions', s)
+                s = s.replace("cross", "circle")
+            ds9.set("regions", s)
 
         g = Earth.observe(target, self.date, ltt=True)
-        ds9.set('regions', 'fk5; point({},{}) # point=x'.format(
-            g['ra'].to_string(u.hr, sep=':'),
-            g['dec'].to_string(u.deg, sep=':')))
+        ds9.set(
+            "regions",
+            "fk5; point({},{}) # point=x".format(
+                g["ra"].to_string(u.hr, sep=":"), g["dec"].to_string(u.deg, sep=":")
+            ),
+        )
 
         return ds9
 
     def observe(self, target):
         from ..ephem import Earth
+
         return Earth.observe(target, self.date)
 
     def plot_am(self, target, N=100, fine=False, ax=None, **kwargs):
@@ -323,7 +349,7 @@ class Observer(object):
 
         if ax is None:
             ax = plt.gca()
-        label = kwargs.pop('label', target.name)
+        label = kwargs.pop("label", target.name)
 
         # round to nearest day
         date = jd2time(round(self.date.jd - 0.5) + 0.5)
@@ -333,19 +359,26 @@ class Observer(object):
         if fine:
             for i in range(N):
                 ra, dec = self._radec(target, date + dt[i])
-                am[i] = core.airmass(ra.degree, dec.degree,
-                                     date + dt[i],
-                                     self.lon.degree, self.lat.degree,
-                                     self.tz)
+                am[i] = core.airmass(
+                    ra.degree,
+                    dec.degree,
+                    date + dt[i],
+                    self.lon.degree,
+                    self.lat.degree,
+                    self.tz,
+                )
         else:
             ra0, dec0 = self._radec(target, date + dt[0])
             ra1, dec1 = self._radec(target, date + dt[-1])
-            ra = np.interp(dt.value, (dt[0].value, dt[-1].value),
-                           (ra0.degree, ra1.degree))
-            dec = np.interp(dt.value, (dt[0].value, dt[-1].value),
-                            (dec0.degree, dec1.degree))
-            am = core.airmass(ra, dec, date + dt, self.lon.degree,
-                              self.lat.degree, self.tz)
+            ra = np.interp(
+                dt.value, (dt[0].value, dt[-1].value), (ra0.degree, ra1.degree)
+            )
+            dec = np.interp(
+                dt.value, (dt[0].value, dt[-1].value), (dec0.degree, dec1.degree)
+            )
+            am = core.airmass(
+                ra, dec, date + dt, self.lon.degree, self.lat.degree, self.tz
+            )
 
         return ax.plot(dt.value, am, label=label, **kwargs)
 
@@ -373,12 +406,19 @@ class Observer(object):
         if isinstance(target, (list, tuple)):
             times = ()
             for t in target:
-                times += (self.rts(t, limit=limit), )
+                times += (self.rts(t, limit=limit),)
             return times
 
         ra, dec = self._radec(target, self.date)
-        r, t, s = rts(ra.degree, dec.degree, self.date, self.lon.degree,
-                      self.lat.degree, self.tz, limit)
+        r, t, s = rts(
+            ra.degree,
+            dec.degree,
+            self.date,
+            self.lon.degree,
+            self.lat.degree,
+            self.tz,
+            limit,
+        )
         if t is not None:
             t = t * u.hr
 
@@ -388,18 +428,25 @@ class Observer(object):
 
         rr, tt, ss = None, None, None
         if r is not None:
-            rr = dh2hms(r.value, '{:02d}:{:02d}')
+            rr = dh2hms(r.value, "{:02d}:{:02d}")
         if t is not None:
-            tt = dh2hms(t.value, '{:02d}:{:02d}')
+            tt = dh2hms(t.value, "{:02d}:{:02d}")
         if s is not None:
-            ss = dh2hms(s.value, '{:02d}:{:02d}')
+            ss = dh2hms(s.value, "{:02d}:{:02d}")
         print("{:32s} {} {} {}".format(target.name, rr, tt, ss))
 
         return r, t, s
 
-def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
-            table_columns=['rh', 'delta', 'phase', 'ra', 'dec'],
-            **kwargs):
+
+def am_plot(
+    targets,
+    observer,
+    fig=None,
+    ylim=[2.5, 1],
+    limit=25,
+    table_columns=["rh", "delta", "phase", "ra", "dec"],
+    **kwargs
+):
     """Generate a letter-sized, pretty airmass plot for a night.
 
     Parameters
@@ -441,7 +488,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
     from ..util import dh2hms
     from .. import ephem
 
-    linestyles = itertools.product(['-', ':', '--', '-.'], 'bgrcmyk')
+    linestyles = itertools.product(["-", ":", "--", "-."], "bgrcmyk")
 
     if fig is None:
         fig = plt.gcf()
@@ -452,14 +499,18 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
     ax = fig.gca()
     plt.minorticks_on()
 
-    astro_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
-                                       name='Astro twilight')
-    civil_twilight = ephem.getspiceobj('Sun', kernel='planets.bsp',
-                                       name='Civil twilight')
+    astro_twilight = ephem.getspiceobj(
+        "Sun", kernel="planets.bsp", name="Astro twilight"
+    )
+    civil_twilight = ephem.getspiceobj(
+        "Sun", kernel="planets.bsp", name="Civil twilight"
+    )
 
     table_columns = [] if table_columns is None else table_columns
-    tab = Table(names=['target'] + table_columns + ['rise', 'transit', 'set'],
-                dtype=['S255'] + [float] * (len(table_columns) + 3))
+    tab = Table(
+        names=["target"] + table_columns + ["rise", "transit", "set"],
+        dtype=["S255"] + [float] * (len(table_columns) + 3),
+    )
     for target in targets:
         row = [target.name]
         g = observer.observe(target)
@@ -475,7 +526,7 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
         tab.add_row(row)
 
     print()
-    for target, ls in zip((ephem.Sun, ephem.Moon), ('y--', 'k:')):
+    for target, ls in zip((ephem.Sun, ephem.Moon), ("y--", "k:")):
         observer.plot_am(target, color=ls[0], ls=ls[1:], **kwargs)
         observer.rts(target, limit=0)
 
@@ -491,32 +542,33 @@ def am_plot(targets, observer, fig=None, ylim=[2.5, 1], limit=25,
         x = [12, twilight[0].value, twilight[0].value, 12]
         ax.fill(x, y, color=c)
 
-    plt.setp(ax, ylim=ylim, ylabel='Airmass',
-             xlabel='Time (Civil Time)')
+    plt.setp(ax, ylim=ylim, ylabel="Airmass", xlabel="Time (Civil Time)")
 
     # civil time labels
     def ctformatter(x, pos):
-        return dh2hms(x % 24.0, '{:02d}:{:02d}')
+        return dh2hms(x % 24.0, "{:02d}:{:02d}")
+
     ax.xaxis.set_major_formatter(FuncFormatter(ctformatter))
 
     # LST labels
     def lstformatter(x, pos, lst0=observer.lst0.hour):
-        return dh2hms(((x + lst0) % 24.0), '{:02d}:{:02d}')
+        return dh2hms(((x + lst0) % 24.0), "{:02d}:{:02d}")
 
     tax = plt.twiny()
     tax.xaxis.set_major_formatter(FuncFormatter(lstformatter))
     plt.minorticks_on()
-    plt.setp(tax, xlabel='LST ' + str(observer))
+    plt.setp(tax, xlabel="LST " + str(observer))
 
     plt.sca(ax)
     graphics.niceplot(lw=1.6, tightlayout=False)
 
-    fontprop = dict(family='monospace')
-    graphics.nicelegend(frameon=False, loc='upper left', prop=fontprop)
+    fontprop = dict(family="monospace")
+    graphics.nicelegend(frameon=False, loc="upper left", prop=fontprop)
 
     plt.draw()
 
     return tab
+
 
 def file2targets(filename):
     """Create a list of targets from a file.
@@ -557,18 +609,18 @@ def file2targets(filename):
     import re
     from ..ephem import getspiceobj
 
-    fixed = re.compile('(.+),\s*(.+),\s*(.+)')
-    moving = re.compile('(.+),\s*\[\[([^,]+)(,\s*(.+))?]]')
+    fixed = re.compile(r"(.+),\s*(.+),\s*(.+)")
+    moving = re.compile(r"(.+),\s*\[\[([^,]+)(,\s*(.+))?]]")
 
     targets = []
     skipped = 0
-    for line in open(filename, 'r').readlines():
+    for line in open(filename, "r").readlines():
         mmov = moving.findall(line)
         mfix = fixed.findall(line)
 
         if len(line.strip()) == 0:
             pass
-        elif line.strip()[0] == '#':
+        elif line.strip()[0] == "#":
             pass
         elif len(mmov) > 0:
             name, naifname, dummy, kernel = mmov[0]
@@ -584,6 +636,7 @@ def file2targets(filename):
     if skipped > 0:
         print("Skipped {} possible targets".format(skipped))
     return targets
+
 
 def plot_transit_time(target, g_sun, observer=None, ax=None, **kwargs):
     """Plot the transit time of a target.
@@ -618,45 +671,56 @@ def plot_transit_time(target, g_sun, observer=None, ax=None, **kwargs):
     i = 0
     name = target.name
     for j in np.flatnonzero(cut):
-        line = ax.plot(tt[i:j], g.date[i:j].datetime, label=name,
-                       **kwargs)[0]
+        line = ax.plot(tt[i:j], g.date[i:j].datetime, label=name, **kwargs)[0]
         name = None
         i = j + 1
 
     # mark perihelion
     i = g.rh.argmin()
     if (i > 0) and (i < (len(g) - 1)):
-        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
-        ax.annotate(' q={:.1f}'.format(g.rh[i].value),
-                    [tt[i], g.date[i].datetime], color=line.get_color(),
-                    fontsize=8)
+        ax.plot([tt[i]], [g.date[i].datetime], ".", color=line.get_color())
+        ax.annotate(
+            " q={:.1f}".format(g.rh[i].value),
+            [tt[i], g.date[i].datetime],
+            color=line.get_color(),
+            fontsize=8,
+        )
 
     # pick 12 points and plot rh
     x = np.random.randint(0, len(g) / 10)
     for i in np.linspace(0 + x, len(g) - x - 1, 12).astype(int):
-        ax.plot([tt[i]], [g.date[i].datetime], '.', color=line.get_color())
-        ax.annotate(' {:.1f}'.format(g.rh[i].value),
-                    [tt[i], g.date[i].datetime], color=line.get_color(),
-                    fontsize=8)
+        ax.plot([tt[i]], [g.date[i].datetime], ".", color=line.get_color())
+        ax.annotate(
+            " {:.1f}".format(g.rh[i].value),
+            [tt[i], g.date[i].datetime],
+            color=line.get_color(),
+            fontsize=8,
+        )
 
-#class MovingObserver(Observer):
+
+# class MovingObserver(Observer):
 #    def __init__(self, obj):
 #        self.observer = obj
 
-mlof = Observer(Angle(-110.791667, u.deg),
-                Angle(32.441667, u.deg),
-                -7.0, None, name='MLOF')
-lowell = Observer(Angle(-111.5358, u.deg),
-                  Angle(35.0969, u.deg),
-                  -7.0, None, name='Lowell')
-mko = Observer(Angle('-155 28 19', u.deg),
-               Angle('19 49 34', u.deg),
-               -10.0, None, name='MKO')
-lapalma = Observer(Angle('-17 53 31', u.deg),
-                   Angle('28 45 24', u.deg),
-                   'Europe/London', None, name='La Palma')
+mlof = Observer(
+    Angle(-110.791667, u.deg), Angle(32.441667, u.deg), -7.0, None, name="MLOF"
+)
+lowell = Observer(
+    Angle(-111.5358, u.deg), Angle(35.0969, u.deg), -7.0, None, name="Lowell"
+)
+mko = Observer(
+    Angle("-155 28 19", u.deg), Angle("19 49 34", u.deg), -10.0, None, name="MKO"
+)
+lapalma = Observer(
+    Angle("-17 53 31", u.deg),
+    Angle("28 45 24", u.deg),
+    "Europe/London",
+    None,
+    name="La Palma",
+)
 
 # update module docstring
 from ..util import autodoc
+
 autodoc(globals())
 del autodoc

@@ -33,22 +33,22 @@ comet --- Comets!
 """
 
 __all__ = [
-    'Coma',
-    'Comet',
-    'afrho2fluxd',
-    'afrho2Q',
-    'fom_dct',
-    'efrho2fluxd',
-    'flux2Q',
-    'fluxd2afrho',
-    'fluxd2efrho',
-    'H10mag',
-    'HYmag',
-    'm2afrho',
-    'M2afrho1',
-    'm2qh2o',
-    'Q2flux',
-    'silicate_feature'
+    "Coma",
+    "Comet",
+    "afrho2fluxd",
+    "afrho2Q",
+    "fom_dct",
+    "efrho2fluxd",
+    "flux2Q",
+    "fluxd2afrho",
+    "fluxd2efrho",
+    "H10mag",
+    "HYmag",
+    "m2afrho",
+    "M2afrho1",
+    "m2qh2o",
+    "Q2flux",
+    "silicate_feature",
 ]
 
 import numpy as np
@@ -58,6 +58,7 @@ from astropy.time import Time
 from .ephem import SolarSysObject, State
 from .asteroid import Asteroid
 from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
+
 
 class Coma(SolarSysObject):
     """A comet coma.
@@ -86,16 +87,26 @@ class Coma(SolarSysObject):
       `reflected` and/or `thermal` are `None`, respectively.
 
     """
+
     _Afrho1 = None
 
-    def __init__(self, state, Afrho1, k=-2, dt=0 * u.day,
-                 reflected=None, thermal=None, name=None, **kwargs):
+    def __init__(
+        self,
+        state,
+        Afrho1,
+        k=-2,
+        dt=0 * u.day,
+        reflected=None,
+        thermal=None,
+        name=None,
+        **kwargs
+    ):
         assert u.cm.is_equivalent(Afrho1), "Afrho1 must have units of length"
 
         SolarSysObject.__init__(self, state, name=name)
         self.k = k
         self.dt = dt
-        
+
         if reflected is None:
             self.reflected = AfrhoScattered(1 * Afrho1.unit, **kwargs)
         else:
@@ -122,9 +133,18 @@ class Coma(SolarSysObject):
         self.thermal.Afrho = 1 * a.unit
         self.reflected.Afrho = 1 * a.unit
 
-    def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
-              reflected=True, thermal=True, ltt=False,
-              unit=u.Unit('W / (m2 um)'), **kwargs):
+    def fluxd(
+        self,
+        observer,
+        date,
+        wave,
+        rap=1.0 * u.arcsec,
+        reflected=True,
+        thermal=True,
+        ltt=False,
+        unit=u.Unit("W / (m2 um)"),
+        **kwargs
+    ):
         """Total flux density as seen by an observer.
 
         Parameters
@@ -148,7 +168,7 @@ class Coma(SolarSysObject):
           travel time.
         unit : astropy Unit
           The return unit, must be flux density.
-        
+
         Returns
         -------
         fluxd : Quantity
@@ -168,7 +188,7 @@ class Coma(SolarSysObject):
         else:
             rh = self._offset_rh(date)
 
-        afrho = self.Afrho1.value * rh.to(u.au).value**self.k
+        afrho = self.Afrho1.value * rh.to(u.au).value ** self.k
         if reflected:
             f = self.reflected.fluxd(g, wave, rap, unit=unit)
             fluxd += f * afrho
@@ -181,26 +201,28 @@ class Coma(SolarSysObject):
 
     def _offset_rh(self, date):
         from .util import date2time
+
         d = date2time(date) + self.dt
         r = self.state.r(d)
         if r.ndim == 1:
             rh = np.sqrt(np.sum(r**2))
         else:
             rh = np.sqrt(np.sum(r**2, 1))
-        
+
         return rh / 149597870.7 * u.au
-    
+
     def _add_lc_columns(self, lc):
         from astropy.table import Column
-        
+
         if self.dt.value == 0:
-            rh = lc['rh'].data
+            rh = lc["rh"].data
         else:
-            rh = self._offset_rh(lc['date']).value
+            rh = self._offset_rh(lc["date"]).value
 
         afrho = self.Afrho1 * rh**self.k
-        lc.add_column(Column(afrho, name='Afrho', format='{:.4g}'))
+        lc.add_column(Column(afrho, name="Afrho", format="{:.4g}"))
         return lc
+
 
 class Comet(SolarSysObject):
     """A comet.
@@ -259,8 +281,9 @@ class Comet(SolarSysObject):
 
     """
 
-    def __init__(self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict(),
-                 name=None):
+    def __init__(
+        self, state, Afrho1, R, Ap=0.04, nucleus=dict(), coma=dict(), name=None
+    ):
         SolarSysObject.__init__(self, state, name=name)
 
         if isinstance(nucleus, dict):
@@ -302,9 +325,20 @@ class Comet(SolarSysObject):
     def Afrho1(self, a):
         self.coma.Afrho1 = a
 
-    def fluxd(self, observer, date, wave, rap=1.0 * u.arcsec,
-              reflected=True, thermal=True, nucleus=True, coma=True,
-              ltt=False, unit=u.Unit('W / (m2 um)'), **kwargs):
+    def fluxd(
+        self,
+        observer,
+        date,
+        wave,
+        rap=1.0 * u.arcsec,
+        reflected=True,
+        thermal=True,
+        nucleus=True,
+        coma=True,
+        ltt=False,
+        unit=u.Unit("W / (m2 um)"),
+        **kwargs
+    ):
         """Total flux density as seen by an observer.
 
         Parameters
@@ -332,7 +366,7 @@ class Comet(SolarSysObject):
           travel time.
         unit : astropy Unit
           The return unit, must be flux density.
-        
+
         Returns
         -------
         fluxd : Quantity
@@ -342,21 +376,29 @@ class Comet(SolarSysObject):
         fluxd = np.zeros(np.size(wave.value)) * unit
 
         if nucleus:
-            fluxd += self.nucleus.fluxd(observer, date, wave,
-                                        reflected=reflected,
-                                        thermal=thermal, unit=unit)
+            fluxd += self.nucleus.fluxd(
+                observer, date, wave, reflected=reflected, thermal=thermal, unit=unit
+            )
         if coma:
-            fluxd += self.coma.fluxd(observer, date, wave, rap=rap,
-                                     reflected=reflected,
-                                     thermal=thermal, unit=unit)
+            fluxd += self.coma.fluxd(
+                observer,
+                date,
+                wave,
+                rap=rap,
+                reflected=reflected,
+                thermal=thermal,
+                unit=unit,
+            )
 
         return fluxd
 
     def _add_lc_columns(self, lc):
         return self.coma._add_lc_columns(lc)
 
-def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
-                bandpass=None):
+
+def afrho2fluxd(
+    wave, afrho, rap, geom, sun=None, unit=u.Unit("W/(m2 um)"), bandpass=None
+):
     """Convert A(th)frho to flux density.
 
     See A'Hearn et al. (1984) for the definition of Afrho.
@@ -404,18 +446,18 @@ def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
     # parameter check
     assert wave.unit.is_equivalent(u.um)
     assert afrho.unit.is_equivalent(u.um)
-    assert geom['rh'].unit.is_equivalent(u.um)
-    assert geom['delta'].unit.is_equivalent(u.um)
+    assert geom["rh"].unit.is_equivalent(u.um)
+    assert geom["delta"].unit.is_equivalent(u.um)
 
     if rap.unit.is_equivalent(u.cm):
         rho = rap.to(afrho.unit)
     elif rap.unit.is_equivalent(u.arcsec):
-        rho = geom['delta'].to(afrho.unit) * rap.to(u.rad).value
+        rho = geom["delta"].to(afrho.unit) * rap.to(u.rad).value
     else:
         raise ValueError("rap must have angular or length units.")
 
     if sun is None:
-        assert unit.is_equivalent('W/(m2 um)', u.spectral_density(wave))
+        assert unit.is_equivalent("W/(m2 um)", u.spectral_density(wave))
 
         if bandpass is None:
             sun = calib.solar_flux(wave, unit=unit)
@@ -424,11 +466,11 @@ def afrho2fluxd(wave, afrho, rap, geom, sun=None, unit=u.Unit('W/(m2 um)'),
             sun = util.bandpass(sw.to(u.um).value, sf.value, **bandpass)[1]
             sun *= unit
     else:
-        assert sun.unit.is_equivalent('W/(m2 um)', u.spectral_density(wave))
+        assert sun.unit.is_equivalent("W/(m2 um)", u.spectral_density(wave))
 
-    fluxd = (afrho * rho * sun * (1 * u.au / geom['rh'])**2
-             / 4. / geom['delta']**2)
+    fluxd = afrho * rho * sun * (1 * u.au / geom["rh"]) ** 2 / 4.0 / geom["delta"] ** 2
     return fluxd.to(unit)
+
 
 def flux2Q(fgas, wave, geom, g, rap, v):
     """Convert gas emission to Q.
@@ -464,8 +506,8 @@ def flux2Q(fgas, wave, geom, g, rap, v):
 
     assert isinstance(fgas, u.Quantity)
     assert isinstance(wave, u.Quantity)
-    assert isinstance(geom['delta'], u.Quantity)
-    assert isinstance(geom['rh'], u.Quantity)
+    assert isinstance(geom["delta"], u.Quantity)
+    assert isinstance(geom["rh"], u.Quantity)
     assert isinstance(g, u.Quantity)
     assert isinstance(rap, u.Quantity)
     assert isinstance(v, u.Quantity)
@@ -473,21 +515,39 @@ def flux2Q(fgas, wave, geom, g, rap, v):
     hc = 1.9864457e-25 * u.J * u.m
 
     if rap.unit.is_equivalent(u.radian):
-        rho = (rap * geom['delta'].to(u.au).value
-               * 725 * u.km / u.arcsec).decompose()
+        rho = (rap * geom["delta"].to(u.au).value * 725 * u.km / u.arcsec).decompose()
     elif rap.unit.is_equivalent(u.meter):
         rho = rap
     else:
         raise ValueError("rap must have angular or length units.")
 
-    N = (4 * pi * geom['delta']**2 * fgas * wave / hc
-         * geom['rh'].to(u.au).value**2 / g)
+    N = (
+        4
+        * pi
+        * geom["delta"] ** 2
+        * fgas
+        * wave
+        / hc
+        * geom["rh"].to(u.au).value ** 2
+        / g
+    )
 
     return (2 * N * v / pi / rho).decompose()
 
-def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
-            rho_g=1 * u.Unit('g/cm3'), arange=[0.1, 1e4] * u.um):
-    """Convert Afrho to dust production rate.
+
+def afrho2Q(
+    Afrho,
+    rap,
+    geom,
+    k,
+    v1,
+    u1=-0.5,
+    u2=-1.0,
+    Ap=0.05,
+    rho_g=1 * u.Unit("g/cm3"),
+    arange=[0.1, 1e4] * u.um,
+):
+    r"""Convert Afrho to dust production rate.
 
     The conversion assumes Afrho is measured within the 1/rho regime,
     and allows for a size-dependent expansion speed, and power-law
@@ -536,17 +596,16 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
     from numpy import pi
 
     Afrho = u.Quantity(Afrho, u.m)
-    rh = u.Quantity(geom['rh'], u.au)
-    delta = u.Quantity(geom['delta'], u.au)
+    rh = u.Quantity(geom["rh"], u.au)
+    delta = u.Quantity(geom["delta"], u.au)
 
     try:
         rho = u.Quantity(rap, u.m)
     except u.UnitsError:
         try:
-            rho = (u.Quantity(rap, u.arcsec) * 725e3 * u.m / u.arcsec / u.au
-                   * delta)
+            rho = u.Quantity(rap, u.arcsec) * 725e3 * u.m / u.arcsec / u.au * delta
         except u.UnitsError:
-            print('rap must have units of length or angluar size.')
+            print("rap must have units of length or angluar size.")
             raise
 
     v1 = u.Quantity(v1, u.m / u.s)
@@ -554,13 +613,23 @@ def afrho2Q(Afrho, rap, geom, k, v1, u1=-0.5, u2=-1.0, Ap=0.05,
     arange = u.Quantity(arange, u.m)
 
     A = 4 * Ap
-    cs = pi * quad(lambda a: a**(2 + k), *arange.value)[0] * u.m**2
+    cs = pi * quad(lambda a: a ** (2 + k), *arange.value)[0] * u.m**2
     N = (Afrho * pi * rho / A / cs).decompose().value
-    q = (4 * pi / 3 * rho_g * v1 * (rh / (1 * u.au))**u2 * 1e6**u1
-         * quad(lambda a: a**(k + 3 + u1), *arange.value)[0] * u.m**3)
+    q = (
+        4
+        * pi
+        / 3
+        * rho_g
+        * v1
+        * (rh / (1 * u.au)) ** u2
+        * 1e6**u1
+        * quad(lambda a: a ** (k + 3 + u1), *arange.value)[0]
+        * u.m**3
+    )
     Q = (N * 2 / pi / rho * q).to(u.kg / u.s)
 
     return Q
+
 
 def fom_dct(geom, V=None, Q=None):
     """Figure of merit for comet OH observations at DCT/LMI.
@@ -588,18 +657,18 @@ def fom_dct(geom, V=None, Q=None):
 
     """
 
-    rh = geom['rh'].to('au').value
-    delta = geom['delta'].to('au').value
-    
+    rh = geom["rh"].to("au").value
+    delta = geom["delta"].to("au").value
+
     if Q is None:
         q = m2qh2o(V - 5 * np.log10(delta))
     else:
-        q = Q.to('1/s').value
+        q = Q.to("1/s").value
 
     return rh**-1.5 / delta * q / 2.36e26
 
-def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
 
+def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
     """Convert efrho (epsilon * f * rho) to flux density.
 
     efrho as defined by Kelley et al. (2013, Icarus 225, 475-494).
@@ -631,22 +700,24 @@ def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
     # parameter check
     assert wave.unit.is_equivalent(u.um)
     assert efrho.unit.is_equivalent(u.um)
-    assert geom['rh'].unit.is_equivalent(u.au)
-    assert geom['delta'].unit.is_equivalent(u.cm)
-    
+    assert geom["rh"].unit.is_equivalent(u.au)
+    assert geom["delta"].unit.is_equivalent(u.cm)
+
     if rap.unit.is_equivalent(u.cm):
         rho = rap.to(efrho.unit)
-        th = rho / geom['delta'].to(efrho.unit) * u.rad
+        th = rho / geom["delta"].to(efrho.unit) * u.rad
     elif rap.unit.is_equivalent(u.arcsec):
-        rho = rap.to(u.rad).value * geom['delta'].to(efrho.unit)
+        rho = rap.to(u.rad).value * geom["delta"].to(efrho.unit)
         th = rap.to(u.rad)
     else:
         raise ValueError("rap must have angular or length units.")
 
-    B = util.planck(wave, Tscale * 278. / np.sqrt(geom['rh'].to(u.au).value),
-                    unit=unit / u.sr)
+    B = util.planck(
+        wave, Tscale * 278.0 / np.sqrt(geom["rh"].to(u.au).value), unit=unit / u.sr
+    )
     Om = np.pi * th**2
     return (efrho * B * Om / rho).to(unit)
+
 
 def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     """Convert flux density to A(th)frho.
@@ -693,21 +764,22 @@ def fluxd2afrho(wave, fluxd, rho, geom, sun=None, bandpass=None):
     import astropy.constants as const
 
     try:
-        deltacm = geom['delta'].to(u.cm).value
-        rh = geom['rh'].to(u.au).value
+        deltacm = geom["delta"].to(u.cm).value
+        rh = geom["rh"].to(u.au).value
     except AttributeError:
-        deltacm = geom['delta'] * const.au.to(u.cm).value
-        rh = geom['rh']
+        deltacm = geom["delta"] * const.au.to(u.cm).value
+        rh = geom["rh"]
 
     if sun is None:
         if bandpass is None:
-            sun = calib.solar_flux(wave * u.um, unit=u.Unit('W/(m2 um)')).value
+            sun = calib.solar_flux(wave * u.um, unit=u.Unit("W/(m2 um)")).value
         else:
-            sw, sf = calib.e490(smooth=True, unit=u.Unit('W/(m2 um)'))
+            sw, sf = calib.e490(smooth=True, unit=u.Unit("W/(m2 um)"))
             sun = util.bandpass(sw.micrometer, sf.value, **bandpass)[1]
 
-    afrho = 4 * deltacm * 206265. / rho * fluxd * rh**2 / sun
+    afrho = 4 * deltacm * 206265.0 / rho * fluxd * rh**2 / sun
     return afrho
+
 
 def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     """Convert flux density to efrho (epsilon * f * rho).
@@ -739,19 +811,19 @@ def fluxd2efrho(wave, flux, rho, geom, Tscale=1.1):
     import astropy.constants as const
 
     try:
-        deltacm = geom['delta'].to(u.cm).value
-        rh = geom['rh'].to(u.au).value
+        deltacm = geom["delta"].to(u.cm).value
+        rh = geom["rh"].to(u.au).value
     except AttributeError:
-        deltacm = geom['delta'] * const.au.to(u.cm).value
-        rh = geom['rh']
+        deltacm = geom["delta"] * const.au.to(u.cm).value
+        rh = geom["rh"]
 
-    B = util.planck(wave, Tscale * 278. / np.sqrt(rh),
-                    unit=u.Unit('W/(m2 um sr)'))
+    B = util.planck(wave, Tscale * 278.0 / np.sqrt(rh), unit=u.Unit("W/(m2 um sr)"))
     B = B.value
-    _rho = rho / 206265. * deltacm  # cm
-    Om = np.pi * (rho / 206265.)**2  # sr
+    _rho = rho / 206265.0 * deltacm  # cm
+    Om = np.pi * (rho / 206265.0) ** 2  # sr
     I = flux / Om  # W/m2/um/sr
     return I * _rho / B
+
 
 def H10mag(H10, g):
     """Estimate total coma apparent magnitude using HY formalism.
@@ -767,9 +839,10 @@ def H10mag(H10, g):
 
     """
 
-    rh = g['rh'].to(u.au).value
-    delta = g['delta'].to(u.au).value
+    rh = g["rh"].to(u.au).value
+    delta = g["delta"].to(u.au).value
     return H10 + 10 * np.log10(rh) + 5 * np.log10(delta)
+
 
 def HYmag(HY, Y, g):
     """Estimate total coma apparent magnitude using H10 formalism.
@@ -787,9 +860,10 @@ def HYmag(HY, Y, g):
 
     """
 
-    rh = g['rh'].to(u.au).value
-    delta = g['delta'].to(u.au).value
+    rh = g["rh"].to(u.au).value
+    delta = g["delta"].to(u.au).value
     return HY + Y * np.log10(rh) + 5 * np.log10(delta)
+
 
 def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
     """Convert JPL/HORIZONS apparent magnitude, m, to Afrho.
@@ -816,12 +890,18 @@ def m2afrho(m, g, C=8.5e17, m_sun=-27.1):
 
     """
     print("    *** EXPERIMENTAL ***   ")
-    #M = m - 5 * np.log10(geom['rh'].to(u.au).value
+    # M = m - 5 * np.log10(geom['rh'].to(u.au).value
     #                     * geom['delta'].to(u.au).value)
-    #return 4.0e6 * 10**(M / -2.5)
-    afrho = (C * g['delta'].to(u.au)**2 * g['rh'].to(u.au)**2 / u.au**4
-             * 10**(-0.4 * (m - m_sun))) * u.cm
+    # return 4.0e6 * 10**(M / -2.5)
+    afrho = (
+        C
+        * g["delta"].to(u.au) ** 2
+        * g["rh"].to(u.au) ** 2
+        / u.au**4
+        * 10 ** (-0.4 * (m - m_sun))
+    ) * u.cm
     return afrho
+
 
 def M2afrho1(M1):
     """Convert JPL's absolute magnitude, M1, to Afrho at 1 AU.
@@ -841,7 +921,8 @@ def M2afrho1(M1):
       Afrho at 1 AU.  [cm]
 
     """
-    return 10**(-0.208 * M1 + 4.687)
+    return 10 ** (-0.208 * M1 + 4.687)
+
 
 def m2qh2o(m_H):
     """Convert helocentric magnitude, m_H, to Q(H2O).
@@ -861,7 +942,8 @@ def m2qh2o(m_H):
       Q(H2O) at 1 AU.  [molecules/s]
 
     """
-    return 10**(30.675 - 0.2453 * m_H)
+    return 10 ** (30.675 - 0.2453 * m_H)
+
 
 def parse_name(name):
     """Comet desgination from the full name.
@@ -889,7 +971,7 @@ def parse_name(name):
     X/1106 C1                       X/1106 C1
     P/1994 N2 (McNaught-Hartley)    P/1994 N2
     P/2001 YX127 (LINEAR)           P/2001 YX127
-    C/-146 P1                       C/-146 P1  
+    C/-146 P1                       C/-146 P1
     C/2001 A2-A (LINEAR)            C/2001 A2-A
     C/2013 US10                     C/2013 US10
     C/2015 V2 (Johnson)             C/2015 V2
@@ -898,15 +980,18 @@ def parse_name(name):
 
     import re
 
-    pat = ('^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)'
-           '|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?))')
+    pat = (
+        "^(([1-9]{1}[0-9]*[PD](-[A-Z]{1,2})?)"
+        "|([CPX]/-?[0-9]{1,4} [A-Z]{1,2}[1-9][0-9]{0,2}(-[A-Z]{1,2})?))"
+    )
 
     m = re.findall(pat, name.strip())
     if len(m) == 0:
         raise NotACometDesignation(name)
     else:
         return m[0][0]
-    
+
+
 def Q2flux(Q, wave, geom, g, rap, v):
     """Convert Q to line emission.
 
@@ -941,8 +1026,8 @@ def Q2flux(Q, wave, geom, g, rap, v):
 
     assert isinstance(Q, u.Quantity)
     assert isinstance(wave, u.Quantity)
-    assert isinstance(geom['delta'], u.Quantity)
-    assert isinstance(geom['rh'], u.Quantity)
+    assert isinstance(geom["delta"], u.Quantity)
+    assert isinstance(geom["rh"], u.Quantity)
     assert isinstance(g, u.Quantity)
     assert isinstance(rap, u.Quantity)
     assert isinstance(v, u.Quantity)
@@ -950,22 +1035,36 @@ def Q2flux(Q, wave, geom, g, rap, v):
     hc = 1.9864457e-25 * u.J * u.m
 
     if rap.unit.is_equivalent(u.radian):
-        rho = (rap * geom['delta'].to(u.au).value
-               * 725 * u.km / u.arcsec).decompose()
+        rho = (rap * geom["delta"].to(u.au).value * 725 * u.km / u.arcsec).decompose()
     elif rap.unit.is_equivalent(u.meter):
         rho = rap
     else:
         raise ValueError("rap must have angular or length units.")
 
-    F = (Q * rho * hc * g / v / geom['delta']**2 / wave / 8.0
-         / geom['rh'].to(u.au).value**2)
+    F = (
+        Q
+        * rho
+        * hc
+        * g
+        / v
+        / geom["delta"] ** 2
+        / wave
+        / 8.0
+        / geom["rh"].to(u.au).value ** 2
+    )
 
-    return F.to('W/m2')
+    return F.to("W/m2")
 
-def silicate_feature(wave, fluxd, unc,
-                     continuum=([7.5, 8.3], [12.5, 13.0]),
-                     band_center=[10.2, 10.8], T_guess=250.,
-                     stretch=True):
+
+def silicate_feature(
+    wave,
+    fluxd,
+    unc,
+    continuum=([7.5, 8.3], [12.5, 13.0]),
+    band_center=[10.2, 10.8],
+    T_guess=250.0,
+    stretch=True,
+):
     """Examine a 10-um silicate feature.
 
     The "continuum" is fit with a Planck function and the spectrum
@@ -1008,7 +1107,7 @@ def silicate_feature(wave, fluxd, unc,
 
     if stretch:
         i = util.between(wave.to(u.um).value, band_center)
-        scale = np.average(r[i], weights=1 / unc[i]**2) - 1
+        scale = np.average(r[i], weights=1 / unc[i] ** 2) - 1
         return (r - 1) / scale, re / scale
     else:
         return r, re
@@ -1016,6 +1115,6 @@ def silicate_feature(wave, fluxd, unc,
 
 # update module docstring
 from .util import autodoc
+
 autodoc(globals())
 del autodoc
-
