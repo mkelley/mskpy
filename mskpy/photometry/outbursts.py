@@ -5,8 +5,10 @@ outbursts --- Lightcurve and outburst analysis
 
 """
 
-__all__ = ["CometaryTrends"]
+__all__ = ["Outburst", "ExponentialOutburst", "CometaryTrends"]
 
+from typing import Callable
+from dataclasses import dataclass
 from collections import namedtuple
 import logging
 import numpy as np
@@ -15,7 +17,9 @@ from scipy.optimize import leastsq
 import astropy.units as u
 from astropy.time import Time
 from astropy.stats import sigma_clip
-from sbpy.activity import Afrho
+from sbpy.activity import Afrho, phase_HalleyMarcus
+from sbpy.data import Ephem
+from sbpy.calib import Sun
 from ..util import linefit
 
 dmdtFit = namedtuple("dmdtFit", ["m0", "dmdt", "m0_unc", "dmdt_unc", "rms", "rchisq"])
@@ -38,6 +42,151 @@ Color.c.__doc__ = "Individual colors.  [mag]"
 Color.c_unc.__doc__ = "Uncertainty on c.  [mag]"
 Color.avg.__doc__ = "Weighted average color.  [mag]"
 Color.avg_unc.__doc__ = "Uncertainty on avg.  [mag]"
+
+
+@dataclass
+class DustModel:
+    """Dust physical parameters.
+
+
+    Parameters
+    ----------
+    rho : u.Quantity, optional
+        Bulk grain density.
+
+    Ap : float, optional
+        Geometric albedo.
+
+    a_mass : u.Quantity, optional
+        Average grain size by mass.
+
+    Phi : callable, optional
+        Phase function.
+
+    """
+
+    rho: u.Quantity[u.kg / u.m**3] = 1000 * u.kg / u.m**3
+    Ap: float = 0.04
+    a_mass: u.Quantity[u.m] = 10 * u.um
+    Phi: Callable[[u.Quantity], np.ndarray] = phase_HalleyMarcus
+
+
+@dataclass
+class Outburst:
+    """Photometric cometary outburst model.
+
+
+    Parameters
+    ----------
+    date : Time
+        Time of outburst.
+
+    sigma0 : u.Quantity
+        Total cross-sectional area of the ejecta.
+
+    scale : callable
+        Function describing the time evolution of the ejecta in the photometric
+        aperture.  It takes one parameter, ``dt``, the time relative to the time
+        of outburst as an `astropy.units.Quantity`.  It returns a scale factor
+        for ``sigma0``.
+
+    dust_model : DustModel, optional
+        Dust grain parameters.  If not provided, a default instance of
+        `DustModel` will be used.
+
+    """
+
+    date: Time
+    sigma0: u.Quantity[u.km**2]
+    scale: Callable[[u.Quantity[u.s]], np.ndarray]
+    dust_model: DustModel = DustModel()
+
+    def lightcurve(self, filt, eph, unit=u.Jy):
+        """Generate a lightcurve of this outburst.
+
+
+        Parameters
+        ----------
+
+        filt : string
+            Name of the filter.  See `sbpy.calib.Sun.observe_filter_name` for
+            details.
+
+        eph : `sbpy.data.ephem.Ephem`
+            Ephemeris data: date, rh, delta, and phase angle.
+
+        unit : string, `~astropy.units.Unit`, optional
+            Spectral flux density units for the output.
+
+
+        Returns
+        -------
+
+        fluxd : `~astropy.units.Quantity`
+            Spectral flux density.
+
+        """
+
+        dt = (eph["date"] - self.date).to("s")
+        sigma = self.sigma0 * self.scale(dt)
+
+        sun = Sun.from_default()
+        _, _, S = sun.observe_filter_name(filt, unit=unit)
+
+        fluxd = (
+            self.dust_model.Ap
+            * self.dust_model.Phi(eph["phase"])
+            * sigma
+            * S
+            * u.au**2
+            / np.pi
+            / eph["rh"] ** 2
+            / eph["delta"] ** 2
+        ).to(unit)
+
+        return fluxd
+
+
+class ExponentialOutburst(Outburst):
+    """An `Outburst` with an exponential lightcurve evolution.
+
+    :math:`F = \\sigma_0 e^(-t/\\tau)`.
+
+
+    Parameters
+    ----------
+    date : Time
+        Time of outburst.
+
+    sigma0 : u.Quantity
+        Total cross-sectional area of the ejecta.
+
+    tau : u.Quantity
+        Lightcurve timescale.
+
+    dust_model : DustModel, optional
+        Dust grain parameters.  If not provided, a default instance of
+        `DustModel` will be used.
+
+    """
+
+    def __init__(
+        self,
+        date: Time,
+        sigma0: u.Quantity[u.km**2],
+        tau: u.Quantity[u.s],
+        dust_model: DustModel = DustModel(),
+    ):
+        self.tau: u.Quantity[u.s] = tau
+        super().__init__(date, sigma0, self.scale, dust_model=dust_model)
+
+    def scale(self, dt: u.Quantity[u.s]):
+        """Exponential decay."""
+
+        scale: np.ndarray = np.exp(-dt / self.tau)
+        scale[dt < 0 * u.s] = 0
+
+        return scale
 
 
 class CometaryTrends:
