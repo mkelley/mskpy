@@ -8,7 +8,7 @@ outbursts --- Lightcurve and outburst analysis
 __all__ = ["Outburst", "ExponentialOutburst", "CometaryTrends"]
 
 from typing import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import namedtuple
 import logging
 import numpy as np
@@ -99,7 +99,7 @@ class Outburst:
     date: Time
     sigma0: u.Quantity[u.km**2]
     scale: Callable[[u.Quantity[u.s]], np.ndarray]
-    dust_model: DustModel = DustModel()
+    dust_model: DustModel = field(default_factory=DustModel)
 
     def lightcurve(self, filt, eph, unit=u.Jy):
         """Generate a lightcurve of this outburst.
