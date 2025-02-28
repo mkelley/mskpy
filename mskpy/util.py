@@ -2908,7 +2908,7 @@ def date2time(date, scale="utc"):
     """
     if date is not None:
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return Time(datetime.datetime.utcnow(), scale=scale, format="datetime")
+    return Time(datetime.datetime.now(datetime.UTC), scale=scale, format="datetime")
 
 
 @date2time.register(Time)
@@ -3126,9 +3126,7 @@ def timestamp(format="%Y%m%d"):
       The time format.
 
     """
-    from datetime import datetime
-
-    return datetime.utcnow().strftime(format)
+    return datetime.datetime.now(datetime.UTC).strftime(format)
 
 
 def tz2utc(date, tz):
