@@ -53,9 +53,8 @@ __all__ = [
 
 import numpy as np
 import astropy.units as u
-from astropy.time import Time
 
-from .ephem import SolarSysObject, State
+from .ephem import SolarSysObject
 from .asteroid import Asteroid
 from .models import AfrhoRadiation, AfrhoScattered, AfrhoThermal
 
@@ -695,7 +694,6 @@ def efrho2fluxd(wave, efrho, rap, geom, Tscale=1.1, unit=u.Unit("W/(m2 um)")):
     """
 
     from . import util
-    import astropy.constants as const
 
     # parameter check
     assert wave.unit.is_equivalent(u.um)
@@ -1021,8 +1019,6 @@ def Q2flux(Q, wave, geom, g, rap, v):
       The total line flux.
 
     """
-
-    from numpy import pi
 
     assert isinstance(Q, u.Quantity)
     assert isinstance(wave, u.Quantity)
