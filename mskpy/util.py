@@ -2908,7 +2908,9 @@ def date2time(date, scale="utc"):
     """
     if date is not None:
         raise ValueError("Bad date: {} ({})".format(date, type(date)))
-    return Time(datetime.datetime.now(datetime.UTC), scale=scale, format="datetime")
+    return Time(
+        datetime.datetime.now(datetime.timezone.utc), scale=scale, format="datetime"
+    )
 
 
 @date2time.register(Time)
@@ -2985,7 +2987,7 @@ def doy2md(doy, year):
     """
 
     jd0 = s2jd("{0}-12-31".format(year - 1))
-    if isinstance(doy, (tuple, list, numpy.ndarray)):
+    if isinstance(doy, (tuple, list, np.ndarray)):
         md = []
         for i in range(len(doy)):
             md.append(jd2dt(jd0 + doy[i]).strftime("%m-%d"))
@@ -3126,7 +3128,7 @@ def timestamp(format="%Y%m%d"):
       The time format.
 
     """
-    return datetime.datetime.now(datetime.UTC).strftime(format)
+    return datetime.datetime.now(datetime.timezone.utc).strftime(format)
 
 
 def tz2utc(date, tz):
