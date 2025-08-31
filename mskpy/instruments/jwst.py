@@ -77,7 +77,7 @@ class JWSTSpectrum:
         shape : Shape or str, optional
             Circle or square.
 
-        size : int, optional
+        size : float, optional
             Circle radius or square side length.
 
         unit : astropy.units.Unit, optional
