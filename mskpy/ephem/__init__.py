@@ -141,6 +141,13 @@ except OSError:
     pass
 
 try:
+    JWST_pred = getspiceobj("-170", kernel="jwst_pred.bsp", name="JWST")
+    _loaded_objects["jwst_pred"] = JWST_pred
+    __all__.append("JWST_pred")
+except OSError:
+    pass
+
+try:
     DeepImpact = getspiceobj("-140", kernel="deepimpact.txt", name="Deep Impact")
     _loaded_objects["deepimpact"] = DeepImpact
     __all__.append("DeepImpact")
