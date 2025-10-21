@@ -2570,7 +2570,7 @@ def planck(wave, T, unit="W/(m2 Hz sr)", deriv=None):
     B = c1 / (wave**3 * (a - 1.0))
     if unit is not None:
         B = B * u.Unit("W/(m2 Hz sr)")
-        B = B.to(unit, equivalencies=spectral_density_sb(wave * u.m))
+        B = B.to(unit, spectral_density_sb(wave * u.m))
 
     if deriv in ["T", "t"]:
         B = B * c2 / T.to("K").value ** 2 / wave * a / (a - 1.0) / u.K

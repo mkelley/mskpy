@@ -17,14 +17,15 @@ calib --- Tools for photometric and spectroscopic calibrations
 """
 
 from .util import autodoc
+
 __all__ = [
-    'cohen_standard',
-    'dw_atran',
-    'e490',
-    'filter_trans',
-    'solar_flux',
-    'wehrli',
-    'sun_w18'
+    "cohen_standard",
+    "dw_atran",
+    "e490",
+    "filter_trans",
+    "solar_flux",
+    "wehrli",
+    "sun_w18",
 ]
 
 import os
@@ -48,16 +49,16 @@ _e490 = __mskpy_path__[0] + "/data/E490_00a_AM0.txt"
 _e490_sm = __mskpy_path__[0] + "/data/e490-lowres.txt"
 
 # the filter transmission files
-_filterdir = __mskpy_path__[0] + '/data/filters'
+_filterdir = __mskpy_path__[0] + "/data/filters"
 
 # The location of mid-IR calibration data.  cohenstandard() will
 # search all directories that match cohen* in _midirdir.  Many
 # templates are available from Gemini:
 # http://www.gemini.edu/sciops/instruments/mid-ir-resources/spectroscopic-calibrations
-_midirdir = '/home/msk/data/mid-ir'
+_midirdir = "/home/msk/data/mid-ir"
 
 
-def e490(smooth=False, unit=u.Unit('W/(m2 um)')):
+def e490(smooth=False, unit=u.Unit("W/(m2 um)")):
     """The ASTM (2000) E490-00 solar spectrum (at 1 AU).
 
     Parameters
@@ -88,13 +89,12 @@ def e490(smooth=False, unit=u.Unit('W/(m2 um)')):
     w = w * u.um
     f = f * u.W / u.m**2 / u.um
     if f.unit != unit:
-        equiv = u.spectral_density(w.unit, w.value)
-        f = f.to(unit, equivalencies=equiv)
+        f = f.to(unit, u.spectral_density(w))
 
     return w, f
 
 
-def wehrli(smooth=True, unit=u.Unit('W/(m2 um)')):
+def wehrli(smooth=True, unit=u.Unit("W/(m2 um)")):
     """Wehrli (1985) solar spectrum (at 1 AU).
 
     Parameters
@@ -119,22 +119,21 @@ def wehrli(smooth=True, unit=u.Unit('W/(m2 um)')):
     """
     if smooth:
         # smoothed version already in W/cm2/um
-        w, f = np.loadtxt(_wehrli.replace('.txt', '_smoothed0.005.txt')).T
+        w, f = np.loadtxt(_wehrli.replace(".txt", "_smoothed0.005.txt")).T
     else:
         w, f = np.loadtxt(_wehrli).T[:2]
         w *= 0.001  # nm -> micron
-        f *= 0.1    # W/m2/nm -> 1e-4 m2/cm2 * 1e3 nm/um = W/cm2/um
+        f *= 0.1  # W/m2/nm -> 1e-4 m2/cm2 * 1e3 nm/um = W/cm2/um
 
     w = w * u.um
     f = f * u.W / u.cm**2 / u.um
     if f.unit != unit:
-        equiv = u.spectral_density(w.unit, w.value)
-        f = f.to(unit, equivalencies=equiv)
+        f = f.to(unit, u.spectral_density(w))
 
     return w, f
 
 
-def solar_flux(wave, smooth=True, unit=u.Unit('W/(m2 um)')):
+def solar_flux(wave, smooth=True, unit=u.Unit("W/(m2 um)")):
     """Spectrum of the Sun.
 
     `e490` is linearly interpolated to `wave`.
@@ -252,81 +251,100 @@ def filter_trans(name):
 
     # file name, [wavelength column, transmission column], wavelength units
     filters = {
-        '2mass j': ('/2mass/jrsr.tbl', [1, 2], u.um, {}),
-        '2mass h': ('/2mass/hrsr.tbl', [1, 2], u.um, {}),
-        '2mass ks': ('/2mass/krsr.tbl', [1, 2], u.um, {}),
-        'mko j': ('/mko/nsfcam_jmk_trans.dat', [0, 1], u.um, {}),
-        'mko h': ('/mko/nsfcam_hmk_trans.dat', [0, 1], u.um, {}),
-        'mko ks': ('/mko/nsfcam_ksmk_trans.dat', [0, 1], u.um, {}),
-        'mko k': ('/mko/nsfcam_kmk_trans.dat', [0, 1], u.um, {}),
-        'mko kp': ('/mko/nsfcam_kpmk_trans.dat', [0, 1], u.um, {}),
-        'mko lp': ('/mko/nsfcam_lpmk_trans.dat', [0, 1], u.um, {}),
-        'mko mp': ('/mko/nsfcam_mpmk_trans.dat', [0, 1], u.um, {}),
-        'irac ch1': ('/spitzer/080924ch1trans_full.txt', [0, 1], u.um, {}),
-        'irac ch2': ('/spitzer/080924ch2trans_full.txt', [0, 1], u.um, {}),
-        'irac ch3': ('/spitzer/080924ch3trans_full.txt', [0, 1], u.um, {}),
-        'irac ch4': ('/spitzer/080924ch4trans_full.txt', [0, 1], u.um, {}),
-        'mips 24': ('/spitzer/mips24.txt', [0, 1], u.um, {}),
-        'mips 70': ('/spitzer/mips70.txt', [0, 1], u.um, {}),
-        'mips 160': ('/spitzer/mips160.txt', [0, 1], u.um, {}),
-        'ps1 open': ('/panstarrs/tonry12-transmission.txt', [0, 1], u.nm,
-                     {'skiprows': 26}),
-        'ps1 g': ('/panstarrs/tonry12-transmission.txt', [0, 2], u.nm,
-                  {'skiprows': 26}),
-        'ps1 r': ('/panstarrs/tonry12-transmission.txt', [0, 3], u.nm,
-                  {'skiprows': 26}),
-        'ps1 i': ('/panstarrs/tonry12-transmission.txt', [0, 4], u.nm,
-                  {'skiprows': 26}),
-        'ps1 z': ('/panstarrs/tonry12-transmission.txt', [0, 5], u.nm,
-                  {'skiprows': 26}),
-        'ps1 y': ('/panstarrs/tonry12-transmission.txt', [0, 6], u.nm,
-                  {'skiprows': 26}),
-        'ps1 w': ('/panstarrs/tonry12-transmission.txt', [0, 7], u.nm,
-                  {'skiprows': 26}),
-        'irs red': ('/spitzer/redPUtrans.txt', [0, 1], u.um, {}),
-        'irs blue': ('/spitzer/bluePUtrans.txt', [0, 1], u.um, {}),
-        'u': ('johnson/johnson_u_004_syn.fits',
-              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
-        'b': ('johnson/johnson_b_004_syn.fits',
-              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
-        'v': ('johnson/johnson_v_004_syn.fits',
-              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
-        'r': ('cousins/cousins_r_004_syn.fits',
-              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
-        'i': ('cousins/cousins_i_004_syn.fits',
-              ('WAVELENGTH', 'THROUGHPUT'), u.AA, {}),
-        'lsst u': ('lsst/total_u.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'lsst g': ('lsst/total_g.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'lsst r': ('lsst/total_r.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'lsst i': ('lsst/total_i.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'lsst z': ('lsst/total_z.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'lsst y': ('lsst/total_y.dat', [0, 1], u.nm, {'skiprows': 7}),
-        'for 5.4': ('/sofia/OCLI_NO5352-8_2.txt', [1, 2], u.um, {}),
-        'for 6.4': ('/sofia/OCLI_N06276-9_2.txt', [1, 2], u.um, {}),
-        'for 6.6': ('/sofia/N06611.txt', [1, 2], u.um, {}),
-        'for 7.7': ('/sofia/OCLI_N07688-9A_1.txt', [1, 2], u.um, {}),
-        'for 8.6': ('/sofia/OCLI_N08606-9_1.txt', [1, 2], u.um, {}),
-        'for 11.1': ('/sofia/OCLI_N11035-9A.txt', [1, 2], u.um, {}),
-        'for 11.3': ('/sofia/OCLI_N11282-9_1.txt', [1, 2], u.um, {}),
-        'for 20': ('/sofia/FOR-20um-542-090-091.txt', [1, 2], u.um, {}),
-        'for 24': ('/sofia/Lakeshore_24um_5000_18-28um_double.txt',
-                   [1, 2], u.um, {}),
-        'for 32': ('/sofia/FOR-30um-542-84-85.txt', [1, 2], u.um, {}),
-        'for 34': ('/sofia/Lakeshore_33um_4587_28-40um_double.txt',
-                   [1, 2], u.um, {}),
-        'for 35': ('/sofia/Lakeshore_34um_5007_28-40um_double.txt',
-                   [1, 2], u.um, {}),
-        'for 37': ('/sofia/Lakeshore_38um_5130_5144_double.txt',
-                   [1, 2], u.um, {}),
-        'wise w1': ('/wise/RSR-W1.txt', [0, 1], u.um, {}),
-        'wise w2': ('/wise/RSR-W2.txt', [0, 1], u.um, {}),
-        'wise w3': ('/wise/RSR-W3.txt', [0, 1], u.um, {}),
-        'wise w4': ('/wise/RSR-W4.txt', [0, 1], u.um, {}),
-        "sdss u'": ('/usno40/usno_u.res', [0, 3], u.AA, {'comments': '\\'}),
-        "sdss g'": ('/usno40/usno_g.res', [0, 3], u.AA, {'comments': '\\'}),
-        "sdss r'": ('/usno40/usno_r.res', [0, 3], u.AA, {'comments': '\\'}),
-        "sdss i'": ('/usno40/usno_i.res', [0, 3], u.AA, {'comments': '\\'}),
-        "sdss z'": ('/usno40/usno_z.res', [0, 3], u.AA, {'comments': '\\'}),
+        "2mass j": ("/2mass/jrsr.tbl", [1, 2], u.um, {}),
+        "2mass h": ("/2mass/hrsr.tbl", [1, 2], u.um, {}),
+        "2mass ks": ("/2mass/krsr.tbl", [1, 2], u.um, {}),
+        "mko j": ("/mko/nsfcam_jmk_trans.dat", [0, 1], u.um, {}),
+        "mko h": ("/mko/nsfcam_hmk_trans.dat", [0, 1], u.um, {}),
+        "mko ks": ("/mko/nsfcam_ksmk_trans.dat", [0, 1], u.um, {}),
+        "mko k": ("/mko/nsfcam_kmk_trans.dat", [0, 1], u.um, {}),
+        "mko kp": ("/mko/nsfcam_kpmk_trans.dat", [0, 1], u.um, {}),
+        "mko lp": ("/mko/nsfcam_lpmk_trans.dat", [0, 1], u.um, {}),
+        "mko mp": ("/mko/nsfcam_mpmk_trans.dat", [0, 1], u.um, {}),
+        "irac ch1": ("/spitzer/080924ch1trans_full.txt", [0, 1], u.um, {}),
+        "irac ch2": ("/spitzer/080924ch2trans_full.txt", [0, 1], u.um, {}),
+        "irac ch3": ("/spitzer/080924ch3trans_full.txt", [0, 1], u.um, {}),
+        "irac ch4": ("/spitzer/080924ch4trans_full.txt", [0, 1], u.um, {}),
+        "mips 24": ("/spitzer/mips24.txt", [0, 1], u.um, {}),
+        "mips 70": ("/spitzer/mips70.txt", [0, 1], u.um, {}),
+        "mips 160": ("/spitzer/mips160.txt", [0, 1], u.um, {}),
+        "ps1 open": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 1],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 g": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 2],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 r": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 3],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 i": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 4],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 z": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 5],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 y": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 6],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "ps1 w": (
+            "/panstarrs/tonry12-transmission.txt",
+            [0, 7],
+            u.nm,
+            {"skiprows": 26},
+        ),
+        "irs red": ("/spitzer/redPUtrans.txt", [0, 1], u.um, {}),
+        "irs blue": ("/spitzer/bluePUtrans.txt", [0, 1], u.um, {}),
+        "u": ("johnson/johnson_u_004_syn.fits", ("WAVELENGTH", "THROUGHPUT"), u.AA, {}),
+        "b": ("johnson/johnson_b_004_syn.fits", ("WAVELENGTH", "THROUGHPUT"), u.AA, {}),
+        "v": ("johnson/johnson_v_004_syn.fits", ("WAVELENGTH", "THROUGHPUT"), u.AA, {}),
+        "r": ("cousins/cousins_r_004_syn.fits", ("WAVELENGTH", "THROUGHPUT"), u.AA, {}),
+        "i": ("cousins/cousins_i_004_syn.fits", ("WAVELENGTH", "THROUGHPUT"), u.AA, {}),
+        "lsst u": ("lsst/total_u.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "lsst g": ("lsst/total_g.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "lsst r": ("lsst/total_r.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "lsst i": ("lsst/total_i.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "lsst z": ("lsst/total_z.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "lsst y": ("lsst/total_y.dat", [0, 1], u.nm, {"skiprows": 7}),
+        "for 5.4": ("/sofia/OCLI_NO5352-8_2.txt", [1, 2], u.um, {}),
+        "for 6.4": ("/sofia/OCLI_N06276-9_2.txt", [1, 2], u.um, {}),
+        "for 6.6": ("/sofia/N06611.txt", [1, 2], u.um, {}),
+        "for 7.7": ("/sofia/OCLI_N07688-9A_1.txt", [1, 2], u.um, {}),
+        "for 8.6": ("/sofia/OCLI_N08606-9_1.txt", [1, 2], u.um, {}),
+        "for 11.1": ("/sofia/OCLI_N11035-9A.txt", [1, 2], u.um, {}),
+        "for 11.3": ("/sofia/OCLI_N11282-9_1.txt", [1, 2], u.um, {}),
+        "for 20": ("/sofia/FOR-20um-542-090-091.txt", [1, 2], u.um, {}),
+        "for 24": ("/sofia/Lakeshore_24um_5000_18-28um_double.txt", [1, 2], u.um, {}),
+        "for 32": ("/sofia/FOR-30um-542-84-85.txt", [1, 2], u.um, {}),
+        "for 34": ("/sofia/Lakeshore_33um_4587_28-40um_double.txt", [1, 2], u.um, {}),
+        "for 35": ("/sofia/Lakeshore_34um_5007_28-40um_double.txt", [1, 2], u.um, {}),
+        "for 37": ("/sofia/Lakeshore_38um_5130_5144_double.txt", [1, 2], u.um, {}),
+        "wise w1": ("/wise/RSR-W1.txt", [0, 1], u.um, {}),
+        "wise w2": ("/wise/RSR-W2.txt", [0, 1], u.um, {}),
+        "wise w3": ("/wise/RSR-W3.txt", [0, 1], u.um, {}),
+        "wise w4": ("/wise/RSR-W4.txt", [0, 1], u.um, {}),
+        "sdss u'": ("/usno40/usno_u.res", [0, 3], u.AA, {"comments": "\\"}),
+        "sdss g'": ("/usno40/usno_g.res", [0, 3], u.AA, {"comments": "\\"}),
+        "sdss r'": ("/usno40/usno_r.res", [0, 3], u.AA, {"comments": "\\"}),
+        "sdss i'": ("/usno40/usno_i.res", [0, 3], u.AA, {"comments": "\\"}),
+        "sdss z'": ("/usno40/usno_z.res", [0, 3], u.AA, {"comments": "\\"}),
     }
 
     try:
@@ -334,8 +352,8 @@ def filter_trans(name):
     except KeyError:
         raise KeyError("filter {} cannot be found.".format(name.lower()))
 
-    fn = _filterdir + '/' + fil[0]
-    if fn.endswith('.fits'):
+    fn = _filterdir + "/" + fil[0]
+    if fn.endswith(".fits"):
         table = Table(fits.getdata(fn))
     else:
         table = np.loadtxt(fn, **fil[3]).T
@@ -344,12 +362,11 @@ def filter_trans(name):
     w = table[cols[0]] * fil[2]
     tr = table[cols[1]]
 
-    bp = synphot.SpectralElement(synphot.Empirical1D, points=w,
-                                 lookup_table=tr)
+    bp = synphot.SpectralElement(synphot.Empirical1D, points=w, lookup_table=tr)
     return bp
 
 
-def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
+def cohen_standard(star, unit=u.Unit("W/(m2 um)")):
     """Cohen spectral templates.
 
     Parameters
@@ -389,7 +406,7 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
 
     # many of the template files have a header
     tableheader = re.compile("Wavelength.*Irradiance.*Total")
-    with open(templatefile, 'r') as inf:
+    with open(templatefile, "r") as inf:
         lines = inf.readlines()
         for i, line in enumerate(lines):
             if len(tableheader.findall(line)) > 0:
@@ -401,16 +418,17 @@ def cohen_standard(star, unit=u.Unit('W/(m2 um)')):
     else:
         skiprows = i + 2
 
-    wave, fd, efd = np.loadtxt(templatefile, skiprows=skiprows, unpack=True,
-                               usecols=(0, 1, 2))
+    wave, fd, efd = np.loadtxt(
+        templatefile, skiprows=skiprows, unpack=True, usecols=(0, 1, 2)
+    )
 
     wave = wave * u.um
-    fd = (fd * u.Unit('W/(cm2 um)')).to(unit, u.spectral_density(wave))
+    fd = (fd * u.Unit("W/(cm2 um)")).to(unit, u.spectral_density(wave))
 
     return wave, fd
 
 
-def dw_atran(airmass, fw, ft, pw='2.5'):
+def dw_atran(airmass, fw, ft, pw="2.5"):
     """Use the Diane Wooden method to compute the transmission of the
     atmosphere in a filter.
 
@@ -435,32 +453,36 @@ def dw_atran(airmass, fw, ft, pw='2.5'):
     from glob import glob
     from .util import bandpass
 
-    f = glob('{0}/atmosphere/tr_1??00ft_{1}mm_7*.txt'.format(
-        _midirdir, pw))[0]
+    f = glob("{0}/atmosphere/tr_1??00ft_{1}mm_7*.txt".format(_midirdir, pw))[0]
     tw10, tb10, tc10 = np.loadtxt(f).T
-    if pw == '3.3':
-        f = glob('{0}/atmosphere/tr_1??00ft_3.4mm_15*.txt'.format(
-            _midirdir))[0]
+    if pw == "3.3":
+        f = glob("{0}/atmosphere/tr_1??00ft_3.4mm_15*.txt".format(_midirdir))[0]
 
     else:
-        f = glob('{0}/atmosphere/tr_1??00ft_{1}mm_15*.txt'.format(
-            _midirdir, pw))[0]
+        f = glob("{0}/atmosphere/tr_1??00ft_{1}mm_15*.txt".format(_midirdir, pw))[0]
     tw20, tb20, tc20 = np.loadtxt(f, usecols=(0, 2, 3)).T
 
     tw = np.r_[tw10, tw20]
-    tt = np.r_[np.exp(-tb10 * np.sqrt(airmass) - tc10 * airmass),
-               np.exp(-tb20 * np.sqrt(airmass) - tc20 * airmass)]
+    tt = np.r_[
+        np.exp(-tb10 * np.sqrt(airmass) - tc10 * airmass),
+        np.exp(-tb20 * np.sqrt(airmass) - tc20 * airmass),
+    ]
 
     return bandpass(tw, tt, fw=fw, ft=ft)[1]
 
 
 try:
-    with fits.open(os.path.join(config.get('calib', 'solar_spectra_path'), 'willmer18-sun_composite.fits')) as hdu:
+    with fits.open(
+        os.path.join(
+            config.get("calib", "solar_spectra_path"), "willmer18-sun_composite.fits"
+        )
+    ) as hdu:
         sun_w18 = Sun.from_array(
-            hdu[1].data['WAVE'] * u.AA,
-            hdu[1].data['FLUX'] * u.erg / u.cm**2 / u.s / u.AA,
-            description='Willmer (2018) composite solar spectrum',
-            bibcode='2018ApJS..236...47W')
+            hdu[1].data["WAVE"] * u.AA,
+            hdu[1].data["FLUX"] * u.erg / u.cm**2 / u.s / u.AA,
+            description="Willmer (2018) composite solar spectrum",
+            bibcode="2018ApJS..236...47W",
+        )
 except FileNotFoundError:
     pass
 
