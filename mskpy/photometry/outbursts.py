@@ -522,7 +522,7 @@ class CometaryTrends:
         d = 2.5 if fixed_angular_size else 5
         H = (
             m
-            - 5 * np.log10(self.eph["rh"].to_value("au")) * unit
+            - 5 * np.log10(np.abs(self.eph["rh"].to_value("au"))) * unit
             - d * np.log10(self.eph["delta"].to_value("au")) * unit
         )
         if Phi is not None:
@@ -604,7 +604,7 @@ class CometaryTrends:
 
         Hy = (
             self.H(**kwargs)
-            - 2.5 * (k - 2) * np.log10(self.eph["rh"].to_value("au")) * u.mag
+            - 2.5 * (k - 2) * np.log10(np.abs(self.eph["rh"].to_value("au"))) * u.mag
         )
 
         o = np.ma.zeros(len(Hy))
@@ -834,7 +834,7 @@ class CometaryTrends:
         afrho.mask += self.fit_mask
         log10afrho = np.log10(afrho)
         log10afrho_unc = self.m_unc.value / 1.0857 / np.log(10)
-        log10rh = np.log10(self.eph["rh"].to_value("au"))
+        log10rh = np.log10(np.abs(self.eph["rh"].to_value("au")))
         mask = afrho.mask
         r = linefit(log10rh[~mask], log10afrho[~mask], log10afrho_unc[~mask], guess)
 
@@ -867,71 +867,3 @@ class CometaryTrends:
         )
 
         return trend, mtrend, ~mask, fit
-
-    # def mrh(self, fixed_angular_size, filt=None, color_transform=True,
-    #         Phi=phase_HalleyMarcus):
-    #     """Fit magnitude as a function of rh.
-
-    #     ``eph`` requires rh, delta, phase.
-
-    #     m = M - k log10(rh) - d log10(Delta) + 2.5 log10(Phi(phase))
-
-    #     d = 2.5 for fixed_angular_size == True, 5 otherwise.
-
-    #     Parameters
-    #     ----------
-    #     fixed_angular_size: bool
-    #         Aperture is fixed in angular size.
-
-    #     filt: str, optional
-    #         Fit only this filter.
-
-    #     color_transformation: bool, optional
-    #         If fitting only one filter, set to ``True`` to allow
-    #         color transformations via ``self.color``.
-
-    #     Phi: function, optional
-    #         Use this phase function.
-
-    #     Returns
-    #     -------
-    #     trend: np.array
-
-    #     fit_mask: np.array
-    #         Data points used in the fit.
-
-    #     fit: mrhFit
-
-    #     """
-
-    #     m = self.coma(filt)
-    #     if filt is not None and not color_transform:
-    #         m[self.filt != filt] = np.nan
-
-    #     if fixed_angular_size:
-    #         d = 2.5
-    #     else:
-    #         d = 5
-
-    #     dm = (-d * np.log10(self.eph['delta'].to_value('au'))
-    #           + 2.5 * np.log10(Phi(self.eph['phase']))) * u.mag
-
-    #     i = ~self.fit_mask * np.isfinite(m)
-
-    #     r = linefit(self.eph['rh'][i].value, (m - dm)[i].value,
-    #                 self.m_unc[i].value, (0.05, 15))
-
-    #     trend = (r[0][1] + r[0][0] * self.eph['rh'].value) * m.unit + dm
-    #     residuals = m - trend
-
-    #     # restore nucleus?
-    #     if self.nucleus is not None:
-    #         trend = -np.log(np.exp(-trend.value) +
-    #                         np.exp(-self.nucleus.value)) * u.mag
-
-    #     fit = mrhFit(r[0][1] * m.unit, r[0][0] * m.unit / u.day,
-    #                  r[1][1] * m.unit, r[1][0] * m.unit / u.day,
-    #                  np.std(residuals[i]),
-    #                  np.sum((residuals[i] / self.m_unc[i])**2) / np.sum(i))
-
-    #     return trend, i, fit
