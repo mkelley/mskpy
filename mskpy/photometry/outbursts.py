@@ -18,7 +18,6 @@ import astropy.units as u
 from astropy.time import Time
 from astropy.stats import sigma_clip
 from sbpy.activity import Afrho, phase_HalleyMarcus
-from sbpy.data import Ephem
 from sbpy.calib import Sun
 from ..util import linefit
 
