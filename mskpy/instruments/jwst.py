@@ -11,7 +11,19 @@ from photutils.aperture import (
     CircularAperture,
     aperture_photometry,
 )
+from sbpy.calib import Sun
 from ..image.analysis import gcentroid, UnableToCenter
+from .. import __path__ as __mskpy_path__
+
+sun_nirspec_prism = Sun.from_file(
+    __mskpy_path__[0] + "/data/calspec-jwst-nirspec-prism.ecsv",
+    wave_unit="um",
+    flux_unit="W/(m2 um)",
+    description="CALSPEC model solar spectrum from a special Kurucz model "
+    "(Bohlin et al. 2014) convolved for JWST/NIRSpec Prism with a variable"
+    " resolving power.",
+)
+del Sun
 
 
 class Shape(enum.Enum):

@@ -32,7 +32,6 @@ import os
 import numpy as np
 import astropy.units as u
 from astropy.io import fits
-from astropy.units import Quantity
 from astropy.table import Table
 import synphot
 from sbpy.calib import Sun
