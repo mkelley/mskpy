@@ -1,11 +1,17 @@
-mskpy v3.1.0-dev
-================
+The personal Python library of Michael S. P. Kelley, mostly designed for astronomical studies, especially of comets and asteroids.
 
-MSK's personal Python library, mostly for astronomy work.
 
-Requires: python3 (3.5+ recommended), numpy, scipy, astropy v2.0+, pytz, spiceypy (v1.1+), FORTRAN compiler.
+.. image:: https://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
+  :target: https://astropy.org/
+  :alt: Powered by Astropy Badge
 
-Recommended:  matplotlib (v2), pyds9, photutils (for `gcentroid`).
+.. image:: https://img.shields.io/badge/powered_by-sbpy-orange.svg
+  :target: https://sbpy.org/
+  :alt: Powered by sbpy Badge
+
+.. image:: https://img.shields.io/badge/DOI-10.5281/zenodo.17516897-blue.svg
+  :target: https://doi.org/10.5281/zenodo.17516897
+  :alt: Digital object identifier
 
 
 Caution
@@ -309,14 +315,6 @@ Contributions
 =============
 
 Some code for migration to Python 3 provided by Miguel de Val-Borro.
-
-
-MSK's personal Python library, mostly for astronomy work.
----------------------------------------------------------
-
-.. image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
-    :target: http://www.astropy.org
-    :alt: Powered by Astropy Badge
 
 
 License
