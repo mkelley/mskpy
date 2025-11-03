@@ -1,7 +1,27 @@
-3.0.8-dev
+3.1.0
 -----
 
-In development.
+* New
+  - CALSPEC solar spectrum smoothed for JWST NIRSpec prism.
+  - Support for JWST SPICE kernels.
+  - Quick look spectral extraction for JWST data cubes.
+  - Interaction with DS9 via SAMP.
+  - Limited support for the Planetary Spectrum Generator files.
+  - Image `unwrap` / `wrap` restored / added.
+  - Temporal filter for images.
+  - `hemispherical_crater` and `spherical_sector`
+  - DECam image download script.
+  - DCT/LMI figure of merit for comets.
+  - Outburst statistic in `CometaryTrends`
+  - Add SDSS primed filters.
+* Edited `niceplot` defaults.
+* Many bugfixes.
+
+
+3.0.8 - 3.0.11
+--------------
+
+See git commit history.
 
 
 3.0.7
