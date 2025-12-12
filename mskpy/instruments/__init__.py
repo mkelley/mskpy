@@ -18,17 +18,20 @@ Instruments can be used observe a `SolarSysObject`.
 from . import instrument
 from . import hst
 from . import irtf
+from . import rubin
 from . import spitzer
 from . import vis
 
 from .instrument import *
 from .hst import *
 from .irtf import *
+from .rubin import *
 from .spitzer import *
 from .vis import *
 from .jwst import *
 
 # update module docstring
 from ..util import autodoc
+
 autodoc(globals())
 del autodoc
