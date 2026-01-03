@@ -1,5 +1,5 @@
 """
-Rubin observatory.
+Sloan Digital Sky Survey.
 """
 
 from enum import Enum
@@ -12,7 +12,6 @@ class Bands(Enum):
     r = 2
     i = 3
     z = 4
-    y = 5
 
     def __str__(self):
         return str(self.name)
@@ -28,5 +27,6 @@ class Bands(Enum):
 
     @property
     def wave(self):
-        wavelengths = [372.4, 480.7, 622.1, 755.9, 868.0, 975.3] * u.nm
+        # lambda_mean from Willmer 2018
+        wavelengths = [0.3562, 0.4719, 0.6185, 0.7500, 0.8961] * u.um
         return wavelengths[self.value]
