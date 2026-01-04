@@ -1,4 +1,4 @@
-Copyright (c) 2020, Michael S. P. Kelley
+Copyright (c) 2013-2025, Michael S. P. Kelley
 
 All rights reserved.
 
