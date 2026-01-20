@@ -196,7 +196,6 @@ def find_files(input_dir, instrument, programid, obs_ids, mode, product, logger=
 
     logger = logging.getLogger() if logger is None else logger
 
-    instrument = Instrument(instrument)
     match instrument:
         case Instrument.NIRCAM:
             sfx = "b{1,2,3,4,long}"
