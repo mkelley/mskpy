@@ -1,5 +1,7 @@
+from glob import glob
 import warnings
 import enum
+import logger
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -29,6 +31,14 @@ del Sun
 class Shape(enum.Enum):
     CIRCLE = "circle"
     SQUARE = "square"
+
+
+class Instrument(enum.StrEnum):
+    NIRCAM = "NIRCam"
+    NIRSPEC = "NIRSpec"
+    MIRI = "MIRI"
+    NIRISS = "NIRISS"
+    FGS = "FGS"
 
 
 class JWSTSpectrum:
@@ -179,3 +189,32 @@ class JWSTSpectrum:
             ax = plt.gca()
         ds = kwargs.get("drawstyle", kwargs.get("ds", "steps-mid"))
         ax.errorbar(self.wave, self.spec, self.unc, ds=ds, **kwargs)
+
+
+def find_files(input_dir, instrument, programid, obs_ids, mode, product):
+    """Find JWST data files."""
+
+    instrument = Instrument(instrument)
+    match instrument:
+        case Instrument.NIRCAM:
+            sfx = "b{1,2,3,4,long}"
+        case Instrument.NIRSPEC:
+            sfx = "nrs{1,2}"
+        case _:
+            raise ValueError("Only NIRCam and NIRSpec are currently supported")
+
+    files = []
+    for id in obs_ids:
+        pfx = f"jw{programid:05d}{id:03d}001_{mode}_?????_{sfx}"
+        for fn in glob(f"{input_dir}/{pfx}/{pfx}_{product}.fits"):
+            logger.debug(fn)
+
+            if instrument == Instrument.NIRSPEC:
+                # NRS2 only for high res modes
+                if "nrs2" in fn and not fits.getheader(fn)["GRATING"].endswith("H"):
+                    logger.info("Skipping NRS2 file %s", fn)
+                    continue
+
+            logger.info("Found %s", fn)
+            files.append(fn)
+    return files
