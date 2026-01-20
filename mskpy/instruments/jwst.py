@@ -1,7 +1,7 @@
 from glob import glob
 import warnings
 import enum
-import logger
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -191,8 +191,10 @@ class JWSTSpectrum:
         ax.errorbar(self.wave, self.spec, self.unc, ds=ds, **kwargs)
 
 
-def find_files(input_dir, instrument, programid, obs_ids, mode, product):
+def find_files(input_dir, instrument, programid, obs_ids, mode, product, logger=None):
     """Find JWST data files."""
+
+    logger = logging.getLogger() if logger is None else logger
 
     instrument = Instrument(instrument)
     match instrument:
