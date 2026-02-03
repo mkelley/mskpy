@@ -28,6 +28,18 @@ sun_nirspec_prism = Sun.from_file(
 del Sun
 
 
+def get_logger():
+    logger = logging.getLogger()
+    if len(logger.handlers) == 0:
+        console = logging.StreamHandler()
+        logger.addHandler(console)
+        file = logging.FileHandler("jwst-pipeline.log")
+        logger.addHandler(file)
+        logger.setLevel(logging.DEBUG)
+
+    return logger
+
+
 class Shape(enum.Enum):
     CIRCLE = "circle"
     SQUARE = "square"
@@ -191,25 +203,24 @@ class JWSTSpectrum:
         ax.errorbar(self.wave, self.spec, self.unc, ds=ds, **kwargs)
 
 
-def find_files(input_dir, instrument, programid, obs_ids, mode, product, logger=None):
+def find_files(input_dir, instrument, programid, obs_ids, mode, product):
     """Find JWST data files."""
 
-    logger = logging.getLogger() if logger is None else logger
+    logger = get_logger()
 
     match instrument:
         case Instrument.NIRCAM:
-            sfx = "b{1,2,3,4,long}"
+            sfx = "nrcb*"
         case Instrument.NIRSPEC:
-            sfx = "nrs{1,2}"
+            sfx = "nrs?"
         case _:
             raise ValueError("Only NIRCam and NIRSpec are currently supported")
 
     files = []
     for id in obs_ids:
         pfx = f"jw{programid:05d}{id:03d}001_{mode}_?????_{sfx}"
+        logger.debug("testing file prefix %s", pfx)
         for fn in glob(f"{input_dir}/{pfx}/{pfx}_{product}.fits"):
-            logger.debug(fn)
-
             if instrument == Instrument.NIRSPEC:
                 # NRS2 only for high res modes
                 if "nrs2" in fn and not fits.getheader(fn)["GRATING"].endswith("H"):
@@ -218,4 +229,5 @@ def find_files(input_dir, instrument, programid, obs_ids, mode, product, logger=
 
             logger.info("Found %s", fn)
             files.append(fn)
+
     return files
