@@ -871,7 +871,9 @@ def wrap(im, yx, shape, zoom=1):
 
     # r, th = cart2polar(x, y, yx[::-1])
     r = core.rarray(shape, yx, subsample=10) * zoom
-    th = (core.tarray(shape, yx) / (2 * np.pi) + 0.5) * im.shape[1]
+    t = core.tarray(shape, yx) / (2 * np.pi)
+    t[t < 0] += 1.0
+    th = t * im.shape[1]
     rect_img = nd.map_coordinates(im, [r, th], order=3, mode="nearest")
 
     return rect_img
