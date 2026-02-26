@@ -837,8 +837,8 @@ def unwrap(im, yx, radius, theta_steps=360, zoom=1):
     return polar_img
 
 
-def wrap(im, yx, shape, zoom=1):
-    """Convert an r-th (polar) image to x-y (rectangular).
+def wrap(im, yx, shape, zoom=1, smooth=True):
+    """Convert an r-theta (polar) image to x-y (rectangular).
 
 
     Parameters
@@ -846,7 +846,6 @@ def wrap(im, yx, shape, zoom=1):
     im : ndarray
         The image to process. Axis 0 is the radial axis, axis 1 is the azimuthal
         axis.  It is assumed that the azimuthal axis spans from 0 to 360 deg.
-        The extent of the radial axis is controlled by ``zoom``.
 
     yx : list of float
         The center of the transformation.
@@ -857,24 +856,42 @@ def wrap(im, yx, shape, zoom=1):
     zoom : int, optional
         Radial subsampling factor.
 
+    smooth : bool, optional
+        Smooth azimuths with a kernel width inversely proportional to the
+        circumference.  This helps with azimuthal mixing near r=0.
+
+
+    Returns
+    -------
+    rect_img : ndarray
+        The rectangular image.
+
     """
 
-    # def cart2polar(x, y, center):
-    #     r = np.hypot(x - center[0], y - center[1])
-    #     th = np.arctan2(y - center[1], x - center[0])
-    #     return r, th
-
-    # x, y = np.meshgrid(
-    #     np.arange(-yx[1], shape[1] - yx[1]),  # x
-    #     np.arange(-yx[0], shape[0] - yx[0]),  # y
-    # )
-
-    # r, th = cart2polar(x, y, yx[::-1])
     r = core.rarray(shape, yx, subsample=10) * zoom
     t = core.tarray(shape, yx) / (2 * np.pi)
     t[t < 0] += 1.0
     th = t * im.shape[1]
-    rect_img = nd.map_coordinates(im, [r, th], order=3, mode="nearest")
+
+    if smooth:
+        _im = np.zeros_like(im)
+        for y in range(im.shape[0]):
+            if y == 0:
+                size = 0
+            else:
+                size = im.shape[1] / (2 * np.pi * y) / 2
+
+            if size < 1:
+                _im[y] = im[y]
+
+            _im[y] = nd.uniform_filter(im[y], size, mode="wrap")
+    else:
+        _im = im
+
+    # mode="nearest" is needed as the theta array will probably not cover all
+    # the way down to 0 or up to 360 deg.
+    rect_img = nd.map_coordinates(_im, [r, th], order=3, mode="nearest")
+    rect_img[r > im.shape[0]] = 0
 
     return rect_img
 
