@@ -26,8 +26,10 @@ surfaces --- Models for surfaces
 """
 
 import numpy as np
+from numpy import pi
 import astropy.units as u
 from astropy.units import Quantity
+from sbpy.calib import Sun
 
 __all__ = [
     "SurfaceRadiation",
@@ -382,8 +384,6 @@ class HG(SurfaceRadiation):
 
         """
 
-        from ..calib import solar_flux
-
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
@@ -396,9 +396,11 @@ class HG(SurfaceRadiation):
             - 2.5 * np.log10(phaseHG(np.abs(phase.to(u.deg).value), self.G))
         )
 
+        sun = Sun.from_default()
+
         wave_v = np.linspace(0.5, 0.6) * u.um
-        fsun_v = solar_flux(wave_v, unit=unit).value.mean()
-        fsun = solar_flux(wave, unit=unit)
+        fsun_v = sun.observe(wave_v, unit=unit).value.mean()
+        fsun = sun(wave, unit=unit)
 
         fluxd = self.mzp * 10 ** (-0.4 * mv) * fsun / fsun_v
 
@@ -490,15 +492,14 @@ class DAp(SurfaceRadiation):
 
         """
 
-        from numpy import pi
-        from ..calib import solar_flux
-
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
         delta = geom["delta"]
         phase = geom["phase"]
-        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        sun = Sun.from_default()
+        fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         # fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
         fsca = (
@@ -574,15 +575,14 @@ class DApColor(DAp):
         DAp.__init__(self, D, Ap, **kwargs)
 
     def fluxd(self, geom, wave, unit=u.Unit("W / (m2 um)")):
-        from numpy import pi
-        from ..calib import solar_flux
-
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
         delta = geom["delta"]
         phase = geom["phase"]
-        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        sun = Sun.from_default()
+        fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.0
         if np.any(refl > self.refl_max):
