@@ -213,8 +213,10 @@ def find_files(input_dir, instrument, programid, obs_ids, mode, product):
             sfx = "nrcb*"
         case Instrument.NIRSPEC:
             sfx = "nrs?"
+        case Instrument.MIRI:
+            sfx = "miri*"
         case _:
-            raise ValueError("Only NIRCam and NIRSpec are currently supported")
+            raise ValueError("Only NIRCam, NIRSpec, and MIRI are currently supported")
 
     files = []
     for id in obs_ids:
