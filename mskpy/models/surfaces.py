@@ -82,7 +82,7 @@ class NEATM(SurfaceRadiation):
     Parameters
     ----------
     D : Quantity
-      The diameter of the asteroid.
+7      The diameter of the asteroid.
     Ap : float
       The geometric albedo.
     eta : float, optional
@@ -498,7 +498,10 @@ class DAp(SurfaceRadiation):
         delta = geom["delta"]
         phase = geom["phase"]
         sun = Sun.from_default()
-        fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        if wave.size == 1:
+            fsun = sun(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        else:
+            fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
         # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         # fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
@@ -582,7 +585,10 @@ class DApColor(DAp):
         phase = geom["phase"]
         # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
         sun = Sun.from_default()
-        fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        if wave.size == 1:
+            fsun = sun(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        else:
+            fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.0
         if np.any(refl > self.refl_max):
