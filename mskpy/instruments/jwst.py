@@ -1,7 +1,9 @@
-from glob import glob
-import warnings
+import os
+import re
 import enum
 import logging
+import warnings
+from glob import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -168,7 +170,7 @@ class JWSTSpectrum:
 
             if centroid_by_wavelength:
                 hw = centroid_window // 2
-                s = np.s_[max(0, i - hw) : min(N, i + hw + 1)]
+                s = np.s_[max(0, i - hw) : min(N, i + hw + 1)]  # noqa E209
 
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", RuntimeWarning)
@@ -233,3 +235,37 @@ def find_files(input_dir, instrument, programid, obs_ids, mode, product):
             files.append(fn)
 
     return files
+
+
+def get_config(fn: str, configs: dict[str | re.Pattern, str]) -> str:
+    """Match a file name to a configuration file.
+
+
+    Parameters
+    ----------
+    fn : string
+        File name to consider.  The path will be stripped.
+
+    config : dict
+        Keys are regular expression patterns to match against ``fn``, or
+        ``None`` if no pattern matches.  Values are the configuration files to
+        use.
+
+
+    Returns
+    -------
+    config_fn : str
+        The configuration file to use.
+
+    """
+
+    _fn = os.path.basename(fn)
+
+    for pat, config_fn in configs.items():
+        if pat is None:
+            continue
+
+        if re.match(pat, _fn):
+            return config_fn
+
+    return configs[None]
