@@ -26,10 +26,8 @@ surfaces --- Models for surfaces
 """
 
 import numpy as np
-from numpy import pi
 import astropy.units as u
 from astropy.units import Quantity
-from sbpy.calib import Sun
 
 __all__ = [
     "SurfaceRadiation",
@@ -71,43 +69,43 @@ class SurfaceRadiation(object):
 class NEATM(SurfaceRadiation):
     """The Near Earth Asteroid Thermal Model.
 
-    If you use this model, please reference Harris (1998, Icarus, 131,
-    291-301).
+        If you use this model, please reference Harris (1998, Icarus, 131,
+        291-301).
 
-    If unknown, use `eta=1.03` `epsilon=0.95` for a comet (Fernandez
-    et al., 2013, Icarus 226, 1138-1170), and `eta=0.96` `epsilon=0.9`
-    (or `eta=0.91` with `epsilon=0.95`) for an asteroid (Mainzer et
-    al. 2011, ApJ 736, 100).
+        If unknown, use `eta=1.03` `epsilon=0.95` for a comet (Fernandez
+        et al., 2013, Icarus 226, 1138-1170), and `eta=0.96` `epsilon=0.9`
+        (or `eta=0.91` with `epsilon=0.95`) for an asteroid (Mainzer et
+        al. 2011, ApJ 736, 100).
 
-    Parameters
-    ----------
-    D : Quantity
-7      The diameter of the asteroid.
-    Ap : float
-      The geometric albedo.
-    eta : float, optional
-      The IR-beaming parameter.
-    epsilon : float, optional
-      The mean IR emissivity.
-    G : float, optional
-      The slope parameter of the Bowell H, G magnitude system, used to
-      estimate the phase integral when `phaseint` is `None`.
-    phaseint : float, optional
-      Use this phase integral instead of that from the HG system.
-    tol : float, optional
-      The relative error tolerance in the result.
+        Parameters
+        ----------
+        D : Quantity
+    7      The diameter of the asteroid.
+        Ap : float
+          The geometric albedo.
+        eta : float, optional
+          The IR-beaming parameter.
+        epsilon : float, optional
+          The mean IR emissivity.
+        G : float, optional
+          The slope parameter of the Bowell H, G magnitude system, used to
+          estimate the phase integral when `phaseint` is `None`.
+        phaseint : float, optional
+          Use this phase integral instead of that from the HG system.
+        tol : float, optional
+          The relative error tolerance in the result.
 
-    Attributes
-    ----------
-    A : float
-      Bond albedo.
-    R : Quantity
-      Radius.
+        Attributes
+        ----------
+        A : float
+          Bond albedo.
+        R : Quantity
+          Radius.
 
-    Methods
-    -------
-    T0 : Sub-solar point temperature.
-    fluxd : Total flux density from the asteroid.
+        Methods
+        -------
+        T0 : Sub-solar point temperature.
+        fluxd : Total flux density from the asteroid.
 
     """
 
@@ -384,6 +382,8 @@ class HG(SurfaceRadiation):
 
         """
 
+        from ..calib import solar_flux
+
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
@@ -396,11 +396,9 @@ class HG(SurfaceRadiation):
             - 2.5 * np.log10(phaseHG(np.abs(phase.to(u.deg).value), self.G))
         )
 
-        sun = Sun.from_default()
-
         wave_v = np.linspace(0.5, 0.6) * u.um
-        fsun_v = sun.observe(wave_v, unit=unit).value.mean()
-        fsun = sun(wave, unit=unit)
+        fsun_v = solar_flux(wave_v, unit=unit).value.mean()
+        fsun = solar_flux(wave, unit=unit)
 
         fluxd = self.mzp * 10 ** (-0.4 * mv) * fsun / fsun_v
 
@@ -492,17 +490,15 @@ class DAp(SurfaceRadiation):
 
         """
 
+        from numpy import pi
+        from ..calib import solar_flux
+
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
         delta = geom["delta"]
         phase = geom["phase"]
-        sun = Sun.from_default()
-        if wave.size == 1:
-            fsun = sun(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
-        else:
-            fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
-        # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         # fsca = fsun * Ap * phasef(phase) * pi * R**2 / pi / delta**2
         fsca = (
@@ -578,17 +574,15 @@ class DApColor(DAp):
         DAp.__init__(self, D, Ap, **kwargs)
 
     def fluxd(self, geom, wave, unit=u.Unit("W / (m2 um)")):
+        from numpy import pi
+        from ..calib import solar_flux
+
         if not np.iterable(wave):
             wave = np.array([wave.value]) * wave.unit
 
         delta = geom["delta"]
         phase = geom["phase"]
-        # fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
-        sun = Sun.from_default()
-        if wave.size == 1:
-            fsun = sun(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
-        else:
-            fsun = sun.observe(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
+        fsun = solar_flux(wave, unit=unit) / geom["rh"].to(u.au).value ** 2
 
         refl = 1 + (wave - 0.55 * u.um).value * self.S / 10.0
         if np.any(refl > self.refl_max):
