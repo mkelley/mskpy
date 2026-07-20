@@ -173,6 +173,13 @@ The same file can be directly read with `astropy`:
   >>> eph = Table.read('horizons_results.txt', format='horizons.csv')
 
 
+Analysis scripts
+----------------
+
+The `analysis/` folder contains scripts used for publications,
+including nucleus extraction code for interstellar comet 3I/ATLAS.
+  
+
 Flux estimates
 --------------
 
