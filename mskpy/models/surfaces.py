@@ -25,9 +25,9 @@ surfaces --- Models for surfaces
 
 """
 
-import numpy as np
 import astropy.units as u
-from astropy.units import Quantity
+import numpy as np
+from numpy import pi
 
 __all__ = [
     "SurfaceRadiation",
@@ -69,43 +69,50 @@ class SurfaceRadiation(object):
 class NEATM(SurfaceRadiation):
     """The Near Earth Asteroid Thermal Model.
 
-        If you use this model, please reference Harris (1998, Icarus, 131,
-        291-301).
+    If you use this model, please reference Harris (1998, Icarus, 131, 291-301).
 
-        If unknown, use `eta=1.03` `epsilon=0.95` for a comet (Fernandez
-        et al., 2013, Icarus 226, 1138-1170), and `eta=0.96` `epsilon=0.9`
-        (or `eta=0.91` with `epsilon=0.95`) for an asteroid (Mainzer et
-        al. 2011, ApJ 736, 100).
+    If unknown, use `eta=1.03` `epsilon=0.95` for a comet (Fernandez et al.,
+    2013, Icarus 226, 1138-1170), and `eta=0.96` `epsilon=0.9` (or `eta=0.91`
+    with `epsilon=0.95`) for an asteroid (Mainzer et al. 2011, ApJ 736, 100).
 
-        Parameters
-        ----------
-        D : Quantity
-    7      The diameter of the asteroid.
-        Ap : float
-          The geometric albedo.
-        eta : float, optional
-          The IR-beaming parameter.
-        epsilon : float, optional
-          The mean IR emissivity.
-        G : float, optional
-          The slope parameter of the Bowell H, G magnitude system, used to
-          estimate the phase integral when `phaseint` is `None`.
-        phaseint : float, optional
-          Use this phase integral instead of that from the HG system.
-        tol : float, optional
-          The relative error tolerance in the result.
 
-        Attributes
-        ----------
-        A : float
-          Bond albedo.
-        R : Quantity
-          Radius.
+    Parameters
+    ----------
+    D : Quantity
+        The diameter of the asteroid.
 
-        Methods
-        -------
-        T0 : Sub-solar point temperature.
-        fluxd : Total flux density from the asteroid.
+    Ap : float
+        The geometric albedo.
+
+    eta : float, optional
+        The IR-beaming parameter.
+
+    epsilon : float, optional
+        The mean IR emissivity.
+
+    G : float, optional
+        The slope parameter of the Bowell H, G magnitude system, used to
+        estimate the phase integral when `phaseint` is `None`.
+
+    phaseint : float, optional
+        Use this phase integral instead of that from the HG system.
+
+    tol : float, optional
+        The relative error tolerance in the result.
+
+
+    Attributes
+    ----------
+    A : float
+      Bond albedo.
+    R : Quantity
+      Radius.
+
+
+    Methods
+    -------
+    T0 : Sub-solar point temperature. fluxd : Total flux density from the
+    asteroid.
 
     """
 
@@ -313,23 +320,18 @@ class NEATM(SurfaceRadiation):
         from scipy.integrate import quad
         from numpy import pi
 
-        if not np.iterable(theta):
-            theta = np.array([theta])
+        integral = quad(
+            self._point_emission,
+            0.0,
+            pi / 2.0,
+            args=(theta, wave, T0),
+            epsrel=self.tol / 10.0,
+        )
+        fluxd = integral[0] * np.cos(theta - phase)
 
-        fluxd = np.zeros_like(theta)
-        for i in range(len(theta)):
-            integral = quad(
-                self._point_emission,
-                0.0,
-                pi / 2.0,
-                args=(theta[i], wave, T0),
-                epsrel=self.tol / 10.0,
-            )
-            fluxd[i] = integral[0] * np.cos(theta[i] - phase)
+        if np.isnan(fluxd):
+            fluxd = 0
 
-        i = np.isnan(fluxd)
-        if any(i):
-            fluxd[i] = 0.0
         return fluxd
 
 
