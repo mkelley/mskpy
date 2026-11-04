@@ -445,6 +445,7 @@ class CometaryTrends:
             wr_unc = sw**-0.5
 
             if np.hypot(wb_unc, wr_unc) > max_unc.value:
+                clusters[i] = 0
                 continue
 
             mjd.append(self.eph["date"].mjd[i].mean())
