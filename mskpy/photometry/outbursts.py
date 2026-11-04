@@ -421,8 +421,11 @@ class CometaryTrends:
         m_mean_unc = []
         bmr = []
         bmr_unc = []
-        for cluster in np.unique(clusters):
-            i = (clusters == cluster) * ~self.fit_mask
+
+        cluster_labels = np.unique(clusters)
+        clusters[self.fit_mask] = 0  # do not use masked data
+        for cluster in cluster_labels:
+            i = (clusters == cluster)
 
             # require both filters in this cluster
             if (not np.any(b[i])) or (not np.any(r[i])):
