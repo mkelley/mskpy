@@ -16,11 +16,12 @@
 
 2021-03-06: Dither context images to mitigate LMI's bad column.
 
+2026-09-19: New --context-filter option.  Requires Python 3.
+
 - Michael S. P. Kelley, UMD
 
 """
 
-from __future__ import print_function
 import sys
 import argparse
 
@@ -76,7 +77,7 @@ def exposures(n, group, pattern, scale, offset, filters, itimes, subframe):
 
 
 def dither(n, scale, offset, pattern, filters, itimes, group,
-           context_itime, context, subframe):
+           context_filter, context_itime, context, subframe):
     from itertools import product
 
     line = ['{itime:6.1f}']
@@ -90,7 +91,7 @@ def dither(n, scale, offset, pattern, filters, itimes, group,
     line = '  '.join(line)
 
     if context:
-        yield line.format(itime=context_itime, filter='SL-r', subframe=subframe,
+        yield line.format(itime=context_itime, filter=context_filter, subframe=subframe,
                           x=offset[0], y=offset[1] + 2, comment="Context")
 
     for exposure in exposures(n, group, pattern, scale, offset, filters,
@@ -98,7 +99,7 @@ def dither(n, scale, offset, pattern, filters, itimes, group,
         yield line.format(**exposure)
 
     if context:
-        yield line.format(itime=context_itime, filter='SL-r', subframe=subframe,
+        yield line.format(itime=context_itime, filter=context_filter, subframe=subframe,
                           x=offset[0] - 2, y=offset[1], comment="Context")
 
 
@@ -131,6 +132,8 @@ parser.add_argument('--set', choices=sorted(sets.keys()),
                     help='Use a predefined filter/itime sequence.')
 parser.add_argument('--no-context', action='store_false', dest='context',
                     help='Do not bracket with a context images.')
+parser.add_argument('--context-filter', default='SL-r',
+                    help='Filter to use for context images.')
 parser.add_argument('--context-itime', type=float, default=30.0,
                     help='Integration time to use for context images.  [s]')
 
@@ -202,7 +205,8 @@ it = 0
 wt = 0
 nf = 0
 for line in dither(n, args.scale, args.offset, pattern, filters, itimes,
-                   group, args.context_itime, args.context, args.subframe):
+                   group, args.context_filter, args.context_itime, args.context,
+                   args.subframe):
     print(title + line)
     nf += 1
     it += float(line.split()[0])
